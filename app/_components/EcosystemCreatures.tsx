@@ -175,19 +175,10 @@ function EnergyCreature({
   );
 }
 
-function FallbackBox() {
-  return (
-    <mesh rotation={[0.4, 0.6, 0]}>
-      <boxGeometry args={[2, 2, 2]} />
-      <meshStandardMaterial color="#8b6f47" roughness={0.6} />
-    </mesh>
-  );
-}
-
 /**
- * Loads creatures from localStorage and renders them in 3D space, arranged on
- * a circle around the origin so the camera can orbit and see all of them.
- * Falls back to a placeholder cube while empty so the viewport isn't blank.
+ * Loads creatures from localStorage and renders them in 3D space. Each
+ * creature wanders/jumps around inside a bounded XZ region. Renders nothing
+ * when the ecosystem is empty (no placeholder).
  */
 export default function EcosystemCreatures({
   onSelect,
@@ -221,7 +212,8 @@ export default function EcosystemCreatures({
     : creatures;
 
   if (visible.length === 0) {
-    return <FallbackBox />;
+    // Empty ecosystem — render nothing in the 3D scene.
+    return null;
   }
 
   return (
