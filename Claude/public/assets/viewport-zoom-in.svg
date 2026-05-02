@@ -1,0 +1,12 @@
+<svg preserveAspectRatio="none" width="100%" height="100%" overflow="visible" style="display: block;" viewBox="0 0 34.4 29.86" fill="none" xmlns="http://www.w3.org/2000/svg">
+<g id="zoom in" clip-path="url(#clip0_2084_94)">
+<path id="Vector" d="M0.5 0.72997C0.5 6.69997 1.09 12.58 1.09 18.56V23.89C1.09 25.2 0.74 27.14 1.36 28.32C2.23 29.97 5.11 29.18 6.72 29.18H13.19C15.26 29.18 17.47 29.4 19.51 29.13C21.55 28.86 23.13 28.59 25.16 28.59C26.81 28.59 28.49 28.7 30.14 28.6C31.09 28.54 33.37 28.21 33.72 27.44C34.18 26.44 33.57 23.92 33.38 22.9C32.92 20.41 32.72 18.05 32.52 15.54C32.24 11.82 31.31 8.28997 31.3 4.57997C31.3 3.52997 31.66 1.92997 30.88 1.14997C29.73 0.00997049 26.48 0.72997 25 0.72997H0.5Z" fill="var(--fill-0, #DFD9C9)" stroke="var(--stroke-0, black)" stroke-miterlimit="10"/>
+<path id="Vector_2" d="M19.37 26.5C19.1 24.28 17.91 22.52 17.63 20.28C17.41 18.49 17.88 16.74 17.55 14.95C17.14 12.68 16.24 11.11 16.02 8.73002C15.82 6.55002 16.4 5.06002 14.36 3.40002" stroke="var(--stroke-0, black)" stroke-miterlimit="10"/>
+<path id="Vector_3" d="M6 15.83C9.81 15.79 13.27 15.87 17.06 15.01C20.32 14.27 24.35 11.78 27.71 12.28" stroke="var(--stroke-0, black)" stroke-miterlimit="10"/>
+</g>
+<defs>
+<clipPath id="clip0_2084_94">
+<rect width="34.4" height="29.86" fill="white"/>
+</clipPath>
+</defs>
+</svg>

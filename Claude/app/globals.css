@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "Casual Human";
+  src: url("/fonts/CasualHuman.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Casual Human";
+  src: url("/fonts/CasualHuman-Bold.otf") format("opentype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Orange";
+  src: url("/fonts/Orange.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-casual: "Casual Human", cursive;
+  --font-fancy: "Orange", cursive;
+}
+
+html, body {
+  background: #dfd9c9;
+  margin: 0;
+  padding: 0;
+}
+
+/* Hide all scrollbars site-wide while keeping scroll functionality. */
+* {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE / legacy Edge */
+}
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}
