@@ -432,7 +432,10 @@ function CreatePageInner() {
                       className="block h-[28px] w-[28px] flex-none rounded-full object-cover"
                     />
                     <span className="flex-1">{displayName}</span>
-                    {score > 0.5 && (
+                    {/* Only show the keyword-match count when the emotion was
+                        matched 2+ times — a "×1" badge for single matches is
+                        noise. */}
+                    {score >= 2 && (
                       <span className="text-[14px] text-black/60">×{Math.round(score)}</span>
                     )}
                   </li>
