@@ -126,17 +126,26 @@ export default function MainViewport({
   query,
   focusTarget,
   resetTrigger,
+  fullscreen = false,
 }: {
   onCreatureSelect?: (c: CreatureSpec, position: [number, number, number]) => void;
   selectedCreatureId?: string | null;
   query?: string;
   focusTarget?: FocusTarget | null;
   resetTrigger?: ResetTrigger | null;
+  /** When true, expand to fill the whole 1440×900 page (Figma 2114:265). */
+  fullscreen?: boolean;
 } = {}) {
   const apiRef = useRef<CameraApi | null>(null);
 
+  // Outer wrapper dimensions follow either the regular main-box or the
+  // expanded fullscreen frame from Figma.
+  const wrapperStyle = fullscreen
+    ? { left: 6, top: 7, width: 1428.32, height: 885.35 }
+    : { left: 27, top: 85, width: 974.69, height: 789.67 };
+
   return (
-    <div className="absolute left-[27px] top-[85px] h-[789.67px] w-[974.69px]">
+    <div className="absolute" style={wrapperStyle}>
       {/* 3D viewport — fills the box, behind decorative outline and gizmo/tools */}
       <div className="absolute inset-[12px]">
         <Canvas
@@ -168,32 +177,37 @@ export default function MainViewport({
         </Canvas>
       </div>
 
-      {/* Hand-drawn outline — decorative only */}
+      {/* Hand-drawn outline — decorative only. Different SVG for fullscreen
+          since the hand-drawn waves are sized for the larger frame. */}
       <img
         alt=""
-        src="/assets/main-box.svg"
+        src={fullscreen ? "/assets/fullscreen-box.svg" : "/assets/main-box.svg"}
         className="pointer-events-none absolute inset-0 block size-full"
       />
 
-      {/* Tools — only zoom in/out remain. The camera angle is locked to the
-          slightly-tilted bird's-eye view, so axis-snap (gizmo) and pan are
-          gone. */}
-      <button
-        type="button"
-        onClick={() => apiRef.current?.zoomIn()}
-        title="Zoom in"
-        className="absolute left-[929px] top-[713px] h-[29.86px] w-[34.4px] cursor-pointer bg-transparent p-0 opacity-80 hover:opacity-100"
-      >
-        <img alt="zoom in" src="/assets/zoom-in.svg" className="block size-full" />
-      </button>
-      <button
-        type="button"
-        onClick={() => apiRef.current?.zoomOut()}
-        title="Zoom out"
-        className="absolute left-[929px] top-[747px] h-[31.13px] w-[34.33px] cursor-pointer bg-transparent p-0 opacity-80 hover:opacity-100"
-      >
-        <img alt="zoom out" src="/assets/zoom-out.svg" className="block size-full" />
-      </button>
+      {/* Tools — zoom in/out. Hidden in fullscreen mode (the design omits
+          them; double-click a creature to zoom). Camera angle is locked to
+          the bird's-eye view, so axis-snap and pan are gone. */}
+      {!fullscreen && (
+        <>
+          <button
+            type="button"
+            onClick={() => apiRef.current?.zoomIn()}
+            title="Zoom in"
+            className="absolute left-[929px] top-[713px] h-[29.86px] w-[34.4px] cursor-pointer bg-transparent p-0 opacity-80 hover:opacity-100"
+          >
+            <img alt="zoom in" src="/assets/zoom-in.svg" className="block size-full" />
+          </button>
+          <button
+            type="button"
+            onClick={() => apiRef.current?.zoomOut()}
+            title="Zoom out"
+            className="absolute left-[929px] top-[747px] h-[31.13px] w-[34.33px] cursor-pointer bg-transparent p-0 opacity-80 hover:opacity-100"
+          >
+            <img alt="zoom out" src="/assets/zoom-out.svg" className="block size-full" />
+          </button>
+        </>
+      )}
     </div>
   );
 }

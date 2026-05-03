@@ -64,81 +64,108 @@ export default function MainPage() {
 
   return (
     <div className="relative mx-auto h-[900px] w-[1440px] overflow-hidden bg-[#dfd9c9] font-(family-name:--font-casual)">
-      {/* BokBok logo / Home link */}
-      <Link
-        href="/"
-        className="absolute left-[591px] top-[17px] block h-[72px] w-[257px] cursor-pointer whitespace-nowrap text-center text-[64px] leading-normal text-black font-(family-name:--font-fancy)"
-      >
-        BokBok
-      </Link>
+      {/* Top bar / nav / right panels — hidden in fullscreen mode (Figma 2114:265
+          shows just the wavy frame + 3D scene + exit button). */}
+      {!isFullscreen && (
+        <>
+          {/* BokBok logo / Home link */}
+          <Link
+            href="/"
+            className="absolute left-[591px] top-[17px] block h-[72px] w-[257px] cursor-pointer whitespace-nowrap text-center text-[64px] leading-normal text-black font-(family-name:--font-fancy)"
+          >
+            BokBok
+          </Link>
 
-      {/* Top nav */}
-      <Link
-        href="/create"
-        className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
-      >
-        Create
-      </Link>
-      <Link
-        href="/calender"
-        className="absolute left-[190.5px] top-[48px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
-      >
-        Calender
-      </Link>
-      <Link
-        href="/encyclopedia"
-        className="absolute left-[330.5px] top-[48px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
-      >
-        Encyclopedia
-      </Link>
+          {/* Top nav */}
+          <Link
+            href="/create"
+            className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
+          >
+            Create
+          </Link>
+          <Link
+            href="/calender"
+            className="absolute left-[190.5px] top-[48px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
+          >
+            Calender
+          </Link>
+          <Link
+            href="/encyclopedia"
+            className="absolute left-[330.5px] top-[48px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
+          >
+            Encyclopedia
+          </Link>
 
-      {/* Login icon */}
-      <div className="absolute left-[1381px] top-[40px] h-[35.67px] w-[24.91px]">
-        <img alt="login" src="/assets/login.svg" className="block size-full" />
-      </div>
+          {/* Login icon */}
+          <div className="absolute left-[1381px] top-[40px] h-[35.67px] w-[24.91px]">
+            <img alt="login" src="/assets/login.svg" className="block size-full" />
+          </div>
 
-      {/* Full screen toggle (Figma 2114:258) — uses the Fullscreen API. The
-          ViewportFit wrapper picks up the resize and rescales automatically. */}
-      <button
-        type="button"
-        onClick={toggleFullscreen}
-        title={isFullscreen ? "Exit full screen" : "Enter full screen"}
-        aria-pressed={isFullscreen}
-        className="absolute left-[926px] top-[22px] z-[20] block h-[42.19px] w-[39.52px] cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:opacity-80"
-      >
-        <img
-          alt=""
-          src="/assets/full-screen-button.svg"
-          className="block size-full"
-        />
-      </button>
+          {/* Enter fullscreen (Figma 2114:258) — child of the main box, so its
+              page-absolute position is (27+926, 85+22) = (953, 107). */}
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            title="Enter full screen"
+            className="absolute left-[953px] top-[107px] z-[20] block h-[42.19px] w-[39.52px] cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:opacity-80"
+          >
+            <img
+              alt=""
+              src="/assets/full-screen-button.svg"
+              className="block size-full"
+            />
+          </button>
+
+          {/* Reset View button (Figma 2096:131) — animates the camera back to
+              the initial pose and clears the current selection. */}
+          <button
+            type="button"
+            onClick={handleResetView}
+            className="absolute left-[434px] top-[827px] z-[20] block h-[31px] w-[156px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform active:scale-95"
+          >
+            <img
+              alt=""
+              src="/assets/reset-view-box.svg"
+              className="absolute inset-0 block size-full"
+            />
+            <span className="absolute inset-0 flex items-center justify-center text-center text-[24px] font-bold leading-[normal] text-black">
+              Reset View
+            </span>
+          </button>
+        </>
+      )}
 
       {/* Main canvas box — 3D viewport with click-to-select on creatures.
-          Click also zooms the camera onto the selected creature. */}
+          Resizes itself when fullscreen prop changes; Canvas instance is
+          retained so the 3D scene state survives the toggle. */}
       <MainViewport
         onCreatureSelect={handleSelect}
         selectedCreatureId={selected?.id ?? null}
         focusTarget={focusTarget}
         resetTrigger={resetTrigger}
+        fullscreen={isFullscreen}
       />
 
-      {/* Reset View button (Figma 2096:131) — animates the camera back to
-          the initial pose and clears the current selection. */}
-      <button
-        type="button"
-        onClick={handleResetView}
-        className="absolute left-[434px] top-[827px] z-[20] block h-[31px] w-[156px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform active:scale-95"
-      >
-        <img
-          alt=""
-          src="/assets/reset-view-box.svg"
-          className="absolute inset-0 block size-full"
-        />
-        <span className="absolute inset-0 flex items-center justify-center text-center text-[24px] font-bold leading-[normal] text-black">
-          Reset View
-        </span>
-      </button>
+      {/* Exit fullscreen button (Figma 2114:317) — top-right of the
+          fullscreen frame, only visible in fullscreen mode. */}
+      {isFullscreen && (
+        <button
+          type="button"
+          onClick={toggleFullscreen}
+          title="Exit full screen"
+          className="absolute left-[1373.85px] top-[22.94px] z-[20] block h-[41.15px] w-[38.53px] cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:opacity-80"
+        >
+          <img
+            alt=""
+            src="/assets/exit-fullscreen-button.svg"
+            className="block size-full"
+          />
+        </button>
+      )}
 
+      {/* Right-side panels — hidden in fullscreen mode. */}
+      {!isFullscreen && (
+      <>
       {/* Right viewport — energy blocks composition (Figma 2096:102).
           A 2-column grid of block thumbnails with name labels below. */}
       <div className="pointer-events-none absolute left-[1016px] top-[85px] h-[386.37px] w-[396.28px]">
@@ -302,6 +329,8 @@ export default function MainPage() {
           </p>
         </button>
       </div>
+      </>
+      )}
     </div>
   );
 }
