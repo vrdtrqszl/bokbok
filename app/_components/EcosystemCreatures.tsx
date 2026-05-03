@@ -19,7 +19,10 @@ const TEXTURE_PATHS = EMOTION_LIST.map((e) => e.imagePath);
 export const creaturePositions = new Map<string, [number, number, number]>();
 
 // Outer bound on the XZ plane — creatures bounce back if they'd jump past it.
-const WANDER_MAX_RADIUS = 4.5;
+// Kept tight enough that even with each creature's body radius (~2 units) plus
+// gradient halo bleed, nothing reaches the camera frustum's edge and gets
+// visually clipped by the canvas border.
+const WANDER_MAX_RADIUS = 3.0;
 // Per-hop step distance — small so creatures look like they're hopping in
 // place rather than flying around the scene.
 const HOP_MIN_STEP = 0.15;
@@ -230,7 +233,9 @@ export default function EcosystemCreatures({
     <Suspense fallback={null}>
       {visible.map((c, i) => {
         const angle = (i / visible.length) * Math.PI * 2;
-        const radius = visible.length === 1 ? 0 : 4;
+        // Spawn radius matches WANDER_MAX_RADIUS so creatures never start
+        // outside the bounce-back bound and get clipped on first paint.
+        const radius = visible.length === 1 ? 0 : 2.5;
         const pos: [number, number, number] = [
           Math.cos(angle) * radius,
           0,
