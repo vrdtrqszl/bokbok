@@ -389,13 +389,19 @@ function CreatePageInner() {
         </div>
       </div>
 
-      {/* Info panel (bottom right) — emotion list when creature exists */}
+      {/* Info panel (bottom right) — emotion list when creature exists.
+          Two-vector outline matches Figma 2006:75 (box + left squiggly line). */}
       <div className="absolute left-[1015px] top-[480px] h-[398.38px] w-[397.21px] overflow-hidden">
         <img
           alt=""
-          src="/assets/info-box.svg"
-          className="pointer-events-none absolute inset-[-0.13%] block size-full max-w-none"
+          src="/assets/info-vector2.svg"
+          className="pointer-events-none absolute inset-[0.13%] block size-full"
         />
+        <div className="pointer-events-none absolute" style={{ inset: "0.96% 98.1% 0.97% 0.13%" }}>
+          <div className="absolute" style={{ inset: "0 -7.08%" }}>
+            <img alt="" src="/assets/info-vector1.svg" className="block size-full max-w-none" />
+          </div>
+        </div>
 
         {/* Creature name — auto-filled with a whimsical random name on
             generate; click to rewrite it before uploading. */}

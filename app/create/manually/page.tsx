@@ -448,13 +448,19 @@ function CreateManuallyPageInner() {
         </div>
       </div>
 
-      {/* ── Info panel (bottom right) — 31 energy blocks + search ─────────── */}
+      {/* ── Info panel (bottom right) — 31 energy blocks + search.
+          Two-vector outline matches Figma 2006:75. ──────────────────────── */}
       <div className="absolute left-[1015px] top-[480px] h-[398.38px] w-[397.21px] overflow-hidden">
         <img
           alt=""
-          src="/assets/info-box.svg"
-          className="pointer-events-none absolute inset-[-0.13%] block size-full max-w-none"
+          src="/assets/info-vector2.svg"
+          className="pointer-events-none absolute inset-[0.13%] block size-full"
         />
+        <div className="pointer-events-none absolute" style={{ inset: "0.96% 98.1% 0.97% 0.13%" }}>
+          <div className="absolute" style={{ inset: "0 -7.08%" }}>
+            <img alt="" src="/assets/info-vector1.svg" className="block size-full max-w-none" />
+          </div>
+        </div>
 
         {/* Search input */}
         <div className="absolute left-[14px] top-[14px] h-[33.47px] w-[222.64px]">

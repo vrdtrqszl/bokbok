@@ -201,13 +201,19 @@ export default function EncyclopediaPage() {
         )}
       </div>
 
-      {/* Info panel (bottom right) — name, date, journal, edit + delete. */}
+      {/* Info panel (bottom right) — name, date, journal, edit + delete.
+          Two-vector outline matches Figma 2006:75. */}
       <div className="absolute left-[1015px] top-[480px] h-[398.38px] w-[397.21px] overflow-hidden">
         <img
           alt=""
-          src="/assets/info-box.svg"
-          className="pointer-events-none absolute inset-[-0.13%] block size-full max-w-none"
+          src="/assets/info-vector2.svg"
+          className="pointer-events-none absolute inset-[0.13%] block size-full"
         />
+        <div className="pointer-events-none absolute" style={{ inset: "0.96% 98.1% 0.97% 0.13%" }}>
+          <div className="absolute" style={{ inset: "0 -7.08%" }}>
+            <img alt="" src="/assets/info-vector1.svg" className="block size-full max-w-none" />
+          </div>
+        </div>
 
         <h2 className="absolute left-1/2 top-[15px] -translate-x-1/2 whitespace-nowrap text-center text-[36px] text-black font-(family-name:--font-fancy)">
           {selected?.name ?? "Name"}
