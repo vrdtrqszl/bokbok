@@ -63,7 +63,13 @@ export default function MainPage() {
   };
 
   return (
-    <div className="relative mx-auto h-[900px] w-[1440px] overflow-hidden bg-[#dfd9c9] font-(family-name:--font-casual)">
+    <div
+      className={`relative mx-auto h-[900px] w-[1440px] bg-[#dfd9c9] font-(family-name:--font-casual) ${
+        // In fullscreen, MainViewport expands beyond 1440×900 in design
+        // coords to fill the actual window — so the page must NOT clip.
+        isFullscreen ? "overflow-visible" : "overflow-hidden"
+      }`}
+    >
       {/* Top bar / nav / right panels — hidden in fullscreen mode (Figma 2114:265
           shows just the wavy frame + 3D scene + exit button). */}
       {!isFullscreen && (
@@ -136,7 +142,8 @@ export default function MainPage() {
       )}
 
       {/* Main canvas box — 3D viewport with click-to-select on creatures.
-          Resizes itself when fullscreen prop changes; Canvas instance is
+          In fullscreen mode it stretches (in design coords) to fill the
+          actual window regardless of aspect ratio. Canvas instance is
           retained so the 3D scene state survives the toggle. */}
       <MainViewport
         onCreatureSelect={handleSelect}
@@ -144,24 +151,8 @@ export default function MainPage() {
         focusTarget={focusTarget}
         resetTrigger={resetTrigger}
         fullscreen={isFullscreen}
+        onExitFullscreen={toggleFullscreen}
       />
-
-      {/* Exit fullscreen button (Figma 2114:317) — top-right of the
-          fullscreen frame, only visible in fullscreen mode. */}
-      {isFullscreen && (
-        <button
-          type="button"
-          onClick={toggleFullscreen}
-          title="Exit full screen"
-          className="absolute left-[1373.85px] top-[22.94px] z-[20] block h-[41.15px] w-[38.53px] cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:opacity-80"
-        >
-          <img
-            alt=""
-            src="/assets/exit-fullscreen-button.svg"
-            className="block size-full"
-          />
-        </button>
-      )}
 
       {/* Right-side panels — hidden in fullscreen mode. */}
       {!isFullscreen && (

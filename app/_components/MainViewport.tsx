@@ -2,10 +2,15 @@
 
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Vector3 } from "three";
 import EcosystemCreatures from "./EcosystemCreatures";
 import type { CreatureSpec } from "@/lib/creature";
+
+// Match ViewportFit's design canvas. Used to compute the fullscreen box's
+// expanded design-space dimensions so it visually fills the actual viewport.
+const DESIGN_W = 1440;
+const DESIGN_H = 900;
 
 type CameraApi = {
   zoomIn: () => void;
@@ -127,22 +132,56 @@ export default function MainViewport({
   focusTarget,
   resetTrigger,
   fullscreen = false,
+  onExitFullscreen,
 }: {
   onCreatureSelect?: (c: CreatureSpec, position: [number, number, number]) => void;
   selectedCreatureId?: string | null;
   query?: string;
   focusTarget?: FocusTarget | null;
   resetTrigger?: ResetTrigger | null;
-  /** When true, expand to fill the whole 1440×900 page (Figma 2114:265). */
+  /** When true, expand to fill the whole window regardless of aspect ratio. */
   fullscreen?: boolean;
+  /** Called when the user clicks the exit-fullscreen button (only rendered in fullscreen). */
+  onExitFullscreen?: () => void;
 } = {}) {
   const apiRef = useRef<CameraApi | null>(null);
 
-  // Outer wrapper dimensions follow either the regular main-box or the
-  // expanded fullscreen frame from Figma.
-  const wrapperStyle = fullscreen
-    ? { left: 6, top: 7, width: 1428.32, height: 885.35 }
-    : { left: 27, top: 85, width: 974.69, height: 789.67 };
+  // Track the actual window size so the fullscreen box can expand in design
+  // space to compensate for ViewportFit's letterboxing. The result is a box
+  // that *visually* fills the entire window regardless of aspect ratio.
+  const [winSize, setWinSize] = useState<{ w: number; h: number }>({
+    w: DESIGN_W,
+    h: DESIGN_H,
+  });
+  useEffect(() => {
+    if (!fullscreen) return;
+    const update = () =>
+      setWinSize({ w: window.innerWidth, h: window.innerHeight });
+    update();
+    window.addEventListener("resize", update);
+    return () => window.removeEventListener("resize", update);
+  }, [fullscreen]);
+
+  // In normal mode, the box sits at its Figma position inside the design
+  // canvas. In fullscreen, expand it (in design coords) so that — after the
+  // ViewportFit transform — it visually fills 100% of the window.
+  const wrapperStyle = (() => {
+    if (!fullscreen) {
+      return { left: 27, top: 85, width: 974.69, height: 789.67 };
+    }
+    // ViewportFit applies scale s = min(W/DESIGN_W, H/DESIGN_H). The viewport,
+    // expressed in design coords, is W/s × H/s — which is ≥ 1440 × 900 in at
+    // least one dimension.
+    const s = Math.min(winSize.w / DESIGN_W, winSize.h / DESIGN_H);
+    const dw = winSize.w / s;
+    const dh = winSize.h / s;
+    return {
+      left: (DESIGN_W - dw) / 2,
+      top: (DESIGN_H - dh) / 2,
+      width: dw,
+      height: dh,
+    };
+  })();
 
   return (
     <div className="absolute" style={wrapperStyle}>
@@ -184,6 +223,25 @@ export default function MainViewport({
         src={fullscreen ? "/assets/fullscreen-box.svg" : "/assets/main-box.svg"}
         className="pointer-events-none absolute inset-0 block size-full"
       />
+
+      {/* Exit fullscreen button (Figma 2114:317) — top-right of the box,
+          using right/top so it auto-follows the box as it stretches with
+          the window. Offsets are derived from the original 1428×885 design
+          (button at 1367.85, 15.94 inside the box). */}
+      {fullscreen && onExitFullscreen && (
+        <button
+          type="button"
+          onClick={onExitFullscreen}
+          title="Exit full screen"
+          className="absolute right-[21.94px] top-[15.94px] z-[20] block h-[41.15px] w-[38.53px] cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:opacity-80"
+        >
+          <img
+            alt=""
+            src="/assets/exit-fullscreen-button.svg"
+            className="block size-full"
+          />
+        </button>
+      )}
 
       {/* Tools — zoom in/out. Hidden in fullscreen mode (the design omits
           them; double-click a creature to zoom). Camera angle is locked to
