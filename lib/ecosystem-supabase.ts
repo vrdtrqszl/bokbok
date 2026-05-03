@@ -107,15 +107,24 @@ export async function findCreatureByIdRemote(
 export function subscribeEcosystemRemote(onChange: () => void): () => void {
   const sb = getSupabase();
   if (!sb) return () => {};
-  const channel = sb
-    .channel("creatures-changes")
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: TABLE },
-      () => onChange(),
-    )
-    .subscribe();
-  return () => {
-    sb.removeChannel(channel);
-  };
+  try {
+    const channel = sb
+      .channel("creatures-changes")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: TABLE },
+        () => onChange(),
+      )
+      .subscribe();
+    return () => {
+      try {
+        sb.removeChannel(channel);
+      } catch (err) {
+        console.error("[bokbok] removeChannel failed:", err);
+      }
+    };
+  } catch (err) {
+    console.error("[bokbok] subscribeEcosystem failed:", err);
+    return () => {};
+  }
 }
