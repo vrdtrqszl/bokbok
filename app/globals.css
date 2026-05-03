@@ -33,6 +33,11 @@ html, body {
   background: #dfd9c9;
   margin: 0;
   padding: 0;
+  /* The ViewportFit wrapper is position:fixed and fills the screen, so the
+     body itself should never scroll. Keeps mobile browsers from showing
+     phantom scrollbars when the keyboard opens. */
+  overflow: hidden;
+  height: 100%;
 }
 
 /* Hide all scrollbars site-wide while keeping scroll functionality. */
