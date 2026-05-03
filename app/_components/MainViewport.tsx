@@ -11,6 +11,10 @@ import type { CreatureSpec } from "@/lib/creature";
 // expanded design-space dimensions so it visually fills the actual viewport.
 const DESIGN_W = 1440;
 const DESIGN_H = 900;
+// Breathing room (in design-coord px) between the fullscreen box and the
+// actual window edges. The hand-drawn wavy border looks better with some
+// margin on every side regardless of aspect ratio.
+const FULLSCREEN_MARGIN = 12;
 
 type CameraApi = {
   zoomIn: () => void;
@@ -171,15 +175,17 @@ export default function MainViewport({
     }
     // ViewportFit applies scale s = min(W/DESIGN_W, H/DESIGN_H). The viewport,
     // expressed in design coords, is W/s × H/s — which is ≥ 1440 × 900 in at
-    // least one dimension.
+    // least one dimension. Subtract a uniform margin so the wavy border
+    // doesn't kiss the window edge.
     const s = Math.min(winSize.w / DESIGN_W, winSize.h / DESIGN_H);
     const dw = winSize.w / s;
     const dh = winSize.h / s;
+    const m = FULLSCREEN_MARGIN;
     return {
-      left: (DESIGN_W - dw) / 2,
-      top: (DESIGN_H - dh) / 2,
-      width: dw,
-      height: dh,
+      left: (DESIGN_W - dw) / 2 + m,
+      top: (DESIGN_H - dh) / 2 + m,
+      width: dw - 2 * m,
+      height: dh - 2 * m,
     };
   })();
 
