@@ -2,24 +2,38 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MainViewport, { type FocusTarget, type ResetTrigger } from "./_components/MainViewport";
-import { creaturePositions } from "./_components/EcosystemCreatures";
-import { deleteCreatureById, loadEcosystem, matchesCreatureQuery } from "@/lib/ecosystem";
+import { deleteCreatureById } from "@/lib/ecosystem";
 import { emotionByKey, type CreatureSpec } from "@/lib/creature";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
 
 export default function MainPage() {
   const router = useRouter();
   const [selected, setSelected] = useState<CreatureSpec | null>(null);
-  const [query, setQuery] = useState("");
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
   const [resetTrigger, setResetTrigger] = useState<ResetTrigger | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Track the browser's actual fullscreen state so the button reflects it
+  // even when the user exits via Escape.
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+    } else {
+      document.documentElement.requestFullscreen?.();
+    }
+  };
 
   const handleResetView = () => {
     setResetTrigger({ ts: Date.now() });
     setSelected(null);
-    setQuery("");
   };
 
   // Selection from a 3D click — the creature reports its CURRENT live
@@ -30,19 +44,6 @@ export default function MainPage() {
   ) => {
     setSelected(c);
     setFocusTarget({ position: pos, ts: Date.now() });
-  };
-
-  const focusOnQuery = async () => {
-    const text = query.trim();
-    if (!text) return;
-    const eco = await loadEcosystem();
-    const match = eco.find((c) => matchesCreatureQuery(c, text));
-    if (!match) return;
-    // Read the creature's current live position from the registry. Falls
-    // back to origin if it hasn't been registered yet (very early frame).
-    const pos = creaturePositions.get(match.id) ?? ([0, 0, 0] as [number, number, number]);
-    setFocusTarget({ position: pos, ts: Date.now() });
-    setSelected(match);
   };
 
   const handleEdit = () => {
@@ -96,34 +97,21 @@ export default function MainPage() {
         <img alt="login" src="/assets/login.svg" className="block size-full" />
       </div>
 
-      {/* Search box — type a name or date and press Enter to zoom the
-          camera onto the matching creature. z-[20] so it sits above the
-          3D Canvas (which spans the whole main-box area). */}
-      <div className="absolute left-[42px] top-[111px] z-[20] h-[44px] w-[225px] overflow-hidden">
+      {/* Full screen toggle (Figma 2114:258) — uses the Fullscreen API. The
+          ViewportFit wrapper picks up the resize and rescales automatically. */}
+      <button
+        type="button"
+        onClick={toggleFullscreen}
+        title={isFullscreen ? "Exit full screen" : "Enter full screen"}
+        aria-pressed={isFullscreen}
+        className="absolute left-[926px] top-[22px] z-[20] block h-[42.19px] w-[39.52px] cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:opacity-80"
+      >
         <img
           alt=""
-          src="/assets/vector-search.svg"
-          className="pointer-events-none absolute inset-0 block size-full"
+          src="/assets/full-screen-button.svg"
+          className="block size-full"
         />
-        <img
-          alt=""
-          src="/assets/magnifier.svg"
-          className="pointer-events-none absolute left-[7px] top-[10.5px] block h-[23px] w-[20px]"
-        />
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              focusOnQuery();
-            }
-          }}
-          placeholder="Name or date"
-          className="absolute left-[33.3px] top-[9.2px] block h-[28.7px] w-[180px] bg-transparent text-[20px] font-bold text-black outline-none placeholder:text-black/35"
-        />
-      </div>
+      </button>
 
       {/* Main canvas box — 3D viewport with click-to-select on creatures.
           Click also zooms the camera onto the selected creature. */}
