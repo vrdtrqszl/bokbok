@@ -7,14 +7,11 @@ import { Vector3 } from "three";
 import EcosystemCreatures from "./EcosystemCreatures";
 import type { CreatureSpec } from "@/lib/creature";
 
-// Match ViewportFit's design canvas. Used to compute the fullscreen box's
-// expanded design-space dimensions so it visually fills the actual viewport.
+// Match ViewportFit's design canvas. Used to compute the fullscreen
+// wrapper's expanded design-space dimensions so it visually fills the
+// actual viewport.
 const DESIGN_W = 1440;
 const DESIGN_H = 900;
-// Breathing room (in design-coord px) between the fullscreen box and the
-// actual window edges. The hand-drawn wavy border looks better with some
-// margin on every side regardless of aspect ratio.
-const FULLSCREEN_MARGIN = 12;
 
 type CameraApi = {
   zoomIn: () => void;
@@ -175,24 +172,24 @@ export default function MainViewport({
     }
     // ViewportFit applies scale s = min(W/DESIGN_W, H/DESIGN_H). The viewport,
     // expressed in design coords, is W/s × H/s — which is ≥ 1440 × 900 in at
-    // least one dimension. Subtract a uniform margin so the wavy border
-    // doesn't kiss the window edge.
+    // least one dimension. With the wavy outline removed, the wrapper can
+    // fill the whole window edge-to-edge.
     const s = Math.min(winSize.w / DESIGN_W, winSize.h / DESIGN_H);
     const dw = winSize.w / s;
     const dh = winSize.h / s;
-    const m = FULLSCREEN_MARGIN;
     return {
-      left: (DESIGN_W - dw) / 2 + m,
-      top: (DESIGN_H - dh) / 2 + m,
-      width: dw - 2 * m,
-      height: dh - 2 * m,
+      left: (DESIGN_W - dw) / 2,
+      top: (DESIGN_H - dh) / 2,
+      width: dw,
+      height: dh,
     };
   })();
 
   return (
     <div className="absolute" style={wrapperStyle}>
-      {/* 3D viewport — fills the box, behind decorative outline and gizmo/tools */}
-      <div className="absolute inset-[12px]">
+      {/* 3D viewport — inset under the wavy border in normal mode; fills
+          edge-to-edge in fullscreen since the border is removed there. */}
+      <div className={`absolute ${fullscreen ? "inset-0" : "inset-[12px]"}`}>
         <Canvas
           camera={{
             position: [
@@ -222,13 +219,15 @@ export default function MainViewport({
         </Canvas>
       </div>
 
-      {/* Hand-drawn outline — decorative only. Different SVG for fullscreen
-          since the hand-drawn waves are sized for the larger frame. */}
-      <img
-        alt=""
-        src={fullscreen ? "/assets/fullscreen-box.svg" : "/assets/main-box.svg"}
-        className="pointer-events-none absolute inset-0 block size-full"
-      />
+      {/* Hand-drawn outline — only in normal mode. Removed in fullscreen
+          per design (cleaner look, 3D scene fills edge-to-edge). */}
+      {!fullscreen && (
+        <img
+          alt=""
+          src="/assets/main-box.svg"
+          className="pointer-events-none absolute inset-0 block size-full"
+        />
+      )}
 
       {/* Exit fullscreen button (Figma 2114:317) — top-right of the box,
           using right/top so it auto-follows the box as it stretches with
