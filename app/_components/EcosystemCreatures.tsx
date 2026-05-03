@@ -4,7 +4,7 @@ import { Billboard } from "@react-three/drei";
 import { useFrame, useLoader } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { TextureLoader, Vector3, type Group } from "three";
-import { loadEcosystem, matchesCreatureQuery } from "@/lib/ecosystem";
+import { loadEcosystem, matchesCreatureQuery, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import type { CreatureBlock, CreatureSpec } from "@/lib/creature";
 import { EMOTION_LIST } from "@/lib/emotions";
 
@@ -192,14 +192,24 @@ export default function EcosystemCreatures({
   const [creatures, setCreatures] = useState<CreatureSpec[]>([]);
 
   useEffect(() => {
-    setCreatures(loadEcosystem());
-    const onChange = () => setCreatures(loadEcosystem());
+    let cancelled = false;
+    const refresh = () => {
+      loadEcosystem().then((list) => {
+        if (!cancelled) setCreatures(list);
+      });
+    };
+    refresh();
+    const onChange = () => refresh();
     window.addEventListener("ecosystem:changed", onChange);
-    // Cross-tab sync via the standard storage event
     window.addEventListener("storage", onChange);
+    // In shared mode, subscribe to Supabase realtime so other clients'
+    // uploads/edits/deletes propagate. No-op in local mode.
+    const unsubscribeRemote = subscribeRemoteEcosystem(refresh);
     return () => {
+      cancelled = true;
       window.removeEventListener("ecosystem:changed", onChange);
       window.removeEventListener("storage", onChange);
+      unsubscribeRemote();
     };
   }, []);
 

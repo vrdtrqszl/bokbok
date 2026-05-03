@@ -1,3 +1,8 @@
 .DS_Store
 .next
 node_modules
+
+# Environment files — contain Supabase keys, never commit.
+.env
+.env.local
+.env*.local

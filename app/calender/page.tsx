@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { loadEcosystem, deleteCreatureById } from "@/lib/ecosystem";
+import { loadEcosystem, deleteCreatureById, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
 import type { CreatureSpec } from "@/lib/creature";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
@@ -164,15 +164,25 @@ export default function CalenderPage() {
     setSelected(null);
   };
 
-  // Live ecosystem load + cross-tab sync.
+  // Live ecosystem load + cross-tab sync + Supabase realtime (no-op in
+  // local mode).
   useEffect(() => {
-    setCreatures(loadEcosystem());
-    const onChange = () => setCreatures(loadEcosystem());
+    let cancelled = false;
+    const refresh = () => {
+      loadEcosystem().then((list) => {
+        if (!cancelled) setCreatures(list);
+      });
+    };
+    refresh();
+    const onChange = () => refresh();
     window.addEventListener("ecosystem:changed", onChange);
     window.addEventListener("storage", onChange);
+    const unsubscribeRemote = subscribeRemoteEcosystem(refresh);
     return () => {
+      cancelled = true;
       window.removeEventListener("ecosystem:changed", onChange);
       window.removeEventListener("storage", onChange);
+      unsubscribeRemote();
     };
   }, []);
 

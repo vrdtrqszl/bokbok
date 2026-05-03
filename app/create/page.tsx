@@ -55,13 +55,18 @@ function CreatePageInner() {
   // On mount, hydrate state from ?edit=<id> if present.
   useEffect(() => {
     if (!editId) return;
-    const existing = findCreatureById(editId);
-    if (!existing) return;
-    setEditingId(existing.id);
-    setCreature(existing);
-    if (existing.journalText) setJournalText(existing.journalText);
-    if (existing.dateISO) setSelectedDate(fromISO(existing.dateISO));
-    if (existing.name) setName(existing.name);
+    let cancelled = false;
+    findCreatureById(editId).then((existing) => {
+      if (cancelled || !existing) return;
+      setEditingId(existing.id);
+      setCreature(existing);
+      if (existing.journalText) setJournalText(existing.journalText);
+      if (existing.dateISO) setSelectedDate(fromISO(existing.dateISO));
+      if (existing.name) setName(existing.name);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [editId]);
 
   const dateLabel = `${selectedDate.getFullYear()} ${MONTHS_FULL[selectedDate.getMonth()]} ${selectedDate.getDate()}`;

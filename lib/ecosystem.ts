@@ -1,11 +1,29 @@
-// localStorage-backed registry of creatures uploaded to the ecosystem.
-// The main page reads this list to render creatures into the 3D scene.
+// Ecosystem facade — routes calls to either the localStorage adapter
+// (private / personal mode) or the Supabase adapter (shared / exhibition
+// mode). Mode is selected at build time via NEXT_PUBLIC_BOKBOK_MODE:
+//
+//   NEXT_PUBLIC_BOKBOK_MODE=shared  → Supabase  (everyone sees same DB)
+//   anything else / unset           → localStorage  (per-browser private)
+//
+// The public API is fully async so both backends can implement it the
+// same way. Pages await the load functions; upload / delete fire-and-
+// forget the returned promise.
 
 import type { CreatureSpec } from "./creature";
+import { isSharedMode } from "./supabase";
+import {
+  loadEcosystemRemote,
+  uploadCreatureRemote,
+  deleteCreatureByIdRemote,
+  findCreatureByIdRemote,
+  subscribeEcosystemRemote,
+} from "./ecosystem-supabase";
 
 const KEY = "bokbok:ecosystem:v1";
 
-export function loadEcosystem(): CreatureSpec[] {
+// ── localStorage adapter (built-in) ───────────────────────────────────────
+
+function loadLocal(): CreatureSpec[] {
   if (typeof window === "undefined") return [];
   try {
     const raw = window.localStorage.getItem(KEY);
@@ -17,43 +35,87 @@ export function loadEcosystem(): CreatureSpec[] {
   }
 }
 
-export function uploadCreature(creature: CreatureSpec) {
+function uploadLocal(creature: CreatureSpec) {
   if (typeof window === "undefined") return;
-  const current = loadEcosystem();
-  // If a creature with this id already exists, replace it (edit flow).
-  const existingIdx = current.findIndex((c) => c.id === creature.id);
+  const current = loadLocal();
+  const idx = current.findIndex((c) => c.id === creature.id);
   const next =
-    existingIdx >= 0
-      ? current.map((c, i) => (i === existingIdx ? creature : c))
+    idx >= 0
+      ? current.map((c, i) => (i === idx ? creature : c))
       : [...current, creature];
   window.localStorage.setItem(KEY, JSON.stringify(next));
-  // Notify same-tab listeners (storage events only fire across tabs).
   window.dispatchEvent(new CustomEvent("ecosystem:changed"));
 }
 
-export function findCreatureById(id: string): CreatureSpec | null {
-  return loadEcosystem().find((c) => c.id === id) ?? null;
+function deleteLocal(id: string): boolean {
+  if (typeof window === "undefined") return false;
+  const current = loadLocal();
+  const next = current.filter((c) => c.id !== id);
+  if (next.length === current.length) return false;
+  window.localStorage.setItem(KEY, JSON.stringify(next));
+  window.dispatchEvent(new CustomEvent("ecosystem:changed"));
+  return true;
 }
+
+// ── public API (async, mode-aware) ────────────────────────────────────────
+
+export async function loadEcosystem(): Promise<CreatureSpec[]> {
+  if (isSharedMode()) return loadEcosystemRemote();
+  return loadLocal();
+}
+
+export async function uploadCreature(creature: CreatureSpec): Promise<void> {
+  if (isSharedMode()) {
+    await uploadCreatureRemote(creature);
+    // realtime subscription on other clients will fire ecosystem:changed;
+    // but also fire locally so the same-tab caller refreshes immediately.
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("ecosystem:changed"));
+    }
+    return;
+  }
+  uploadLocal(creature);
+}
+
+export async function findCreatureById(
+  id: string,
+): Promise<CreatureSpec | null> {
+  if (isSharedMode()) return findCreatureByIdRemote(id);
+  return loadLocal().find((c) => c.id === id) ?? null;
+}
+
+export async function deleteCreatureById(id: string): Promise<boolean> {
+  if (isSharedMode()) {
+    const ok = await deleteCreatureByIdRemote(id);
+    if (ok && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("ecosystem:changed"));
+    }
+    return ok;
+  }
+  return deleteLocal(id);
+}
+
+export function clearEcosystem() {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(KEY);
+  window.dispatchEvent(new CustomEvent("ecosystem:changed"));
+}
+
+// ── search / matching (pure, sync) ────────────────────────────────────────
 
 const MONTH_NAMES = [
   "january", "february", "march", "april", "may", "june",
   "july", "august", "september", "october", "november", "december",
 ];
 
-/**
- * Returns true if `query` matches the creature by name, full ISO date,
- * compact date (no dashes), or month name. Empty query matches everything.
- */
 export function matchesCreatureQuery(c: CreatureSpec, query: string): boolean {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   if ((c.name ?? "").toLowerCase().includes(q)) return true;
   if ((c.dateISO ?? "").includes(q)) return true;
-  // Also match dates typed without dashes (e.g., "20240825" → "2024-08-25")
   const compactQ = q.replace(/-/g, "");
   const compactDate = (c.dateISO ?? "").replace(/-/g, "");
   if (compactQ && compactDate.includes(compactQ)) return true;
-  // Match a month name like "August" against the date's month index.
   if (c.dateISO) {
     const monthIdx = Number(c.dateISO.split("-")[1]) - 1;
     const monthName = MONTH_NAMES[monthIdx];
@@ -62,18 +124,16 @@ export function matchesCreatureQuery(c: CreatureSpec, query: string): boolean {
   return false;
 }
 
-export function deleteCreatureById(id: string): boolean {
-  if (typeof window === "undefined") return false;
-  const current = loadEcosystem();
-  const next = current.filter((c) => c.id !== id);
-  if (next.length === current.length) return false;
-  window.localStorage.setItem(KEY, JSON.stringify(next));
-  window.dispatchEvent(new CustomEvent("ecosystem:changed"));
-  return true;
-}
+// ── realtime subscription (shared mode only) ──────────────────────────────
 
-export function clearEcosystem() {
-  if (typeof window === "undefined") return;
-  window.localStorage.removeItem(KEY);
-  window.dispatchEvent(new CustomEvent("ecosystem:changed"));
+/**
+ * Subscribe to remote changes when in shared mode. In local mode this is a
+ * no-op. The callback gets called whenever another browser changes the DB,
+ * so callers can re-fetch.
+ *
+ * Returns an unsubscribe function.
+ */
+export function subscribeRemoteEcosystem(onChange: () => void): () => void {
+  if (!isSharedMode()) return () => {};
+  return subscribeEcosystemRemote(onChange);
 }

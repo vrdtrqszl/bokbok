@@ -53,17 +53,22 @@ function CreateManuallyPageInner() {
   // Hydrate state + canvas from ?edit=<id> on mount.
   useEffect(() => {
     if (!editId) return;
-    const existing = findCreatureById(editId);
-    if (!existing) return;
-    setEditingId(existing.id);
-    setCreature(existing);
-    if (existing.dateISO) setSelectedDate(fromISO(existing.dateISO));
-    if (existing.journalText) setJournalText(existing.journalText);
-    if (existing.name) setName(existing.name);
-    // Wait a tick so the canvas mounts before we hand it blocks.
-    requestAnimationFrame(() => {
-      canvasHandle.current?.loadCreature(existing.blocks);
+    let cancelled = false;
+    findCreatureById(editId).then((existing) => {
+      if (cancelled || !existing) return;
+      setEditingId(existing.id);
+      setCreature(existing);
+      if (existing.dateISO) setSelectedDate(fromISO(existing.dateISO));
+      if (existing.journalText) setJournalText(existing.journalText);
+      if (existing.name) setName(existing.name);
+      // Wait a tick so the canvas mounts before we hand it blocks.
+      requestAnimationFrame(() => {
+        canvasHandle.current?.loadCreature(existing.blocks);
+      });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [editId]);
 
   const dateLabel = `${selectedDate.getFullYear()} ${MONTHS_FULL[selectedDate.getMonth()]} ${selectedDate.getDate()}`;

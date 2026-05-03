@@ -32,10 +32,10 @@ export default function MainPage() {
     setFocusTarget({ position: pos, ts: Date.now() });
   };
 
-  const focusOnQuery = () => {
+  const focusOnQuery = async () => {
     const text = query.trim();
     if (!text) return;
-    const eco = loadEcosystem();
+    const eco = await loadEcosystem();
     const match = eco.find((c) => matchesCreatureQuery(c, text));
     if (!match) return;
     // Read the creature's current live position from the registry. Falls

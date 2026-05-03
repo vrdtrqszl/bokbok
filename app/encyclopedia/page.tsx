@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { loadEcosystem, deleteCreatureById, matchesCreatureQuery } from "@/lib/ecosystem";
+import { loadEcosystem, deleteCreatureById, matchesCreatureQuery, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
 import type { CreatureSpec } from "@/lib/creature";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
@@ -25,15 +25,25 @@ export default function EncyclopediaPage() {
     ? creatures.filter((c) => matchesCreatureQuery(c, query))
     : creatures;
 
-  // Live ecosystem load + cross-tab/in-tab sync.
+  // Live ecosystem load + cross-tab/in-tab sync + Supabase realtime
+  // (no-op when in local mode).
   useEffect(() => {
-    setCreatures(loadEcosystem());
-    const onChange = () => setCreatures(loadEcosystem());
+    let cancelled = false;
+    const refresh = () => {
+      loadEcosystem().then((list) => {
+        if (!cancelled) setCreatures(list);
+      });
+    };
+    refresh();
+    const onChange = () => refresh();
     window.addEventListener("ecosystem:changed", onChange);
     window.addEventListener("storage", onChange);
+    const unsubscribeRemote = subscribeRemoteEcosystem(refresh);
     return () => {
+      cancelled = true;
       window.removeEventListener("ecosystem:changed", onChange);
       window.removeEventListener("storage", onChange);
+      unsubscribeRemote();
     };
   }, []);
 
