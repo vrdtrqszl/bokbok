@@ -1,13 +1,22 @@
-<svg preserveAspectRatio="xMidYMid meet" width="100%" height="100%" viewBox="0 0 40 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg preserveAspectRatio="xMidYMid meet" width="100%" height="100%" viewBox="0 0 39.5323 42.1515" fill="none" xmlns="http://www.w3.org/2000/svg">
 <g id="exit fullscreen">
-<!-- Top-left ↘ arrow: shaft from corner toward center, with tip at (15, 16) -->
-<path d="M3 4 L15 16" stroke="black" stroke-miterlimit="10" stroke-linecap="round"/>
-<!-- Arrowhead L at tip, opening back toward UL -->
-<path d="M15 11 L15 16 L10 16" stroke="black" stroke-miterlimit="10" stroke-linecap="round"/>
 
-<!-- Bottom-right ↖ arrow: shaft from corner toward center, with tip at (25, 26) -->
-<path d="M37 38 L25 26" stroke="black" stroke-miterlimit="10" stroke-linecap="round"/>
-<!-- Arrowhead L at tip, opening back toward LR -->
-<path d="M25 31 L25 26 L30 26" stroke="black" stroke-miterlimit="10" stroke-linecap="round"/>
+<!-- Top-left ↘ inward arrow shaft: from corner toward arrowhead -->
+<path d="M3.6 3.6 L16.94 17.96" stroke="black" stroke-miterlimit="10"/>
+
+<!-- Top-left arrowhead L (180° mirror of the bottom-right one, so the
+     hand-drawn wobble matches): corner at (16.94, 17.96), arms going
+     UP and LEFT — opening back toward the corner like a ↘ arrowhead. -->
+<path d="M17.38 6.85C17.16 8.61 16.93 10.42 16.94 12.19C16.94 13.36 16.94 14.52 16.94 15.69C16.94 16.27 17.03 16.94 16.94 17.52C16.88 17.98 16.95 17.91 16.5 17.97C16.21 18 15.87 17.96 15.57 17.96C15.01 17.96 14.44 17.99 13.88 17.96C13.32 17.93 12.82 17.75 12.28 17.72C11.23 17.66 10.15 17.85 9.1 17.69C8.16 17.53 7.17 17.27 6.23 17.29C5.58 17.29 4.93 17.29 4.28 17.29" stroke="black" stroke-miterlimit="10"/>
+
+<!-- Bottom-right ↖ inward arrow shaft: from corner toward arrowhead -->
+<path d="M35.93 38.55 L22.59 24.19" stroke="black" stroke-miterlimit="10"/>
+
+<!-- Bottom-right arrowhead L (kept from the original Figma export) -->
+<path d="M22.1522 35.3C22.3722 33.54 22.6022 31.73 22.5922 29.96C22.5922 28.79 22.5922 27.63 22.5922 26.46C22.5922 25.88 22.5022 25.21 22.5922 24.63C22.6522 24.17 22.5822 24.25 23.0322 24.19C23.3222 24.15 23.6623 24.19 23.9623 24.19C24.5223 24.19 25.0922 24.16 25.6522 24.19C26.2122 24.22 26.7122 24.4 27.2522 24.43C28.3022 24.49 29.3823 24.3 30.4323 24.47C31.3723 24.62 32.3622 24.88 33.3022 24.86C33.9522 24.86 34.6022 24.86 35.2522 24.86" stroke="black" stroke-miterlimit="10"/>
+
+<!-- Outer wavy rounded box (kept from the original Figma export) -->
+<path d="M1.32227 1.57C0.622271 9.3 0.782232 17.3 0.782232 25.06C0.782232 27.45 0.842261 30.11 0.812261 32.5C0.782261 35.24 0.272198 36.56 0.622198 39.44C0.792198 40.87 0.382281 41.26 1.58228 41.49C2.96228 41.75 3.59227 41.63 4.69227 41.58C6.84227 41.49 8.93224 41.49 11.0422 41.49H26.4323C29.2923 41.49 32.1522 41.49 35.0222 41.49C36.1322 41.49 37.9523 42.05 38.4323 40.8C38.7523 39.97 38.3922 37.99 38.3922 37.02C38.3822 34.58 39.0422 32.61 39.0322 30.16C39.0122 26.55 39.0322 22.94 39.0322 19.33V2.72C39.0322 0.79 39.0723 0.86 36.9623 0.86C36.0323 0.86 35.5722 1 34.7322 1.05C34.1422 1.08 33.6423 0.87 33.0623 0.96C32.2723 1.08 31.5322 1.04 30.7522 1.21C29.5622 1.47 28.1523 1.29 26.9323 1.28C25.7123 1.27 25.1723 1.25 24.0623 1.15C23.0223 1.06 22.1423 0.99 20.0823 0.87C18.4923 0.78 15.7322 0.610001 14.2622 0.590001C12.0322 0.560001 12.5922 0.5 10.3622 0.5C8.26219 0.5 5.66225 0.78 3.67225 0.69C3.39225 0.75 1.45218 0.55 1.35218 1.61L1.32227 1.57Z" stroke="black" stroke-miterlimit="10"/>
+
 </g>
 </svg>
