@@ -44,38 +44,35 @@ export default function MainPage() {
     }
   };
 
-  const handleResetView = () => {
-    setResetTrigger({ ts: Date.now() });
-    setSelected(null);
-  };
-
-  // Selection from a 3D click — the creature reports its CURRENT live
-  // position. We size the focus camera dimension-by-dimension so the
-  // creature fills the box without clipping and without empty bands:
+  // Selection from a 3D click — toggles between zoom-in and zoom-out:
+  // clicking a creature focuses on it; clicking the same creature again
+  // (now selected) zooms back out to the initial bird's-eye view. Replaces
+  // the dedicated Reset View button.
   //
+  // Focus distance is sized dimension-by-dimension so the creature fills
+  // the box without clipping and without empty bands:
   //   horizontal fit: d ≥ halfWidth  / (tan(FOV/2) × aspect) = halfWidth  / 0.514
   //   vertical fit:   d ≥ halfHeight /  tan(FOV/2)           = halfHeight / 0.414
-  //
-  // Vertical is more restrictive (camera tilt), which my earlier "1.96 ×
-  // halfExtent" multiplier ignored — the creature was clipping vertically
-  // even when horizontal looked fine.
-  //
   // PEAK = 1.06 covers the ±4% breathing peak with a 2% safety margin.
-  // The targetOffset recenters the camera on the creature's visible bbox
-  // (not its group origin), so asymmetric creatures don't sit shifted to
-  // one side. Camera-up (post-billboard) ≈ (0, 0.394, -0.919), so the
-  // bbox-Y offset projects onto world (Y, Z) by those factors.
+  // targetOffset recenters the camera on the creature's visible bbox center
+  // (not its group origin); camera-up post-billboard ≈ (0, 0.394, -0.919),
+  // so the bbox-Y offset projects onto world (Y, Z) by those factors.
   const handleSelect = (
     c: CreatureSpec,
     pos: [number, number, number],
   ) => {
+    // Toggle: clicking the currently-focused creature zooms back out.
+    if (selected?.id === c.id) {
+      setSelected(null);
+      setResetTrigger({ ts: Date.now() });
+      return;
+    }
     setSelected(c);
     const bbox = creatureFocusBox(c);
     const PEAK = 1.06;
     const d_h = (bbox.halfWidth  * PEAK) / 0.514;
     const d_v = (bbox.halfHeight * PEAK) / 0.414;
     const distance = Math.max(2.0, d_h, d_v);
-    // Camera at (0, 14, 6) → camera-up after billboard rotation = (0, 0.394, -0.919)
     const targetOffset: [number, number, number] = [
       bbox.centerX,
       bbox.centerY * 0.394,
@@ -168,23 +165,8 @@ export default function MainPage() {
             />
           </button>
 
-          {/* Reset View button (Figma 2096:131) — animates the camera back to
-              the initial pose and clears the current selection. Position
-              matches Figma exactly. */}
-          <button
-            type="button"
-            onClick={handleResetView}
-            className="absolute left-[383px] top-[825px] z-[20] block h-[31px] w-[156px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform active:scale-95"
-          >
-            <img
-              alt=""
-              src="/assets/reset-view-box.svg"
-              className="absolute inset-0 block size-full"
-            />
-            <span className="absolute inset-0 flex items-center justify-center text-center text-[24px] font-bold leading-[normal] text-black">
-              Reset View
-            </span>
-          </button>
+          {/* Reset View removed: clicking the currently-focused creature
+              again now zooms back out (toggle behavior in handleSelect). */}
 
           {/* BokBok button (Figma 2114:254) — toggles "pet mode". When on,
               the cursor becomes a hand and clicking a creature makes it
