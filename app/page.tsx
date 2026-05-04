@@ -37,26 +37,31 @@ export default function MainPage() {
   };
 
   // Selection from a 3D click — the creature reports its CURRENT live
-  // position (since creatures wander/jump around the scene). We size the
-  // focus camera to the creature's visible bbox AND recenter the target
-  // on the bbox center so asymmetric creatures (most of them) fill the
-  // box edge-to-edge instead of sitting offset with empty bands.
+  // position. We size the focus camera dimension-by-dimension so the
+  // creature fills the box without clipping and without empty bands:
   //
-  // Multiplier 2.05 = 1.96 (horizontal fit at canvas aspect ~1.234, FOV 45°)
-  // + tiny margin for the ±4% breathing pulse. With the selection scale
-  // bump removed, this is enough — the creature at peak breath fills ~99%
-  // of the box width.
+  //   horizontal fit: d ≥ halfWidth  / (tan(FOV/2) × aspect) = halfWidth  / 0.514
+  //   vertical fit:   d ≥ halfHeight /  tan(FOV/2)           = halfHeight / 0.414
   //
-  // Camera-up direction (post-billboard rotation) ≈ (0, 0.394, -0.919), so
-  // the bbox-Y offset projects onto world (Y, Z) by those factors.
+  // Vertical is more restrictive (camera tilt), which my earlier "1.96 ×
+  // halfExtent" multiplier ignored — the creature was clipping vertically
+  // even when horizontal looked fine.
+  //
+  // PEAK = 1.06 covers the ±4% breathing peak with a 2% safety margin.
+  // The targetOffset recenters the camera on the creature's visible bbox
+  // (not its group origin), so asymmetric creatures don't sit shifted to
+  // one side. Camera-up (post-billboard) ≈ (0, 0.394, -0.919), so the
+  // bbox-Y offset projects onto world (Y, Z) by those factors.
   const handleSelect = (
     c: CreatureSpec,
     pos: [number, number, number],
   ) => {
     setSelected(c);
     const bbox = creatureFocusBox(c);
-    const halfExtent = Math.max(bbox.halfWidth, bbox.halfHeight);
-    const distance = Math.max(2.0, halfExtent * 2.05);
+    const PEAK = 1.06;
+    const d_h = (bbox.halfWidth  * PEAK) / 0.514;
+    const d_v = (bbox.halfHeight * PEAK) / 0.414;
+    const distance = Math.max(2.0, d_h, d_v);
     const targetOffset: [number, number, number] = [
       bbox.centerX,
       bbox.centerY * 0.394,
