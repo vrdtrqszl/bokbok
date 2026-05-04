@@ -166,23 +166,35 @@ export default function MainPage() {
           </button>
 
           {/* BokBok button (Figma 2114:254) — sits next to Reset View at the
-              bottom of the main box. Routes to the creature creation flow. */}
+              bottom of the main box. Routes to the creature creation flow.
+              Nested divs match Figma's export: the outer wrapper positions
+              and sizes the box, the inner one offsets slightly negative so
+              the hand-drawn stroke doesn't get visually clipped. */}
           <Link
             href="/create"
             className="absolute left-[553px] top-[823px] z-[20] block h-[40.58px] w-[88.56px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform active:scale-95"
           >
-            <img
-              alt=""
-              src="/assets/bokbok-button.svg"
-              className="absolute block max-w-none"
+            <div
+              className="absolute"
               style={{ inset: "0 3.3% 19.51% 4.4%" }}
-            />
-            <span
+            >
+              <div
+                className="absolute"
+                style={{ inset: "-1.53% -0.61% -1.53% -2.94%" }}
+              >
+                <img
+                  alt=""
+                  src="/assets/bokbok-button.svg"
+                  className="block size-full max-w-none"
+                />
+              </div>
+            </div>
+            <p
               className="absolute m-0 text-center text-[24px] font-bold leading-[normal] text-black"
               style={{ inset: "12.2% 0 0 0" }}
             >
               BokBok
-            </span>
+            </p>
           </Link>
         </>
       )}
