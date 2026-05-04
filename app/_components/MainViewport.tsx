@@ -148,6 +148,7 @@ export default function MainViewport({
   resetTrigger,
   fullscreen = false,
   onExitFullscreen,
+  petMode = false,
 }: {
   onCreatureSelect?: (c: CreatureSpec, position: [number, number, number]) => void;
   selectedCreatureId?: string | null;
@@ -158,6 +159,8 @@ export default function MainViewport({
   fullscreen?: boolean;
   /** Called when the user clicks the exit-fullscreen button (only rendered in fullscreen). */
   onExitFullscreen?: () => void;
+  /** When true, clicking a creature pets it (makes it shake) instead of focusing the camera. */
+  petMode?: boolean;
 } = {}) {
   const apiRef = useRef<CameraApi | null>(null);
 
@@ -240,6 +243,7 @@ export default function MainViewport({
               onSelect={onCreatureSelect}
               selectedId={selectedCreatureId}
               query={query}
+              petMode={petMode}
             />
           </Suspense>
           <ControlsBridge

@@ -51,14 +51,21 @@ function EnergyCreature({
   position,
   onSelect,
   selected,
+  petMode,
 }: {
   creature: CreatureSpec;
   position: [number, number, number];
   onSelect?: (c: CreatureSpec, position: [number, number, number]) => void;
   selected?: boolean;
+  /** When true, clicking pets the creature (shake) instead of selecting. */
+  petMode?: boolean;
 }) {
   const groupRef = useRef<Group | null>(null);
   const [hovered, setHovered] = useState(false);
+  // Timestamp (seconds, perf clock) until which this creature should shake
+  // wildly because it's being petted. Stored as a ref so updating it doesn't
+  // trigger re-renders — we just sample it inside useFrame.
+  const shakeUntilRef = useRef(0);
   // Per-creature random phase derived from id so the whole-body breath is
   // out of sync between creatures.
   const seedPhase = useMemo(() => {
@@ -131,14 +138,36 @@ function EnergyCreature({
 
     g.position.copy(w.pos);
     // Make this creature's current position queryable by the page (search
-    // focus, click handler, etc.).
+    // focus, click handler, etc.). We register the BASE wander position
+    // before adding the shake offset, so other code (like camera focus)
+    // doesn't chase the rapid jitter.
     creaturePositions.set(creature.id, [w.pos.x, w.pos.y, w.pos.z]);
 
-    // Subtle body tilt while in the air (looks dynamic).
+    // Pet shake — overlay a fast random jitter on position+rotation while
+    // the creature is being petted. Decays toward the end of the shake
+    // window so the stop feels organic (settle, don't snap).
+    const now = performance.now() / 1000;
+    if (now < shakeUntilRef.current) {
+      const remaining = shakeUntilRef.current - now;
+      const intensity = Math.min(1, remaining / 0.4); // ramp down in last 0.4s
+      const amp = 0.35 * intensity;
+      g.position.x += (Math.random() - 0.5) * 2 * amp;
+      g.position.y += (Math.random() - 0.5) * 2 * amp;
+      g.position.z += (Math.random() - 0.5) * 2 * amp;
+    }
+
+    // Subtle body tilt while in the air (looks dynamic). Replaced by violent
+    // tilt when the creature is being petted.
     const inAir = !selected && w.progress < 1;
-    g.rotation.z = inAir
-      ? Math.sin(w.progress * Math.PI) * 0.08 * Math.sign(w.to.x - w.from.x || 1)
-      : Math.sin(t * 0.6 + phase) * 0.03;
+    if (now < shakeUntilRef.current) {
+      const remaining = shakeUntilRef.current - now;
+      const intensity = Math.min(1, remaining / 0.4);
+      g.rotation.z = (Math.random() - 0.5) * 0.6 * intensity;
+    } else {
+      g.rotation.z = inAir
+        ? Math.sin(w.progress * Math.PI) * 0.08 * Math.sign(w.to.x - w.from.x || 1)
+        : Math.sin(t * 0.6 + phase) * 0.03;
+    }
 
     // Breathing pulse + hover scale bump. NO selection bump — the camera
     // zoom is the visual feedback for selection, and an extra 1.15× bump
@@ -157,6 +186,12 @@ function EnergyCreature({
       position={position}
       onClick={(e) => {
         e.stopPropagation();
+        if (petMode) {
+          // Pet the creature — shake for ~1.4 seconds. Click again to
+          // re-shake (the timestamp just gets bumped).
+          shakeUntilRef.current = performance.now() / 1000 + 1.4;
+          return;
+        }
         const g = groupRef.current;
         const pos: [number, number, number] = g
           ? [g.position.x, g.position.y, g.position.z]
@@ -166,11 +201,12 @@ function EnergyCreature({
       onPointerOver={(e) => {
         e.stopPropagation();
         setHovered(true);
-        document.body.style.cursor = "pointer";
+        // Don't override the page-level hand cursor while in pet mode.
+        if (!petMode) document.body.style.cursor = "pointer";
       }}
       onPointerOut={() => {
         setHovered(false);
-        document.body.style.cursor = "";
+        if (!petMode) document.body.style.cursor = "";
       }}
     >
       {creature.blocks.map((b, i) => (
@@ -189,10 +225,13 @@ export default function EcosystemCreatures({
   onSelect,
   selectedId,
   query,
+  petMode,
 }: {
   onSelect?: (c: CreatureSpec, position: [number, number, number]) => void;
   selectedId?: string | null;
   query?: string;
+  /** When true, clicking a creature pets it (shake) instead of selecting. */
+  petMode?: boolean;
 } = {}) {
   const [creatures, setCreatures] = useState<CreatureSpec[]>([]);
 
@@ -248,6 +287,7 @@ export default function EcosystemCreatures({
             position={pos}
             onSelect={onSelect}
             selected={selectedId === c.id}
+            petMode={petMode}
           />
         );
       })}

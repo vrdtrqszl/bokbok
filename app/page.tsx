@@ -14,6 +14,9 @@ export default function MainPage() {
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
   const [resetTrigger, setResetTrigger] = useState<ResetTrigger | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  // Pet mode: when on, the cursor becomes a hand and clicking a creature
+  // makes it shake wildly instead of opening the focus view.
+  const [petMode, setPetMode] = useState(false);
 
   // Track the browser's actual fullscreen state so the button reflects it
   // even when the user exits via Escape.
@@ -22,6 +25,16 @@ export default function MainPage() {
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
+
+  // Exit pet mode on Escape — feels natural for "I'm done petting".
+  useEffect(() => {
+    if (!petMode) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPetMode(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [petMode]);
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
@@ -94,6 +107,14 @@ export default function MainPage() {
         // coords to fill the actual window — so the page must NOT clip.
         isFullscreen ? "overflow-visible" : "overflow-hidden"
       }`}
+      // Hand cursor while pet mode is active. The 16,16 hotspot is the
+      // hand's center — close enough to the index-finger area for the
+      // "tap on creature to pet" interaction to feel natural.
+      style={
+        petMode
+          ? { cursor: "url(/assets/hand-cursor.svg) 16 16, pointer" }
+          : undefined
+      }
     >
       {/* Top bar / nav / right panels — hidden in fullscreen mode (Figma 2114:265
           shows just the wavy frame + 3D scene + exit button). */}
@@ -165,14 +186,16 @@ export default function MainPage() {
             </span>
           </button>
 
-          {/* BokBok button (Figma 2114:254) — sits next to Reset View at the
-              bottom of the main box. Routes to the creature creation flow.
-              Nested divs match Figma's export: the outer wrapper positions
-              and sizes the box, the inner one offsets slightly negative so
-              the hand-drawn stroke doesn't get visually clipped. */}
-          <Link
-            href="/create"
-            className="absolute left-[553px] top-[823px] z-[20] block h-[40.58px] w-[88.56px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform active:scale-95"
+          {/* BokBok button (Figma 2114:254) — toggles "pet mode". When on,
+              the cursor becomes a hand and clicking a creature makes it
+              shake wildly. Press again (or Escape) to exit pet mode. */}
+          <button
+            type="button"
+            onClick={() => setPetMode((p) => !p)}
+            aria-pressed={petMode}
+            className={`absolute left-[553px] top-[823px] z-[20] block h-[40.58px] w-[88.56px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform active:scale-95 ${
+              petMode ? "opacity-100" : "opacity-100 hover:opacity-90"
+            }`}
           >
             <div
               className="absolute"
@@ -195,7 +218,7 @@ export default function MainPage() {
             >
               BokBok
             </p>
-          </Link>
+          </button>
         </>
       )}
 
@@ -210,6 +233,7 @@ export default function MainPage() {
         resetTrigger={resetTrigger}
         fullscreen={isFullscreen}
         onExitFullscreen={toggleFullscreen}
+        petMode={petMode}
       />
 
       {/* Right-side panels — hidden in fullscreen mode. */}
