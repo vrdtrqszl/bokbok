@@ -199,18 +199,20 @@ export default function MainViewport({
     };
   })();
 
+  // 3D Canvas size relative to the wrapper. In normal mode this matches
+  // Figma node 2124:135 ("screen") — the inner rectangle (945×769) inside
+  // the wavy border. In fullscreen the wrapper expands and the Canvas
+  // fills it edge-to-edge.
+  const canvasFrame = fullscreen
+    ? { left: 0, top: 0, right: 0, bottom: 0 }
+    : { left: 18, top: 10, width: 945, height: 769 };
+
   return (
     <div className="absolute" style={wrapperStyle}>
-      {/* 3D viewport — fills the entire main box edge-to-edge so the
-          environment uses the whole available space. The decorative wavy
-          border (main-box.svg) is drawn ON TOP and is pointer-events:none,
-          so it doesn't block interaction.
-          Explicit `w-full h-full` is needed alongside `inset-0` because
-          react-three-fiber's Canvas reads its size via getBoundingClientRect,
-          and some browsers leave width/height as `auto` for absolute
-          inset-only boxes — that made the canvas render at its 300×150
-          default in the top-left of the box. */}
-      <div className="absolute inset-0 h-full w-full">
+      {/* 3D viewport — sized exactly to the Figma "screen" rectangle so the
+          environment lives inside the wavy hand-drawn border (which is drawn
+          on top, pointer-events:none, so it doesn't block interaction). */}
+      <div className="absolute" style={canvasFrame}>
         <Canvas
           camera={{
             position: [
