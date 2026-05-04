@@ -18,19 +18,11 @@ const TEXTURE_PATHS = EMOTION_LIST.map((e) => e.imagePath);
 // creature actually IS at any given moment.
 export const creaturePositions = new Map<string, [number, number, number]>();
 
-// Wander bounds — RECTANGULAR (not circular) so creatures fill the entire
-// main box, matching the camera's visible region at y=0 instead of clustering
-// in a small circle in the middle. At camera (0, 18, 8) FOV 45° aspect ~1.234,
-// the visible y=0 region is x ±10.13, z ∈ [-10.79, 7.54].
-//
-// Bounds are tuned so the WORST-CASE body corner stays inside the screen at
-// any wander position. For creature half-extent 1.5: body extends in both
-// world-x (±1.5) and screen-up (±1.5 along camera-up = (0, 0.406, -0.913)),
-// so the bottom-right of the body for a creature at corner (X_MAX, 0, Z_NEAR)
-// projects to NDC just inside the frame.
-const WANDER_X_MAX  = 7.0;
-const WANDER_Z_NEAR = 5.5;  // z+ direction (close to camera in screen space)
-const WANDER_Z_FAR  = 9.0;  // |z-| (far from camera)
+// Outer bound on the XZ plane — creatures bounce back if they'd jump past it.
+// Matches the original layout. At camera (0, 14, 6) FOV 45° aspect ~1.234,
+// the visible y=0 region is x ±7.83, z ∈ [-8.34, 5.83]; radius 4.5 keeps
+// creature bodies inside the close-side z+ edge with a small halo margin.
+const WANDER_MAX_RADIUS = 4.5;
 // Per-hop step distance — small so creatures look like they're hopping in
 // place rather than flying around the scene.
 const HOP_MIN_STEP = 0.15;
@@ -110,15 +102,11 @@ function EnergyCreature({
           HOP_MIN_STEP + Math.random() * (HOP_MAX_STEP - HOP_MIN_STEP);
         let nx = w.pos.x + Math.cos(dir) * step;
         let nz = w.pos.z + Math.sin(dir) * step;
-        // Bounce back toward origin if the next hop would leave the
-        // rectangular bound — keeps creatures inside the visible main box
-        // without forcing them to cluster on a small circle in the middle.
-        const outOfX = Math.abs(nx) > WANDER_X_MAX;
-        const outOfZ = nz > WANDER_Z_NEAR || nz < -WANDER_Z_FAR;
-        if (outOfX || outOfZ) {
-          const dist = Math.max(0.001, Math.hypot(w.pos.x, w.pos.z));
-          nx = w.pos.x - (w.pos.x / dist) * step;
-          nz = w.pos.z - (w.pos.z / dist) * step;
+        // Bounce back toward origin if the next hop would leave the bounds.
+        if (Math.hypot(nx, nz) > WANDER_MAX_RADIUS) {
+          const back = Math.atan2(-w.pos.z, -w.pos.x);
+          nx = w.pos.x + Math.cos(back) * step;
+          nz = w.pos.z + Math.sin(back) * step;
         }
         w.to.set(nx, 0, nz);
         w.progress = 0;
@@ -246,42 +234,13 @@ export default function EcosystemCreatures({
   return (
     <Suspense fallback={null}>
       {visible.map((c, i) => {
-        // Walk the wander rectangle's PERIMETER (not an inscribed ellipse,
-        // which leaves the corners empty). For 4 creatures this puts the
-        // first one exactly at a corner (top-right, in z+/x+) and the third
-        // at the opposite corner; for more creatures they distribute evenly
-        // around the perimeter. Result: creatures actually fill the corners
-        // of the box instead of bunching toward the center.
-        const x_max = WANDER_X_MAX;
-        const z_top = WANDER_Z_NEAR;   // z+ side (close to camera)
-        const z_bot = -WANDER_Z_FAR;   // z- side (far)
-        const w = 2 * x_max;
-        const h = z_top - z_bot;
-        const perim = 2 * (w + h);
-        const d = (i / Math.max(visible.length, 1)) * perim;
-        let px: number;
-        let pz: number;
-        if (visible.length === 1) {
-          px = 0;
-          pz = (z_top + z_bot) / 2;
-        } else if (d < h) {
-          // Right edge: from (x_max, z_top) going down toward (x_max, z_bot)
-          px = x_max;
-          pz = z_top - d;
-        } else if (d < h + w) {
-          // Bottom edge: from (x_max, z_bot) going left
-          px = x_max - (d - h);
-          pz = z_bot;
-        } else if (d < 2 * h + w) {
-          // Left edge: from (-x_max, z_bot) going up
-          px = -x_max;
-          pz = z_bot + (d - h - w);
-        } else {
-          // Top edge: from (-x_max, z_top) going right
-          px = -x_max + (d - 2 * h - w);
-          pz = z_top;
-        }
-        const pos: [number, number, number] = [px, 0, pz];
+        const angle = (i / visible.length) * Math.PI * 2;
+        const radius = visible.length === 1 ? 0 : 4;
+        const pos: [number, number, number] = [
+          Math.cos(angle) * radius,
+          0,
+          Math.sin(angle) * radius,
+        ];
         return (
           <EnergyCreature
             key={c.id}

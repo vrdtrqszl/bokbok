@@ -62,11 +62,11 @@ export default function MainPage() {
     const d_h = (bbox.halfWidth  * PEAK) / 0.514;
     const d_v = (bbox.halfHeight * PEAK) / 0.414;
     const distance = Math.max(2.0, d_h, d_v);
-    // Camera at (0, 18, 8) → camera-up after billboard rotation = (0, 0.406, -0.913)
+    // Camera at (0, 14, 6) → camera-up after billboard rotation = (0, 0.394, -0.919)
     const targetOffset: [number, number, number] = [
       bbox.centerX,
-      bbox.centerY * 0.406,
-      bbox.centerY * -0.913,
+      bbox.centerY * 0.394,
+      bbox.centerY * -0.919,
     ];
     setFocusTarget({ position: pos, ts: Date.now(), distance, targetOffset });
   };

@@ -37,10 +37,9 @@ export type ResetTrigger = {
 };
 
 // Slightly tilted bird's-eye default view (high angle, not full top-down).
-// Camera is locked to this direction — only zoom in/out is allowed. Pulled
-// back enough that the wandering region (radius 5) fits comfortably with
-// halo bleed margin on the close side of the camera frustum.
-const INITIAL_CAMERA_POSITION = new Vector3(0, 18, 8);
+// Camera is locked to this direction — only zoom in/out is allowed. Distance
+// matches the original layout the user signed off on.
+const INITIAL_CAMERA_POSITION = new Vector3(0, 14, 6);
 const INITIAL_CAMERA_TARGET = new Vector3(0, 0, 0);
 // Normalised look direction. Reused when focusing on a clicked creature so
 // the angle stays consistent (only the distance changes).
