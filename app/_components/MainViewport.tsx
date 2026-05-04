@@ -26,6 +26,9 @@ export type FocusTarget = {
   /** Camera distance from target. Falls back to FOCUS_DISTANCE when omitted.
    *  Pass a creature-sized value so big creatures don't get clipped. */
   distance?: number;
+  /** World-space offset added to `position` to recenter the camera on the
+   *  creature's visual bbox center (instead of its group origin). */
+  targetOffset?: [number, number, number];
 };
 
 export type ResetTrigger = {
@@ -76,12 +79,18 @@ function ControlsBridge({
   });
 
   // When focusTarget changes (search Enter or 3D click), kick off a smooth
-  // zoom to it. We preserve the bird's-eye angle by using the same direction
-  // as the initial camera, only varying distance — the caller picks a
-  // distance based on the creature's size so it always fits in view.
+  // zoom to it. The caller passes a distance sized to the creature's bbox
+  // and an optional targetOffset to recenter the camera on the visible
+  // creature center (vs the group origin) so asymmetric creatures fill the
+  // box without empty bands on one side.
   useEffect(() => {
     if (!focusTarget) return;
     const target = new Vector3(...focusTarget.position);
+    if (focusTarget.targetOffset) {
+      target.x += focusTarget.targetOffset[0];
+      target.y += focusTarget.targetOffset[1];
+      target.z += focusTarget.targetOffset[2];
+    }
     const distance = focusTarget.distance ?? FOCUS_DISTANCE;
     const offset = BIRDS_EYE_DIR.clone().multiplyScalar(distance);
     const position = target.clone().add(offset);

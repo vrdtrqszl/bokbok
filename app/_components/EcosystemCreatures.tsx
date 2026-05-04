@@ -140,8 +140,10 @@ function EnergyCreature({
       ? Math.sin(w.progress * Math.PI) * 0.08 * Math.sign(w.to.x - w.from.x || 1)
       : Math.sin(t * 0.6 + phase) * 0.03;
 
-    // Breathing pulse + selected/hover scale bump.
-    const targetScale = selected ? 1.15 : hovered ? 1.08 : 1.0;
+    // Breathing pulse + hover scale bump. NO selection bump — the camera
+    // zoom is the visual feedback for selection, and an extra 1.15× bump
+    // forces the focus camera to pull back further than necessary.
+    const targetScale = hovered && !selected ? 1.08 : 1.0;
     const breath = 1 + Math.sin(t * 1.3 + phase) * 0.04;
     const cur = g.scale.x / (g.userData.lastBreath || 1);
     const next = cur + (targetScale - cur) * 0.15;

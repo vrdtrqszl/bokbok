@@ -24,24 +24,47 @@ export type CreatureBlock = {
 };
 
 /**
- * Largest distance from the creature's origin to any block edge, measured
- * along whichever axis is wider. Used by the 3D viewport to pick a focus
- * distance that keeps the creature fully in view — no clipping at the
- * canvas edges when the camera zooms in. Conservative halo factor (just
- * past the block plane) so the camera can pull in close and the creature
- * fills the box.
+ * Screen-aligned bounding box of all creature blocks. Used by the 3D viewport
+ * to fit and CENTER the camera on a creature when it's selected — many
+ * creatures aren't symmetric around their group origin, and looking at the
+ * origin instead of the bbox center leaves big empty bands on one side of
+ * the box. The X axis here is creature-local (= camera right after billboard
+ * rotation); Y is screen-up (=  -b.y, since blocks render at -b.y).
+ */
+export function creatureFocusBox(creature: { blocks: CreatureBlock[] }): {
+  centerX: number;
+  centerY: number;
+  halfWidth: number;
+  halfHeight: number;
+} {
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+  for (const b of creature.blocks) {
+    // Block plane half-width 0.5 + small halo bleed = 0.55 × scale.
+    const r = b.scale * 0.55;
+    minX = Math.min(minX, b.x - r);
+    maxX = Math.max(maxX, b.x + r);
+    // Screen-Y of a block = -b.y (rendering puts block at world -b.y).
+    const sy = -b.y;
+    minY = Math.min(minY, sy - r);
+    maxY = Math.max(maxY, sy + r);
+  }
+  return {
+    centerX: (minX + maxX) / 2,
+    centerY: (minY + maxY) / 2,
+    halfWidth: (maxX - minX) / 2,
+    halfHeight: (maxY - minY) / 2,
+  };
+}
+
+/**
+ * Convenience — the larger of (halfWidth, halfHeight) from creatureFocusBox.
+ * Older code used max(|b.x|, |b.y|) here which over-estimated for asymmetric
+ * creatures and pushed the camera too far back.
  */
 export function creatureHalfExtent(creature: { blocks: CreatureBlock[] }): number {
-  let halfX = 0;
-  let halfY = 0;
-  for (const b of creature.blocks) {
-    // Block plane half-width 0.5 + a small halo bleed of ~0.05 = 0.55 * scale.
-    // Anything more makes the camera pull back further than necessary.
-    const r = b.scale * 0.55;
-    halfX = Math.max(halfX, Math.abs(b.x) + r);
-    halfY = Math.max(halfY, Math.abs(b.y) + r);
-  }
-  return Math.max(halfX, halfY);
+  const b = creatureFocusBox(creature);
+  return Math.max(b.halfWidth, b.halfHeight);
 }
 
 export type CreatureSpec = {

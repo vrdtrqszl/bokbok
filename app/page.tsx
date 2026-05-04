@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import MainViewport, { type FocusTarget, type ResetTrigger } from "./_components/MainViewport";
 import { deleteCreatureById } from "@/lib/ecosystem";
-import { creatureHalfExtent, emotionByKey, type CreatureSpec } from "@/lib/creature";
+import { creatureFocusBox, emotionByKey, type CreatureSpec } from "@/lib/creature";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
 
 export default function MainPage() {
@@ -37,20 +37,32 @@ export default function MainPage() {
   };
 
   // Selection from a 3D click — the creature reports its CURRENT live
-  // position (since creatures wander/jump around the scene). Focus distance
-  // tuned so the creature fills the box without clipping. At canvas aspect
-  // ~1.234 with FOV 45°, horizontal fit needs 1.96 × halfExtent; selected
-  // creatures get up to a 1.20× scale (1.15 selection bump × 1.04 breathing
-  // peak), so the effective multiplier is 1.96 × 1.20 ≈ 2.35. Round to 2.4
-  // to put the creature at ~97% of box width — fills it without clipping.
+  // position (since creatures wander/jump around the scene). We size the
+  // focus camera to the creature's visible bbox AND recenter the target
+  // on the bbox center so asymmetric creatures (most of them) fill the
+  // box edge-to-edge instead of sitting offset with empty bands.
+  //
+  // Multiplier 2.05 = 1.96 (horizontal fit at canvas aspect ~1.234, FOV 45°)
+  // + tiny margin for the ±4% breathing pulse. With the selection scale
+  // bump removed, this is enough — the creature at peak breath fills ~99%
+  // of the box width.
+  //
+  // Camera-up direction (post-billboard rotation) ≈ (0, 0.394, -0.919), so
+  // the bbox-Y offset projects onto world (Y, Z) by those factors.
   const handleSelect = (
     c: CreatureSpec,
     pos: [number, number, number],
   ) => {
     setSelected(c);
-    const halfExtent = creatureHalfExtent(c);
-    const distance = Math.max(2.0, halfExtent * 2.4);
-    setFocusTarget({ position: pos, ts: Date.now(), distance });
+    const bbox = creatureFocusBox(c);
+    const halfExtent = Math.max(bbox.halfWidth, bbox.halfHeight);
+    const distance = Math.max(2.0, halfExtent * 2.05);
+    const targetOffset: [number, number, number] = [
+      bbox.centerX,
+      bbox.centerY * 0.394,
+      bbox.centerY * -0.919,
+    ];
+    setFocusTarget({ position: pos, ts: Date.now(), distance, targetOffset });
   };
 
   const handleEdit = () => {
