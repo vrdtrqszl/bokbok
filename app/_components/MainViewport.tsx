@@ -213,7 +213,6 @@ export default function MainViewport({
             ? "absolute inset-0"
             : "absolute left-[18px] top-[10px] h-[769px] w-[945px]"
         }
-        style={{ backgroundColor: "rgba(255, 0, 0, 0.15)" }}
       >
         <Canvas
           camera={{
@@ -224,7 +223,14 @@ export default function MainViewport({
             ],
             fov: 45,
           }}
-          style={{ background: "rgba(0, 255, 0, 0.15)" }}
+          // CRITICAL: offsetSize uses offsetWidth/offsetHeight (pre-transform)
+          // instead of getBoundingClientRect (post-transform). Without this,
+          // ViewportFit's CSS scale() makes r3f measure half-size, the canvas
+          // gets sized to that half value, and then the transform scales the
+          // rendered canvas AGAIN — double scaling, canvas ends up rendering
+          // only in the top-left of the wrapper.
+          resize={{ offsetSize: true }}
+          style={{ background: "transparent" }}
         >
           <ambientLight intensity={0.8} />
           <directionalLight position={[5, 5, 5]} intensity={0.6} />
