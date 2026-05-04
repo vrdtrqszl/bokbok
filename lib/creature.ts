@@ -24,18 +24,20 @@ export type CreatureBlock = {
 };
 
 /**
- * Largest distance from the creature's origin to any block edge (block half-
- * width plus halo bleed), measured along whichever axis is wider. Used by
- * the 3D viewport to pick a focus distance that keeps the creature fully in
- * view — no clipping at the canvas edges when the camera zooms in.
+ * Largest distance from the creature's origin to any block edge, measured
+ * along whichever axis is wider. Used by the 3D viewport to pick a focus
+ * distance that keeps the creature fully in view — no clipping at the
+ * canvas edges when the camera zooms in. Conservative halo factor (just
+ * past the block plane) so the camera can pull in close and the creature
+ * fills the box.
  */
 export function creatureHalfExtent(creature: { blocks: CreatureBlock[] }): number {
   let halfX = 0;
   let halfY = 0;
   for (const b of creature.blocks) {
-    // Block plane is 1×1 (so half-width = 0.5 * scale) and the soft gradient
-    // halo bleeds another ~0.5 * scale beyond the plane.
-    const r = b.scale * 1.0;
+    // Block plane half-width 0.5 + a small halo bleed of ~0.05 = 0.55 * scale.
+    // Anything more makes the camera pull back further than necessary.
+    const r = b.scale * 0.55;
     halfX = Math.max(halfX, Math.abs(b.x) + r);
     halfY = Math.max(halfY, Math.abs(b.y) + r);
   }

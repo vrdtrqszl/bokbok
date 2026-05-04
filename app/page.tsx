@@ -37,16 +37,18 @@ export default function MainPage() {
   };
 
   // Selection from a 3D click — the creature reports its CURRENT live
-  // position (since creatures wander/jump around the scene). The focus
-  // distance is sized to fit the creature: half-extent * 2.5 covers both
-  // the camera tilt and the canvas aspect ratio with margin to spare.
+  // position (since creatures wander/jump around the scene). Focus distance
+  // is tuned so the creature *fills the box* without clipping: the canvas
+  // is ~1.234 aspect at FOV 45° in normal mode, which means horizontal fit
+  // needs distance ≈ 1.96 × halfExtent. Using 2.0× leaves a small breath of
+  // margin so the breathing/sway animation never tips into clipping.
   const handleSelect = (
     c: CreatureSpec,
     pos: [number, number, number],
   ) => {
     setSelected(c);
     const halfExtent = creatureHalfExtent(c);
-    const distance = Math.max(2.5, halfExtent * 2.5);
+    const distance = Math.max(2.0, halfExtent * 2.0);
     setFocusTarget({ position: pos, ts: Date.now(), distance });
   };
 
