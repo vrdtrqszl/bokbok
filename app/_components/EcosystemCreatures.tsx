@@ -21,10 +21,15 @@ export const creaturePositions = new Map<string, [number, number, number]>();
 // Wander bounds — RECTANGULAR (not circular) so creatures fill the entire
 // main box, matching the camera's visible region at y=0 instead of clustering
 // in a small circle in the middle. At camera (0, 18, 8) FOV 45° aspect ~1.234,
-// the visible y=0 region is x ±10.13, z ∈ [-10.79, 7.54]. Subtract body-extent
-// margin (~1.5) so halos stay just inside the box edge.
-const WANDER_X_MAX = 8.5;
-const WANDER_Z_NEAR = 6.0;  // z+ direction (close to camera in screen space)
+// the visible y=0 region is x ±10.13, z ∈ [-10.79, 7.54].
+//
+// Bounds are tuned so the WORST-CASE body corner stays inside the screen at
+// any wander position. For creature half-extent 1.5: body extends in both
+// world-x (±1.5) and screen-up (±1.5 along camera-up = (0, 0.406, -0.913)),
+// so the bottom-right of the body for a creature at corner (X_MAX, 0, Z_NEAR)
+// projects to NDC just inside the frame.
+const WANDER_X_MAX  = 7.0;
+const WANDER_Z_NEAR = 5.5;  // z+ direction (close to camera in screen space)
 const WANDER_Z_FAR  = 9.0;  // |z-| (far from camera)
 // Per-hop step distance — small so creatures look like they're hopping in
 // place rather than flying around the scene.
@@ -241,22 +246,42 @@ export default function EcosystemCreatures({
   return (
     <Suspense fallback={null}>
       {visible.map((c, i) => {
-        // Distribute creatures around an ellipse inscribed in the wander
-        // rectangle so they instantly fill the visible box (instead of
-        // crowding on a small circle in the middle). The ellipse is centered
-        // slightly behind origin to match the camera's asymmetric z-range.
-        const ELLIPSE_AX = WANDER_X_MAX * 0.78;
-        const ELLIPSE_AZ = ((WANDER_Z_NEAR + WANDER_Z_FAR) / 2) * 0.78;
-        const ELLIPSE_CZ = (WANDER_Z_NEAR - WANDER_Z_FAR) / 2;
-        const angle = (i / visible.length) * Math.PI * 2;
-        const pos: [number, number, number] =
-          visible.length === 1
-            ? [0, 0, ELLIPSE_CZ]
-            : [
-                Math.cos(angle) * ELLIPSE_AX,
-                0,
-                ELLIPSE_CZ + Math.sin(angle) * ELLIPSE_AZ,
-              ];
+        // Walk the wander rectangle's PERIMETER (not an inscribed ellipse,
+        // which leaves the corners empty). For 4 creatures this puts the
+        // first one exactly at a corner (top-right, in z+/x+) and the third
+        // at the opposite corner; for more creatures they distribute evenly
+        // around the perimeter. Result: creatures actually fill the corners
+        // of the box instead of bunching toward the center.
+        const x_max = WANDER_X_MAX;
+        const z_top = WANDER_Z_NEAR;   // z+ side (close to camera)
+        const z_bot = -WANDER_Z_FAR;   // z- side (far)
+        const w = 2 * x_max;
+        const h = z_top - z_bot;
+        const perim = 2 * (w + h);
+        const d = (i / Math.max(visible.length, 1)) * perim;
+        let px: number;
+        let pz: number;
+        if (visible.length === 1) {
+          px = 0;
+          pz = (z_top + z_bot) / 2;
+        } else if (d < h) {
+          // Right edge: from (x_max, z_top) going down toward (x_max, z_bot)
+          px = x_max;
+          pz = z_top - d;
+        } else if (d < h + w) {
+          // Bottom edge: from (x_max, z_bot) going left
+          px = x_max - (d - h);
+          pz = z_bot;
+        } else if (d < 2 * h + w) {
+          // Left edge: from (-x_max, z_bot) going up
+          px = -x_max;
+          pz = z_bot + (d - h - w);
+        } else {
+          // Top edge: from (-x_max, z_top) going right
+          px = -x_max + (d - 2 * h - w);
+          pz = z_top;
+        }
+        const pos: [number, number, number] = [px, 0, pz];
         return (
           <EnergyCreature
             key={c.id}
