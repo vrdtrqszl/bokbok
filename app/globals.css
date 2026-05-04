@@ -38,6 +38,11 @@ html, body {
      phantom scrollbars when the keyboard opens. */
   overflow: hidden;
   height: 100%;
+  /* Custom hand-drawn arrow cursor (Figma 2128:150). Hotspot 4,0 = the
+     pointing tip at the top. Falls back to `auto` on browsers that can't
+     load the SVG (very rare — all modern browsers support SVG cursors).
+     Pet mode overrides this with a hand cursor on the main page. */
+  cursor: url('/assets/cursor.svg') 4 0, auto;
 }
 
 /* Hide all scrollbars site-wide while keeping scroll functionality. */
