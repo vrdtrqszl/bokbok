@@ -18,13 +18,14 @@ const TEXTURE_PATHS = EMOTION_LIST.map((e) => e.imagePath);
 // creature actually IS at any given moment.
 export const creaturePositions = new Map<string, [number, number, number]>();
 
-// Outer bound on the XZ plane — creatures bounce back if they'd jump past it.
-// Sized so the wandering "environment space" actually uses the full main box.
-// At the new pulled-back bird's-eye camera (0, 18, 8) with FOV 45° and aspect
-// ~1.234, the y=0 ground plane is visible from x ±10.13, z ∈ [-10.79, 7.54];
-// radius 5 with body extent ~1.5 keeps everything inside the close-side z+
-// edge with margin to spare.
-const WANDER_MAX_RADIUS = 5.0;
+// Wander bounds — RECTANGULAR (not circular) so creatures fill the entire
+// main box, matching the camera's visible region at y=0 instead of clustering
+// in a small circle in the middle. At camera (0, 18, 8) FOV 45° aspect ~1.234,
+// the visible y=0 region is x ±10.13, z ∈ [-10.79, 7.54]. Subtract body-extent
+// margin (~1.5) so halos stay just inside the box edge.
+const WANDER_X_MAX = 8.5;
+const WANDER_Z_NEAR = 6.0;  // z+ direction (close to camera in screen space)
+const WANDER_Z_FAR  = 9.0;  // |z-| (far from camera)
 // Per-hop step distance — small so creatures look like they're hopping in
 // place rather than flying around the scene.
 const HOP_MIN_STEP = 0.15;
@@ -104,11 +105,15 @@ function EnergyCreature({
           HOP_MIN_STEP + Math.random() * (HOP_MAX_STEP - HOP_MIN_STEP);
         let nx = w.pos.x + Math.cos(dir) * step;
         let nz = w.pos.z + Math.sin(dir) * step;
-        // Bounce back toward origin if the next hop would leave the bounds.
-        if (Math.hypot(nx, nz) > WANDER_MAX_RADIUS) {
-          const back = Math.atan2(-w.pos.z, -w.pos.x);
-          nx = w.pos.x + Math.cos(back) * step;
-          nz = w.pos.z + Math.sin(back) * step;
+        // Bounce back toward origin if the next hop would leave the
+        // rectangular bound — keeps creatures inside the visible main box
+        // without forcing them to cluster on a small circle in the middle.
+        const outOfX = Math.abs(nx) > WANDER_X_MAX;
+        const outOfZ = nz > WANDER_Z_NEAR || nz < -WANDER_Z_FAR;
+        if (outOfX || outOfZ) {
+          const dist = Math.max(0.001, Math.hypot(w.pos.x, w.pos.z));
+          nx = w.pos.x - (w.pos.x / dist) * step;
+          nz = w.pos.z - (w.pos.z / dist) * step;
         }
         w.to.set(nx, 0, nz);
         w.progress = 0;
@@ -236,15 +241,22 @@ export default function EcosystemCreatures({
   return (
     <Suspense fallback={null}>
       {visible.map((c, i) => {
+        // Distribute creatures around an ellipse inscribed in the wander
+        // rectangle so they instantly fill the visible box (instead of
+        // crowding on a small circle in the middle). The ellipse is centered
+        // slightly behind origin to match the camera's asymmetric z-range.
+        const ELLIPSE_AX = WANDER_X_MAX * 0.78;
+        const ELLIPSE_AZ = ((WANDER_Z_NEAR + WANDER_Z_FAR) / 2) * 0.78;
+        const ELLIPSE_CZ = (WANDER_Z_NEAR - WANDER_Z_FAR) / 2;
         const angle = (i / visible.length) * Math.PI * 2;
-        // Spawn creatures spread across the full environment, just inside the
-        // wander bound so they have room to drift outward and inward.
-        const radius = visible.length === 1 ? 0 : 4.5;
-        const pos: [number, number, number] = [
-          Math.cos(angle) * radius,
-          0,
-          Math.sin(angle) * radius,
-        ];
+        const pos: [number, number, number] =
+          visible.length === 1
+            ? [0, 0, ELLIPSE_CZ]
+            : [
+                Math.cos(angle) * ELLIPSE_AX,
+                0,
+                ELLIPSE_CZ + Math.sin(angle) * ELLIPSE_AZ,
+              ];
         return (
           <EnergyCreature
             key={c.id}
