@@ -38,8 +38,9 @@ export type ResetTrigger = {
 
 // Slightly tilted bird's-eye default view (high angle, not full top-down).
 // Camera is locked to this direction — only zoom in/out is allowed. Pulled
-// far back so every creature on the radius-4 circle is visible at once.
-const INITIAL_CAMERA_POSITION = new Vector3(0, 14, 6);
+// back enough that the wandering region (radius 5) fits comfortably with
+// halo bleed margin on the close side of the camera frustum.
+const INITIAL_CAMERA_POSITION = new Vector3(0, 18, 8);
 const INITIAL_CAMERA_TARGET = new Vector3(0, 0, 0);
 // Normalised look direction. Reused when focusing on a clicked creature so
 // the angle stays consistent (only the distance changes).
@@ -201,9 +202,11 @@ export default function MainViewport({
 
   return (
     <div className="absolute" style={wrapperStyle}>
-      {/* 3D viewport — inset under the wavy border in normal mode; fills
-          edge-to-edge in fullscreen since the border is removed there. */}
-      <div className={`absolute ${fullscreen ? "inset-0" : "inset-[12px]"}`}>
+      {/* 3D viewport — fills the entire main box edge-to-edge so the
+          environment uses the whole available space. The decorative wavy
+          border (main-box.svg) is drawn ON TOP and is pointer-events:none,
+          so it doesn't block interaction. */}
+      <div className="absolute inset-0">
         <Canvas
           camera={{
             position: [

@@ -62,10 +62,11 @@ export default function MainPage() {
     const d_h = (bbox.halfWidth  * PEAK) / 0.514;
     const d_v = (bbox.halfHeight * PEAK) / 0.414;
     const distance = Math.max(2.0, d_h, d_v);
+    // Camera at (0, 18, 8) → camera-up after billboard rotation = (0, 0.406, -0.913)
     const targetOffset: [number, number, number] = [
       bbox.centerX,
-      bbox.centerY * 0.394,
-      bbox.centerY * -0.919,
+      bbox.centerY * 0.406,
+      bbox.centerY * -0.913,
     ];
     setFocusTarget({ position: pos, ts: Date.now(), distance, targetOffset });
   };
@@ -147,11 +148,12 @@ export default function MainPage() {
           </button>
 
           {/* Reset View button (Figma 2096:131) — animates the camera back to
-              the initial pose and clears the current selection. */}
+              the initial pose and clears the current selection. Position
+              matches Figma exactly. */}
           <button
             type="button"
             onClick={handleResetView}
-            className="absolute left-[434px] top-[827px] z-[20] block h-[31px] w-[156px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform active:scale-95"
+            className="absolute left-[383px] top-[825px] z-[20] block h-[31px] w-[156px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform active:scale-95"
           >
             <img
               alt=""
@@ -162,6 +164,26 @@ export default function MainPage() {
               Reset View
             </span>
           </button>
+
+          {/* BokBok button (Figma 2114:254) — sits next to Reset View at the
+              bottom of the main box. Routes to the creature creation flow. */}
+          <Link
+            href="/create"
+            className="absolute left-[553px] top-[823px] z-[20] block h-[40.58px] w-[88.56px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform active:scale-95"
+          >
+            <img
+              alt=""
+              src="/assets/bokbok-button.svg"
+              className="absolute block max-w-none"
+              style={{ inset: "0 3.3% 19.51% 4.4%" }}
+            />
+            <span
+              className="absolute m-0 text-center text-[24px] font-bold leading-[normal] text-black"
+              style={{ inset: "12.2% 0 0 0" }}
+            >
+              BokBok
+            </span>
+          </Link>
         </>
       )}
 

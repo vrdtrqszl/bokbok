@@ -40,8 +40,11 @@ export function creatureFocusBox(creature: { blocks: CreatureBlock[] }): {
   let minX = Infinity, maxX = -Infinity;
   let minY = Infinity, maxY = -Infinity;
   for (const b of creature.blocks) {
-    // Block plane half-width 0.5 + small halo bleed = 0.55 × scale.
-    const r = b.scale * 0.55;
+    // Block plane half-width 0.5 covers the solid block content; the soft
+    // halo gradient that fades past the plane edge is not counted (it's
+    // already mostly transparent). Letting halo bleed slightly past the
+    // frame is fine — the alternative is a much smaller creature on screen.
+    const r = b.scale * 0.5;
     minX = Math.min(minX, b.x - r);
     maxX = Math.max(maxX, b.x + r);
     // Screen-Y of a block = -b.y (rendering puts block at world -b.y).
