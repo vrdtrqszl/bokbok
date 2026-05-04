@@ -23,6 +23,9 @@ export type FocusTarget = {
   position: [number, number, number];
   /** Bumped each search so the same creature can be re-focused */
   ts: number;
+  /** Camera distance from target. Falls back to FOCUS_DISTANCE when omitted.
+   *  Pass a creature-sized value so big creatures don't get clipped. */
+  distance?: number;
 };
 
 export type ResetTrigger = {
@@ -74,11 +77,13 @@ function ControlsBridge({
 
   // When focusTarget changes (search Enter or 3D click), kick off a smooth
   // zoom to it. We preserve the bird's-eye angle by using the same direction
-  // as the initial camera, only varying distance.
+  // as the initial camera, only varying distance — the caller picks a
+  // distance based on the creature's size so it always fits in view.
   useEffect(() => {
     if (!focusTarget) return;
     const target = new Vector3(...focusTarget.position);
-    const offset = BIRDS_EYE_DIR.clone().multiplyScalar(FOCUS_DISTANCE);
+    const distance = focusTarget.distance ?? FOCUS_DISTANCE;
+    const offset = BIRDS_EYE_DIR.clone().multiplyScalar(distance);
     const position = target.clone().add(offset);
     animRef.current = { target, position };
   }, [focusTarget?.ts]);

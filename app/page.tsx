@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import MainViewport, { type FocusTarget, type ResetTrigger } from "./_components/MainViewport";
 import { deleteCreatureById } from "@/lib/ecosystem";
-import { emotionByKey, type CreatureSpec } from "@/lib/creature";
+import { creatureHalfExtent, emotionByKey, type CreatureSpec } from "@/lib/creature";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
 
 export default function MainPage() {
@@ -37,13 +37,17 @@ export default function MainPage() {
   };
 
   // Selection from a 3D click — the creature reports its CURRENT live
-  // position (since creatures wander/jump around the scene).
+  // position (since creatures wander/jump around the scene). The focus
+  // distance is sized to fit the creature: half-extent * 2.5 covers both
+  // the camera tilt and the canvas aspect ratio with margin to spare.
   const handleSelect = (
     c: CreatureSpec,
     pos: [number, number, number],
   ) => {
     setSelected(c);
-    setFocusTarget({ position: pos, ts: Date.now() });
+    const halfExtent = creatureHalfExtent(c);
+    const distance = Math.max(2.5, halfExtent * 2.5);
+    setFocusTarget({ position: pos, ts: Date.now(), distance });
   };
 
   const handleEdit = () => {
