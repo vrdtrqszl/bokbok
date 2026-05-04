@@ -199,48 +199,63 @@ export default function MainViewport({
     };
   })();
 
-  // 3D Canvas size relative to the wrapper. In normal mode this matches
-  // Figma node 2124:135 ("screen") — the inner rectangle (945×769) inside
-  // the wavy border. In fullscreen the wrapper expands and the Canvas
-  // fills it edge-to-edge.
-  const canvasFrame = fullscreen
-    ? { left: 0, top: 0, right: 0, bottom: 0 }
-    : { left: 18, top: 10, width: 945, height: 769 };
+  // 3D Canvas style — applied DIRECTLY to the Canvas wrapper (no
+  // intermediate div) so we don't depend on layout-constraint solving for
+  // sizing. Figma node 2124:135 ("screen") defines the inner rectangle at
+  // (45, 95, 945×769) on the page; that's (18, 10) inside the MainViewport
+  // wrapper at (27, 85). In fullscreen the wrapper expands and Canvas fills
+  // it edge-to-edge.
+  const canvasStyle: React.CSSProperties = fullscreen
+    ? {
+        position: "absolute",
+        left: 0,
+        top: 0,
+        width: "100%",
+        height: "100%",
+        background: "transparent",
+      }
+    : {
+        position: "absolute",
+        left: 18,
+        top: 10,
+        width: 945,
+        height: 769,
+        background: "transparent",
+      };
 
   return (
     <div className="absolute" style={wrapperStyle}>
-      {/* 3D viewport — sized exactly to the Figma "screen" rectangle so the
-          environment lives inside the wavy hand-drawn border (which is drawn
-          on top, pointer-events:none, so it doesn't block interaction). */}
-      <div className="absolute" style={canvasFrame}>
-        <Canvas
-          camera={{
-            position: [
-              INITIAL_CAMERA_POSITION.x,
-              INITIAL_CAMERA_POSITION.y,
-              INITIAL_CAMERA_POSITION.z,
-            ],
-            fov: 45,
-          }}
-          style={{ background: "transparent", width: "100%", height: "100%" }}
-        >
-          <ambientLight intensity={0.8} />
-          <directionalLight position={[5, 5, 5]} intensity={0.6} />
-          <directionalLight position={[-3, -2, -4]} intensity={0.2} />
-          <Suspense fallback={null}>
-            <EcosystemCreatures
-              onSelect={onCreatureSelect}
-              selectedId={selectedCreatureId}
-              query={query}
-            />
-          </Suspense>
-          <ControlsBridge
-            apiRef={apiRef}
-            focusTarget={focusTarget}
-            resetTrigger={resetTrigger}
+      {/* 3D viewport — Canvas positioned directly via inline style so its
+          wrapper div has explicit pixel width/height (no constraint solving).
+          The decorative wavy border (main-box.svg) is drawn on top with
+          pointer-events:none so it doesn't block interaction. */}
+      <Canvas
+        camera={{
+          position: [
+            INITIAL_CAMERA_POSITION.x,
+            INITIAL_CAMERA_POSITION.y,
+            INITIAL_CAMERA_POSITION.z,
+          ],
+          fov: 45,
+        }}
+        style={canvasStyle}
+      >
+        <ambientLight intensity={0.8} />
+        <directionalLight position={[5, 5, 5]} intensity={0.6} />
+        <directionalLight position={[-3, -2, -4]} intensity={0.2} />
+        <Suspense fallback={null}>
+          <EcosystemCreatures
+            onSelect={onCreatureSelect}
+            selectedId={selectedCreatureId}
+            query={query}
           />
-        </Canvas>
-      </div>
+        </Suspense>
+        <ControlsBridge
+          apiRef={apiRef}
+          focusTarget={focusTarget}
+          resetTrigger={resetTrigger}
+        />
+      </Canvas>
 
       {/* Hand-drawn outline — only in normal mode. Removed in fullscreen
           per design (cleaner look, 3D scene fills edge-to-edge). */}
