@@ -168,38 +168,35 @@ export default function MainPage() {
           {/* Reset View removed: clicking the currently-focused creature
               again now zooms back out (toggle behavior in handleSelect). */}
 
-          {/* BokBok button (Figma 2114:254) — toggles "pet mode". When on,
-              the cursor becomes a hand and clicking a creature makes it
-              shake wildly. Press again (or Escape) to exit pet mode. */}
+          {/* BokBok button (Figma 2127:147) — hand-shaped button.
+              Toggles "pet mode": when on, the cursor becomes a hand and
+              clicking a creature makes it shake wildly. Press again (or
+              Escape) to exit pet mode.
+              Position/size/inner-text inset come straight from Figma. */}
           <button
             type="button"
             onClick={() => setPetMode((p) => !p)}
             aria-pressed={petMode}
-            className={`absolute left-[553px] top-[823px] z-[20] block h-[40.58px] w-[88.56px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform active:scale-95 ${
-              petMode ? "opacity-100" : "opacity-100 hover:opacity-90"
-            }`}
+            className="absolute left-[469px] top-[766px] z-[20] block h-[92.03px] w-[97.29px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
           >
+            {/* The vector slightly overflows the frame by -0.54%/-0.51% so the
+                stroke isn't clipped. */}
             <div
               className="absolute"
-              style={{ inset: "0 3.3% 19.51% 4.4%" }}
+              style={{ inset: "-0.54% -0.51%" }}
             >
-              <div
-                className="absolute"
-                style={{ inset: "-1.53% -0.61% -1.53% -2.94%" }}
-              >
-                <img
-                  alt=""
-                  src="/assets/bokbok-button.svg"
-                  className="block size-full max-w-none"
-                />
-              </div>
+              <img
+                alt=""
+                src="/assets/bokbok-button.svg"
+                className="block size-full max-w-none"
+              />
             </div>
-            <p
-              className="absolute m-0 text-center text-[24px] font-bold leading-[normal] text-black"
-              style={{ inset: "12.2% 0 0 0" }}
+            <span
+              className="absolute flex items-center justify-center text-center text-[24px] font-bold leading-[normal] text-black"
+              style={{ inset: "40.24% 3.83% 21.04% 5.15%" }}
             >
               BokBok
-            </p>
+            </span>
           </button>
         </>
       )}
