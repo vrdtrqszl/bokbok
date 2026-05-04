@@ -204,8 +204,13 @@ export default function MainViewport({
       {/* 3D viewport — fills the entire main box edge-to-edge so the
           environment uses the whole available space. The decorative wavy
           border (main-box.svg) is drawn ON TOP and is pointer-events:none,
-          so it doesn't block interaction. */}
-      <div className="absolute inset-0">
+          so it doesn't block interaction.
+          Explicit `w-full h-full` is needed alongside `inset-0` because
+          react-three-fiber's Canvas reads its size via getBoundingClientRect,
+          and some browsers leave width/height as `auto` for absolute
+          inset-only boxes — that made the canvas render at its 300×150
+          default in the top-left of the box. */}
+      <div className="absolute inset-0 h-full w-full">
         <Canvas
           camera={{
             position: [
@@ -215,7 +220,7 @@ export default function MainViewport({
             ],
             fov: 45,
           }}
-          style={{ background: "transparent" }}
+          style={{ background: "transparent", width: "100%", height: "100%" }}
         >
           <ambientLight intensity={0.8} />
           <directionalLight position={[5, 5, 5]} intensity={0.6} />
