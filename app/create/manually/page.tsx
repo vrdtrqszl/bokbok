@@ -467,7 +467,8 @@ function CreateManuallyPageInner() {
           </div>
         </div>
 
-        {/* Search input */}
+        {/* Search input — left padding clears the magnifier icon (which sits
+            at x ≈ 16-26 in the SVG viewBox 222.75×33.5). */}
         <div className="absolute left-[14px] top-[14px] h-[33.47px] w-[222.64px]">
           <img
             alt=""
@@ -479,7 +480,7 @@ function CreateManuallyPageInner() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search…"
-            className="absolute inset-0 bg-transparent px-[10px] text-[14px] font-bold text-black outline-none placeholder:text-black/35 font-(family-name:--font-casual)"
+            className="absolute inset-0 bg-transparent pl-[32px] pr-[10px] text-[14px] font-bold text-black outline-none placeholder:text-black/35 font-(family-name:--font-casual)"
           />
         </div>
 
@@ -499,6 +500,7 @@ function CreateManuallyPageInner() {
               {filteredBlocks.map((emotion) => (
                 <div
                   key={emotion.key}
+                  role="button"
                   draggable
                   onDragStart={(e) => {
                     e.dataTransfer.setData(
@@ -512,7 +514,12 @@ function CreateManuallyPageInner() {
                   onClick={() =>
                     canvasHandle.current?.addBlock(emotion.key, emotion.imagePath)
                   }
-                  className="flex cursor-pointer flex-col items-center gap-[4px] rounded-[6px] p-[4px] transition-colors hover:bg-black/10 active:scale-95"
+                  // role="button" makes the global "buttons inherit cursor"
+                  // CSS rule apply, so the custom hand-drawn arrow shows on
+                  // hover instead of the standard pointer. Drop the dark
+                  // hover overlay (bg-black/10) — keep the click feedback
+                  // via active:scale-95.
+                  className="flex flex-col items-center gap-[4px] p-[4px] transition-transform active:scale-95"
                 >
                   <img
                     src={emotion.imagePath}
