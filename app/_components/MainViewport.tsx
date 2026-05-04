@@ -213,6 +213,7 @@ export default function MainViewport({
             ? "absolute inset-0"
             : "absolute left-[18px] top-[10px] h-[769px] w-[945px]"
         }
+        style={{ backgroundColor: "rgba(255, 0, 0, 0.15)" }}
       >
         <Canvas
           camera={{
@@ -223,7 +224,7 @@ export default function MainViewport({
             ],
             fov: 45,
           }}
-          style={{ background: "transparent" }}
+          style={{ background: "rgba(0, 255, 0, 0.15)" }}
         >
           <ambientLight intensity={0.8} />
           <directionalLight position={[5, 5, 5]} intensity={0.6} />
