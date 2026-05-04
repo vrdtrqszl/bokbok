@@ -54,6 +54,17 @@ button, a, [role="button"], [type="button"], [type="submit"] {
   cursor: inherit !important;
 }
 
+/* Custom hand-drawn text-input cursor (Figma 2129:156). Hotspot 4,11 = the
+   center of the I-beam (where the caret would land). Applied to text-typing
+   contexts so the standard browser I-beam is replaced with our hand-drawn
+   one. !important to override `cursor: inherit` from the button rule above
+   if a textarea ever ends up inside a button-like wrapper. */
+input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+textarea,
+[contenteditable="true"] {
+  cursor: url('/assets/cursor-text.svg') 4 11, text !important;
+}
+
 /* Hide all scrollbars site-wide while keeping scroll functionality. */
 * {
   scrollbar-width: none; /* Firefox */
