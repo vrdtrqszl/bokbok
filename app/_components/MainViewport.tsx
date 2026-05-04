@@ -199,63 +199,49 @@ export default function MainViewport({
     };
   })();
 
-  // 3D Canvas style — applied DIRECTLY to the Canvas wrapper (no
-  // intermediate div) so we don't depend on layout-constraint solving for
-  // sizing. Figma node 2124:135 ("screen") defines the inner rectangle at
-  // (45, 95, 945×769) on the page; that's (18, 10) inside the MainViewport
-  // wrapper at (27, 85). In fullscreen the wrapper expands and Canvas fills
-  // it edge-to-edge.
-  const canvasStyle: React.CSSProperties = fullscreen
-    ? {
-        position: "absolute",
-        left: 0,
-        top: 0,
-        width: "100%",
-        height: "100%",
-        background: "transparent",
-      }
-    : {
-        position: "absolute",
-        left: 18,
-        top: 10,
-        width: 945,
-        height: 769,
-        background: "transparent",
-      };
-
   return (
     <div className="absolute" style={wrapperStyle}>
-      {/* 3D viewport — Canvas positioned directly via inline style so its
-          wrapper div has explicit pixel width/height (no constraint solving).
-          The decorative wavy border (main-box.svg) is drawn on top with
-          pointer-events:none so it doesn't block interaction. */}
-      <Canvas
-        camera={{
-          position: [
-            INITIAL_CAMERA_POSITION.x,
-            INITIAL_CAMERA_POSITION.y,
-            INITIAL_CAMERA_POSITION.z,
-          ],
-          fov: 45,
-        }}
-        style={canvasStyle}
+      {/* 3D viewport wrapper — uses Tailwind utilities for explicit pixel
+          width/height. Inline style + spread didn't size react-three-fiber's
+          Canvas correctly (it kept rendering at the HTML canvas default
+          ~300×150 in the top-left). Tailwind generates `width: 945px;
+          height: 769px` directly in stylesheet rules, which the Canvas's
+          ResizeObserver picks up reliably. */}
+      <div
+        className={
+          fullscreen
+            ? "absolute inset-0"
+            : "absolute left-[18px] top-[10px] h-[769px] w-[945px]"
+        }
       >
-        <ambientLight intensity={0.8} />
-        <directionalLight position={[5, 5, 5]} intensity={0.6} />
-        <directionalLight position={[-3, -2, -4]} intensity={0.2} />
-        <Suspense fallback={null}>
-          <EcosystemCreatures
-            onSelect={onCreatureSelect}
-            selectedId={selectedCreatureId}
-            query={query}
+        <Canvas
+          camera={{
+            position: [
+              INITIAL_CAMERA_POSITION.x,
+              INITIAL_CAMERA_POSITION.y,
+              INITIAL_CAMERA_POSITION.z,
+            ],
+            fov: 45,
+          }}
+          style={{ background: "transparent" }}
+        >
+          <ambientLight intensity={0.8} />
+          <directionalLight position={[5, 5, 5]} intensity={0.6} />
+          <directionalLight position={[-3, -2, -4]} intensity={0.2} />
+          <Suspense fallback={null}>
+            <EcosystemCreatures
+              onSelect={onCreatureSelect}
+              selectedId={selectedCreatureId}
+              query={query}
+            />
+          </Suspense>
+          <ControlsBridge
+            apiRef={apiRef}
+            focusTarget={focusTarget}
+            resetTrigger={resetTrigger}
           />
-        </Suspense>
-        <ControlsBridge
-          apiRef={apiRef}
-          focusTarget={focusTarget}
-          resetTrigger={resetTrigger}
-        />
-      </Canvas>
+        </Canvas>
+      </div>
 
       {/* Hand-drawn outline — only in normal mode. Removed in fullscreen
           per design (cleaner look, 3D scene fills edge-to-edge). */}
