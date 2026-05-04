@@ -45,6 +45,15 @@ html, body {
   cursor: url('/assets/cursor.svg') 4 0, auto;
 }
 
+/* Buttons and links normally show `cursor: pointer` (from user-agent styles
+   or Tailwind's cursor-pointer utility), which wins over the body cursor.
+   Force them to inherit so the custom arrow cursor (or pet-mode hand
+   cursor) propagates over interactive elements too. !important is needed
+   to beat Tailwind's class specificity. */
+button, a, [role="button"], [type="button"], [type="submit"] {
+  cursor: inherit !important;
+}
+
 /* Hide all scrollbars site-wide while keeping scroll functionality. */
 * {
   scrollbar-width: none; /* Firefox */
