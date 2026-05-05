@@ -23,10 +23,11 @@ export const creaturePositions = new Map<string, [number, number, number]>();
 // the visible y=0 region is x ±7.83, z ∈ [-8.34, 5.83]; radius 4.5 keeps
 // creature bodies inside the close-side z+ edge with a small halo margin.
 const WANDER_MAX_RADIUS = 4.5;
-// Per-hop step distance — small so creatures look like they're hopping in
-// place rather than flying around the scene.
-const HOP_MIN_STEP = 0.15;
-const HOP_MAX_STEP = 0.55;
+// Per-hop step distance — bumped up from the original "hop in place" range
+// to a more cartoony "boing!" range so creatures actually traverse the
+// space between jumps.
+const HOP_MIN_STEP = 0.25;
+const HOP_MAX_STEP = 1.1;
 
 function EnergyBlock({ block }: { block: CreatureBlock }) {
   const texture = useLoader(TextureLoader, block.imagePath);
@@ -88,6 +89,9 @@ function EnergyCreature({
     // Stagger first jumps so creatures don't all leap together at t=0.
     nextJumpAt: 0.4 + Math.random() * 1.6,
     maxHeight: 1,
+    // Time (in scene seconds) at which the post-landing squash ends. A
+    // brief squash on impact reads as cartoon weight + rebound.
+    squashUntil: 0,
   });
 
   useFrame((_, delta) => {
@@ -120,11 +124,15 @@ function EnergyCreature({
         }
         w.to.set(nx, 0, nz);
         w.progress = 0;
-        w.jumpDuration = 0.45 + Math.random() * 0.25; // 0.45–0.7s — quick hops
-        w.maxHeight = 0.25 + Math.random() * 0.35; // 0.25–0.6 — modest height
+        // Cartoony jumps: snappier (0.35–0.7 s) and bouncier — height
+        // scales with hop distance so a long leap also goes higher,
+        // matching the feel of an actual cartoon jump.
+        w.jumpDuration = 0.35 + Math.random() * 0.35;
+        const heightFromStep = 0.55 + step * 0.6; // 0.7 (small hop) – 1.21 (big leap)
+        w.maxHeight = heightFromStep + Math.random() * 0.25;
       }
     } else {
-      // Mid-jump — interpolate xz linearly, y on a parabolic arc.
+      // Mid-jump — xz interpolates linearly, y on a parabolic arc.
       w.progress = Math.min(1, w.progress + delta / w.jumpDuration);
       w.pos.x = w.from.x + (w.to.x - w.from.x) * w.progress;
       w.pos.z = w.from.z + (w.to.z - w.from.z) * w.progress;
@@ -133,9 +141,11 @@ function EnergyCreature({
 
       if (w.progress >= 1) {
         w.pos.y = 0;
-        // Short rest before the next hop — quicker pacing makes it feel
-        // like in-place hopping rather than long-range jumps.
-        w.nextJumpAt = t + 0.1 + Math.random() * 0.35;
+        // Trigger a short landing-squash phase so the impact reads.
+        w.squashUntil = t + 0.14;
+        // Brief rest before the next hop — varied so the rhythm doesn't
+        // feel mechanical.
+        w.nextJumpAt = t + 0.2 + Math.random() * 0.5;
       }
     }
 
@@ -159,17 +169,22 @@ function EnergyCreature({
       g.position.z += (Math.random() - 0.5) * 2 * amp;
     }
 
-    // Subtle body tilt while in the air (looks dynamic). Replaced by violent
-    // tilt when the creature is being petted.
+    // Body tilt — exaggerated during the jump arc so the cartoon hop reads,
+    // gentle idle sway when grounded, violent random spin when being petted.
     const inAir = !selected && w.progress < 1;
     if (now < shakeUntilRef.current) {
       const remaining = shakeUntilRef.current - now;
       const intensity = Math.min(1, remaining / 0.4);
       g.rotation.z = (Math.random() - 0.5) * 0.6 * intensity;
+    } else if (inAir) {
+      // Lean into the direction of travel during the rise, lean back on the
+      // descent — same shape as a tossed pancake. Sin(progress·π) peaks at
+      // the apex but we want max tilt at takeoff and landing, so use cos.
+      const travelDir = Math.sign(w.to.x - w.from.x || 1);
+      const tiltPhase = Math.cos(w.progress * Math.PI); // 1 → 0 → -1
+      g.rotation.z = tiltPhase * 0.22 * travelDir;
     } else {
-      g.rotation.z = inAir
-        ? Math.sin(w.progress * Math.PI) * 0.08 * Math.sign(w.to.x - w.from.x || 1)
-        : Math.sin(t * 0.6 + phase) * 0.03;
+      g.rotation.z = Math.sin(t * 0.6 + phase) * 0.03;
     }
 
     // Breathing pulse + hover scale bump. NO selection bump — the camera
@@ -177,10 +192,34 @@ function EnergyCreature({
     // forces the focus camera to pull back further than necessary.
     const targetScale = hovered && !selected ? 1.08 : 1.0;
     const breath = 1 + Math.sin(t * 1.3 + phase) * 0.04;
-    const cur = g.scale.x / (g.userData.lastBreath || 1);
-    const next = cur + (targetScale - cur) * 0.15;
-    g.scale.setScalar(next * breath);
-    g.userData.lastBreath = breath;
+    const baseCur = g.userData.baseScale ?? 1.0;
+    const baseNext = baseCur + (targetScale - baseCur) * 0.15;
+    g.userData.baseScale = baseNext;
+
+    // Cartoon squash-and-stretch. Two contributions:
+    //   • In-flight stretch: tall + narrow at the apex of every jump,
+    //     proportional to how much height the arc gives. Volume-preserved
+    //     so the body doesn't visually balloon or shrink.
+    //   • Landing squash: short ~140 ms phase right after touch-down where
+    //     the body squishes flat then springs back to neutral.
+    let stretchX = 1;
+    let stretchY = 1;
+    if (inAir) {
+      const arc = Math.sin(w.progress * Math.PI); // 0 → 1 → 0
+      const s = arc * 0.28; // up to +28% taller at apex
+      stretchY = 1 + s;
+      stretchX = 1 / Math.sqrt(stretchY); // volume-preserving
+    } else if (t < w.squashUntil) {
+      const SQUASH_DURATION = 0.14;
+      const phase01 = 1 - (w.squashUntil - t) / SQUASH_DURATION; // 0 → 1 over the window
+      // Strongest squash at start of phase, easing back to 1 by phase01 = 1.
+      const s = (1 - phase01) * 0.30; // 0.30 squash, decays over 140 ms
+      stretchY = 1 - s;
+      stretchX = 1 / Math.sqrt(stretchY);
+    }
+
+    const finalBase = baseNext * breath;
+    g.scale.set(finalBase * stretchX, finalBase * stretchY, finalBase);
   });
 
   return (
