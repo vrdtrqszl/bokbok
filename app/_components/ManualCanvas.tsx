@@ -520,13 +520,20 @@ export default function ManualCanvas({
 
                     {/* Rotate handle — overlays the SVG's top-center circle.
                         pointer-events: auto re-enables interaction (parent
-                        is pointer-events: none). */}
+                        is pointer-events: none).
+                        Sized in PERCENTAGES of the wrapper so the click
+                        target grows with the block scale — fixed-px sizes
+                        used to leave the outer parts of the circle (which
+                        does scale) without a cursor. The visible circle
+                        sits at wrapper x: 44–53%, y: -11% to -2%, so a
+                        14×14% target at top: -14% / left: 50% covers it
+                        with margin to spare. */}
                     <div
                       className="cursor-rotate-arc absolute left-1/2 -translate-x-1/2"
                       style={{
-                        top: "-12%",
-                        width: "16px",
-                        height: "16px",
+                        top: "-14%",
+                        width: "14%",
+                        height: "14%",
                         pointerEvents: "auto",
                       }}
                       onMouseDown={(e) => {
@@ -535,14 +542,16 @@ export default function ManualCanvas({
                       }}
                     />
 
-                    {/* Resize handle — overlays the SVG's bottom-right square. */}
+                    {/* Resize handle — overlays the SVG's bottom-right
+                        square (wrapper x: 92–99%, y: 101–111%). 14×14%
+                        target positioned to cover that area. */}
                     <div
                       className="cursor-scale-arrow absolute"
                       style={{
-                        right: "0",
-                        bottom: "-3%",
-                        width: "16px",
-                        height: "16px",
+                        right: "-2%",
+                        bottom: "-14%",
+                        width: "14%",
+                        height: "14%",
                         pointerEvents: "auto",
                       }}
                       onMouseDown={(e) => {
