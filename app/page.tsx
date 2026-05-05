@@ -169,6 +169,22 @@ export default function MainPage() {
             Encyclopedia
           </Link>
 
+          {/* Energy Blocks (Figma 2109:248) — at x=418, y=54, w=151. */}
+          <Link
+            href="/energy-blocks"
+            className="absolute left-[493.5px] top-[54px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
+          >
+            Energy Blocks
+          </Link>
+
+          {/* About (Figma 2109:250) — at x=581, y=54, w=76. */}
+          <Link
+            href="/about"
+            className="absolute left-[619px] top-[54px] block h-[36px] w-[76px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
+          >
+            About
+          </Link>
+
           {/* Login icon */}
           <div className="absolute left-[1381px] top-[40px] h-[35.67px] w-[24.91px]">
             <img alt="login" src="/assets/login.svg" className="block size-full" />
