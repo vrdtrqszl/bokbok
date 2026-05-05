@@ -76,9 +76,9 @@ textarea,
 }
 
 /* Rotate handle cursor — hand-drawn arc arrow (Figma 2129:241).
-   Hotspot 15,7 is the center of the 30×15 SVG. */
+   SVG renders at 23×12 (its intrinsic size); hotspot 11,6 is the center. */
 .cursor-rotate-arc {
-  cursor: url('/assets/cursor-rotate.svg') 15 7, crosshair !important;
+  cursor: url('/assets/cursor-rotate.svg') 11 6, crosshair !important;
 }
 
 /* Resize handle cursor — hand-drawn diagonal double-arrow (Figma
