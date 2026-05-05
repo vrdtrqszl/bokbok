@@ -484,26 +484,26 @@ export default function ManualCanvas({
 
                 {isSelected && (
                   <>
-                    {/* Hand-drawn selection box (Figma 2129:172) — the
+                    {/* Hand-drawn selection box (Figma 2129:230) — the
                         rotate-circle (top-center) and resize-square
-                        (bottom-right) are baked into the SVG. The SVG's
-                        inner rectangle is ~84.4% of its total height
-                        (7.5% above for the circle, 8.1% below for the
-                        square), so we extend the container 8.9% above
-                        and 18.5% taller to align the inner rect with
-                        the block edges. */}
+                        (bottom-right) are baked into the SVG. The new
+                        SVG is 217.5 × 242.99 with the inner rectangle
+                        spanning y≈23 → y≈220 (height ≈ 197). To align
+                        the inner rect with a 110-px block, the wrapper
+                        sits at top: -11.66% (= 12.83 px above) and is
+                        123.3% tall (= 135.6 px). */}
                     <img
                       alt=""
                       src="/assets/build-box.svg"
                       className="pointer-events-none absolute left-0 w-full max-w-none"
-                      style={{ top: "-8.9%", height: "118.5%" }}
+                      style={{ top: "-11.66%", height: "123.3%" }}
                     />
 
                     {/* Rotate handle — invisible click target on the
-                        SVG's top-center circle. */}
+                        SVG's top-center circle (block-space y ≈ -11%). */}
                     <div
                       className="absolute left-1/2 -translate-x-1/2 cursor-crosshair"
-                      style={{ top: "-9%", width: "16px", height: "16px" }}
+                      style={{ top: "-12%", width: "16px", height: "16px" }}
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         startDrag(e, block.id, "rotate");
@@ -511,12 +511,12 @@ export default function ManualCanvas({
                     />
 
                     {/* Resize handle — invisible click target on the
-                        SVG's bottom-right square. */}
+                        SVG's bottom-right square (block-space ~92%, 102%). */}
                     <div
                       className="absolute cursor-se-resize"
                       style={{
-                        right: "-2px",
-                        bottom: "-7%",
+                        right: "0",
+                        bottom: "-3%",
                         width: "16px",
                         height: "16px",
                       }}
