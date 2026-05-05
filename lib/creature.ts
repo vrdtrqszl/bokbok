@@ -145,25 +145,59 @@ export function generateCreature(scores: EmotionScore[]): CreatureSpec {
 
   for (let i = 0; i < placements.length; i++) {
     const { emotion, baseScale } = placements[i];
+    // Resolve the final scale FIRST — placement spacing scales with it, so
+    // bigger blocks naturally claim more room and the body doesn't bunch up.
+    const scale = baseScale * (0.92 + rand() * 0.16); // ±8% jitter on baseScale
+    const rotation = (rand() * 360) - 180;
 
     let x = 0;
     let y = 0;
 
     if (i > 0) {
-      // Anchor to a previously-placed block and offset along a random angle
-      // by a fraction of the block size — this guarantees overlap so the
-      // body stays connected.
-      const anchor = blocks[Math.floor(rand() * blocks.length)];
-      const angle = rand() * TAU;
-      // Distance: 35–55% of block size keeps blocks merging with overlap.
-      const dist = 0.35 + rand() * 0.2;
-      x = anchor.x + Math.cos(angle) * dist;
-      y = anchor.y + Math.sin(angle) * dist;
+      // Rejection-sampling for a slot that (a) anchors to an existing block
+      // so the body stays connected and (b) keeps comfortable distance from
+      // every OTHER block so we don't end up with a stack of overlapping
+      // blobs. We sample TRIES candidate angles around random anchors and
+      // keep the candidate whose nearest non-anchor neighbour is farthest
+      // away (normalised by average block size). Bail early once a candidate
+      // clears the comfort threshold — that's "good enough", saves cycles,
+      // and over many blocks this produces an organic, branching cluster
+      // that reads like a creature instead of a single dense blob.
+      const TRIES = 12;
+      const ACCEPT = 0.55; // normalised gap considered "enough breathing room"
+      let bestX = 0;
+      let bestY = 0;
+      let bestGap = -Infinity;
+      for (let t = 0; t < TRIES; t++) {
+        const anchor = blocks[Math.floor(rand() * blocks.length)];
+        const angle = rand() * TAU;
+        const avgScale = (anchor.scale + scale) / 2;
+        // 0.65 × avg → ~30% overlap; 0.82 × avg → ~18% overlap. Visibly
+        // merged with the anchor (so the body looks like one creature)
+        // without burying it.
+        const dist = (0.65 + rand() * 0.17) * avgScale;
+        const cx = anchor.x + Math.cos(angle) * dist;
+        const cy = anchor.y + Math.sin(angle) * dist;
+        // Score the candidate by how far the NEAREST non-anchor block is,
+        // normalised by their average size — pushes new blocks into open
+        // space rather than into the crowd already next to the anchor.
+        let minGap = Infinity;
+        for (const b of blocks) {
+          if (b === anchor) continue;
+          const gap =
+            Math.hypot(b.x - cx, b.y - cy) / ((b.scale + scale) / 2);
+          if (gap < minGap) minGap = gap;
+        }
+        if (minGap > bestGap) {
+          bestGap = minGap;
+          bestX = cx;
+          bestY = cy;
+        }
+        if (minGap >= ACCEPT) break;
+      }
+      x = bestX;
+      y = bestY;
     }
-
-    // Tight scale variation per request (similar scale, "not too much").
-    const scale = baseScale * (0.92 + rand() * 0.16); // ~0.85 – ~1.15 range
-    const rotation = (rand() * 360) - 180; // any angle
 
     blocks.push({
       emotionKey: emotion.key,
