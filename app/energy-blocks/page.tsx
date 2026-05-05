@@ -69,8 +69,10 @@ const PAD_RIGHT = 18;        // 974.69 − (33 + 162×5 + 28×4) ≈ 18
 const PAD_BOTTOM = 30;       // breathing room at the bottom of the scroll
 
 export default function EnergyBlocksPage() {
-  const [selectedKey, setSelectedKey] = useState<EmotionKey>("joy");
-  const selected = EMOTIONS[selectedKey];
+  // null = nothing selected yet — both right-hand panels start empty and
+  // only populate once the user clicks a tile.
+  const [selectedKey, setSelectedKey] = useState<EmotionKey | null>(null);
+  const selected = selectedKey ? EMOTIONS[selectedKey] : null;
 
   // Tile order. SSR (and the very first client render) uses the catalog
   // order so hydration matches; on mount we shuffle and re-render with a
@@ -192,58 +194,67 @@ export default function EnergyBlocksPage() {
       </div>
 
       {/* Right column: creature view (top) — Figma 2102:179, at (1016, 85),
-          396.28 × 386.37. Shows the selected emotion's energy block + name. */}
+          396.28 × 386.37. Empty until the user picks a tile; then shows
+          the selected emotion's energy block + name. */}
       <div className="pointer-events-none absolute left-[1016px] top-[85px] h-[386.37px] w-[396.28px]">
         <img
           alt=""
           src="/assets/creature-view.svg"
           className="absolute inset-0 block size-full"
         />
-        {/* Selected energy block PNG, sized + centered to roughly match the
-            Figma reference (left 14.13%, right 15.72%). */}
-        <img
-          alt={selected.displayName}
-          src={selected.imagePath}
-          className="absolute object-contain"
-          style={{
-            left: `${396.28 * 0.1413}px`,
-            top: `51px`,
-            width: `${396.28 * (1 - 0.1413 - 0.1572)}px`,
-            height: `${396.28 * (1 - 0.1413 - 0.1572)}px`,
-          }}
-        />
-        {/* Name label — text-[24px] Casual Human Bold, centered, near the
-            bottom of the box (Figma inset 89.03%/1.91%). */}
-        <span className="absolute left-0 right-0 block text-center text-[24px] font-bold leading-[normal] text-black"
-          style={{ top: `${386.37 * 0.8903}px` }}
-        >
-          {selected.displayName}
-        </span>
+        {selected && (
+          <>
+            {/* Selected energy block PNG, sized + centered to roughly match
+                the Figma reference (left 14.13%, right 15.72%). */}
+            <img
+              alt={selected.displayName}
+              src={selected.imagePath}
+              className="absolute object-contain"
+              style={{
+                left: `${396.28 * 0.1413}px`,
+                top: `51px`,
+                width: `${396.28 * (1 - 0.1413 - 0.1572)}px`,
+                height: `${396.28 * (1 - 0.1413 - 0.1572)}px`,
+              }}
+            />
+            {/* Name label — text-[24px] Casual Human Bold, centered, near the
+                bottom of the box (Figma inset 89.03%/1.91%). */}
+            <span
+              className="absolute left-0 right-0 block text-center text-[24px] font-bold leading-[normal] text-black"
+              style={{ top: `${386.37 * 0.8903}px` }}
+            >
+              {selected.displayName}
+            </span>
+          </>
+        )}
       </div>
 
       {/* Right column: info box (bottom) — Figma 2102:158, at (1015, 480),
-          397.21 × 398.38. Holds the description text, vertically centered. */}
+          397.21 × 398.38. Empty until the user picks a tile; then holds
+          the description text, vertically centered. */}
       <div className="pointer-events-none absolute left-[1015px] top-[480px] h-[398.38px] w-[397.21px]">
         <img
           alt=""
           src="/assets/info-box.svg"
           className="absolute inset-0 block size-full"
         />
-        {/* One-sentence description, centered both axes per Figma inset
-            [46.19% 9.62% 45.03% 9.82%]. Source: EMOTION_DESCRIPTION. */}
-        <div
-          className="absolute flex items-center justify-center"
-          style={{
-            left: `${397.21 * 0.0982}px`,
-            right: `${397.21 * 0.0962}px`,
-            top: `${398.38 * 0.4619}px`,
-            bottom: `${398.38 * 0.4503}px`,
-          }}
-        >
-          <p className="text-center text-[24px] font-bold leading-[normal] text-black">
-            {EMOTION_DESCRIPTION[selected.key]}
-          </p>
-        </div>
+        {selected && (
+          /* One-sentence description, centered both axes per Figma inset
+             [46.19% 9.62% 45.03% 9.82%]. Source: EMOTION_DESCRIPTION. */
+          <div
+            className="absolute flex items-center justify-center"
+            style={{
+              left: `${397.21 * 0.0982}px`,
+              right: `${397.21 * 0.0962}px`,
+              top: `${398.38 * 0.4619}px`,
+              bottom: `${398.38 * 0.4503}px`,
+            }}
+          >
+            <p className="text-center text-[24px] font-bold leading-[normal] text-black">
+              {EMOTION_DESCRIPTION[selected.key]}
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
