@@ -3,6 +3,7 @@
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { EMOTIONS, type EmotionKey } from "@/lib/emotions";
 import type { CreatureSpec, CreatureBlock } from "@/lib/creature";
+import SelectionBox from "./SelectionBox";
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -490,20 +491,13 @@ export default function ManualCanvas({
 
                 {isSelected && (
                   <>
-                    {/* Hand-drawn selection box (Figma 2129:230) — the
-                        rotate-circle (top-center) and resize-square
-                        (bottom-right) are baked into the SVG. The new
-                        SVG is 217.5 × 242.99 with the inner rectangle
-                        spanning y≈23 → y≈220 (height ≈ 197). To align
-                        the inner rect with a 110-px block, the wrapper
-                        sits at top: -11.66% (= 12.83 px above) and is
-                        123.3% tall (= 135.6 px). */}
-                    <img
-                      alt=""
-                      src="/assets/build-box.svg"
-                      className="pointer-events-none absolute left-0 w-full max-w-none"
-                      style={{ top: "-11.66%", height: "123.3%" }}
-                    />
+                    {/* Hand-drawn selection box (Figma 2129:230). Inlined
+                        as <SelectionBox /> with vector-effect="non-scaling-
+                        stroke" so the strokes stay 1 CSS pixel wide
+                        regardless of the block's CSS scale transform.
+                        Inner-rect alignment (top: -11.66%, height: 123.3%)
+                        is owned by the component. */}
+                    <SelectionBox />
 
                     {/* Rotate handle — invisible click target on the
                         SVG's top-center circle (block-space y ≈ -11%). */}
