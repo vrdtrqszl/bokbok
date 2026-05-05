@@ -512,9 +512,11 @@ export default function ManualCanvas({
                     />
 
                     {/* Resize handle — invisible click target on the
-                        SVG's bottom-right square (block-space ~92%, 102%). */}
+                        SVG's bottom-right square (block-space ~92%, 102%).
+                        Cursor is the hand-drawn diagonal arrow (Figma
+                        2129:256). */}
                     <div
-                      className="absolute cursor-se-resize"
+                      className="cursor-scale-arrow absolute"
                       style={{
                         right: "0",
                         bottom: "-3%",

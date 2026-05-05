@@ -81,6 +81,12 @@ textarea,
   cursor: url('/assets/cursor-rotate.svg') 15 7, crosshair !important;
 }
 
+/* Resize handle cursor — hand-drawn diagonal double-arrow (Figma
+   2129:256). Hotspot 6,8 is roughly the center of the 12×16 SVG. */
+.cursor-scale-arrow {
+  cursor: url('/assets/cursor-scale.svg') 6 8, se-resize !important;
+}
+
 /* Hide all scrollbars site-wide while keeping scroll functionality. */
 * {
   scrollbar-width: none; /* Firefox */
