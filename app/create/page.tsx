@@ -136,7 +136,12 @@ function CreatePageInner() {
         BokBok
       </Link>
 
-      {/* Top nav */}
+      {/* Top nav — Figma values per node, with the row stair-stepping
+          slightly down across the bar:
+            Create        (2102:152)  x=35  y=48 w=91
+            Calender      (2102:153)  x=115 y=51 w=151
+            Encyclopedia  (2102:157)  x=255 y=51 w=151
+          Energy Blocks and About (further right) sit at y=54. */}
       <div className="absolute left-[27px] top-[45px] h-[48px] w-[104px]">
         <img
           alt=""
@@ -149,15 +154,31 @@ function CreatePageInner() {
       </span>
       <Link
         href="/calender"
-        className="absolute left-[190.5px] top-[48px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
+        className="absolute left-[190.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         Calender
       </Link>
       <Link
         href="/encyclopedia"
-        className="absolute left-[330.5px] top-[48px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
+        className="absolute left-[330.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         Encyclopedia
+      </Link>
+
+      {/* Energy Blocks (Figma 2109:248) — at x=418, y=54, w=151. */}
+      <Link
+        href="/energy-blocks"
+        className="absolute left-[493.5px] top-[54px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
+      >
+        Energy Blocks
+      </Link>
+
+      {/* About (Figma 2109:250) — at x=581, y=54, w=76. */}
+      <Link
+        href="/about"
+        className="absolute left-[619px] top-[54px] block h-[36px] w-[76px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
+      >
+        About
       </Link>
 
       {/* Sub-nav: Generate | Manually */}
