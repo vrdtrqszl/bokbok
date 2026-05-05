@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Fragment, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { EMOTIONS, type EmotionKey } from "@/lib/emotions";
 import type { CreatureSpec, CreatureBlock } from "@/lib/creature";
 import SelectionBox from "./SelectionBox";
@@ -466,55 +466,76 @@ export default function ManualCanvas({
             const scX = block.flipH ? -1 : 1;
             const scY = block.flipV ? -1 : 1;
             return (
-              <div
-                key={block.id}
-                className="block-grab-cursor absolute"
-                style={{
-                  left: `calc(50% + ${block.x}px)`,
-                  top: `calc(50% + ${block.y}px)`,
-                  width: `${BASE_PX}px`,
-                  height: `${BASE_PX}px`,
-                  transform: `translate(-50%, -50%) rotate(${block.rotation}deg) scale(${block.scale * scX}, ${block.scale * scY})`,
-                  transformOrigin: "center",
-                  zIndex: block.zIndex,
-                }}
-                onMouseDown={(e) => startDrag(e, block.id, "move")}
-                onContextMenu={(e) => openContextMenu(e, block.id)}
-              >
-                <img
-                  src={block.imagePath}
-                  alt={block.emotionKey}
-                  className="block size-full"
-                  style={{ objectFit: "contain" }}
-                  draggable={false}
-                />
+              <Fragment key={block.id}>
+                {/* The block itself — CSS-scaled. The image scales with
+                    block.scale; everything else (selection box, handles)
+                    lives in a sibling wrapper below so it doesn't inherit
+                    the scale transform. */}
+                <div
+                  className="block-grab-cursor absolute"
+                  style={{
+                    left: `calc(50% + ${block.x}px)`,
+                    top: `calc(50% + ${block.y}px)`,
+                    width: `${BASE_PX}px`,
+                    height: `${BASE_PX}px`,
+                    transform: `translate(-50%, -50%) rotate(${block.rotation}deg) scale(${block.scale * scX}, ${block.scale * scY})`,
+                    transformOrigin: "center",
+                    zIndex: block.zIndex,
+                  }}
+                  onMouseDown={(e) => startDrag(e, block.id, "move")}
+                  onContextMenu={(e) => openContextMenu(e, block.id)}
+                >
+                  <img
+                    src={block.imagePath}
+                    alt={block.emotionKey}
+                    className="block size-full"
+                    style={{ objectFit: "contain" }}
+                    draggable={false}
+                  />
+                </div>
 
+                {/* Selection wrapper — sized to match the VISUALLY-scaled
+                    block (BASE_PX × scale), but with NO CSS scale transform
+                    of its own. Pulling SelectionBox out of the block's scale
+                    is what actually keeps the stroke at 1 CSS pixel: the
+                    SVG renders at the wrapper's literal pixel size and
+                    vector-effect=non-scaling-stroke pins stroke width to
+                    user-space (1 device pixel) — no CSS-transform multiplier. */}
                 {isSelected && (
-                  <>
-                    {/* Hand-drawn selection box (Figma 2129:230). Inlined
-                        as <SelectionBox /> with vector-effect="non-scaling-
-                        stroke" so the strokes stay 1 CSS pixel wide
-                        regardless of the block's CSS scale transform.
-                        Inner-rect alignment (top: -11.66%, height: 123.3%)
-                        is owned by the component. */}
+                  <div
+                    className="absolute"
+                    style={{
+                      left: `calc(50% + ${block.x}px)`,
+                      top: `calc(50% + ${block.y}px)`,
+                      width: `${BASE_PX * block.scale}px`,
+                      height: `${BASE_PX * block.scale}px`,
+                      transform: `translate(-50%, -50%) rotate(${block.rotation}deg)`,
+                      transformOrigin: "center",
+                      zIndex: block.zIndex,
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {/* Hand-drawn selection box (Figma 2129:230). */}
                     <SelectionBox />
 
-                    {/* Rotate handle — invisible click target on the
-                        SVG's top-center circle (block-space y ≈ -11%).
-                        Cursor is the hand-drawn rotate-arc (Figma 2129:241). */}
+                    {/* Rotate handle — overlays the SVG's top-center circle.
+                        pointer-events: auto re-enables interaction (parent
+                        is pointer-events: none). */}
                     <div
                       className="cursor-rotate-arc absolute left-1/2 -translate-x-1/2"
-                      style={{ top: "-12%", width: "16px", height: "16px" }}
+                      style={{
+                        top: "-12%",
+                        width: "16px",
+                        height: "16px",
+                        pointerEvents: "auto",
+                      }}
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         startDrag(e, block.id, "rotate");
                       }}
                     />
 
-                    {/* Resize handle — invisible click target on the
-                        SVG's bottom-right square (block-space ~92%, 102%).
-                        Cursor is the hand-drawn diagonal arrow (Figma
-                        2129:256). */}
+                    {/* Resize handle — overlays the SVG's bottom-right square. */}
                     <div
                       className="cursor-scale-arrow absolute"
                       style={{
@@ -522,15 +543,16 @@ export default function ManualCanvas({
                         bottom: "-3%",
                         width: "16px",
                         height: "16px",
+                        pointerEvents: "auto",
                       }}
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         startDrag(e, block.id, "resize");
                       }}
                     />
-                  </>
+                  </div>
                 )}
-              </div>
+              </Fragment>
             );
           })}
 
