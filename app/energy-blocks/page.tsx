@@ -9,8 +9,47 @@
 // Joy is selected by default to match the Figma reference.
 
 import Link from "next/link";
-import { useState } from "react";
-import { EMOTIONS, EMOTION_LIST, EMOTION_ONE_WORD, type EmotionKey } from "@/lib/emotions";
+import { useEffect, useState } from "react";
+import {
+  EMOTIONS,
+  EMOTION_LIST,
+  EMOTION_DESCRIPTION,
+  EMOTION_COLOR_GROUP,
+  type Emotion,
+  type EmotionKey,
+} from "@/lib/emotions";
+
+// Random shuffle (Fisher–Yates) followed by a greedy pass that swaps tiles
+// around so no two adjacent grid cells (left or directly above) share the
+// same coarse color group. We only swap forward — replace the current spot
+// with the next non-conflicting item later in the queue — which keeps the
+// arrangement random while spreading colours apart. If no later item fits
+// (rare, dense color groups), we leave the conflict; not worth chasing.
+function shuffleWithColorSpread(list: Emotion[], cols: number): Emotion[] {
+  const out = [...list];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  for (let i = 0; i < out.length; i++) {
+    const leftKey = i % cols > 0 ? out[i - 1].key : null;
+    const upKey = i >= cols ? out[i - cols].key : null;
+    const conflicts = (e: Emotion) => {
+      const c = EMOTION_COLOR_GROUP[e.key];
+      if (leftKey && EMOTION_COLOR_GROUP[leftKey] === c) return true;
+      if (upKey && EMOTION_COLOR_GROUP[upKey] === c) return true;
+      return false;
+    };
+    if (!conflicts(out[i])) continue;
+    for (let j = i + 1; j < out.length; j++) {
+      if (!conflicts(out[j])) {
+        [out[i], out[j]] = [out[j], out[i]];
+        break;
+      }
+    }
+  }
+  return out;
+}
 
 // Grid metrics inside the main box (974.69 × 789.67). Column positions
 // (23 / 352 / 679) and image size (278) come straight from Figma 2102:185;
@@ -29,6 +68,14 @@ const PAD_BOTTOM = 30;       // breathing room at the bottom of the scroll
 export default function EnergyBlocksPage() {
   const [selectedKey, setSelectedKey] = useState<EmotionKey>("joy");
   const selected = EMOTIONS[selectedKey];
+
+  // Tile order. SSR (and the very first client render) uses the catalog
+  // order so hydration matches; on mount we shuffle and re-render with a
+  // colour-spaced random order so the user gets a fresh layout each visit.
+  const [order, setOrder] = useState<Emotion[]>(() => EMOTION_LIST);
+  useEffect(() => {
+    setOrder(shuffleWithColorSpread(EMOTION_LIST, 3));
+  }, []);
 
   return (
     <div className="relative mx-auto h-[900px] w-[1440px] overflow-hidden bg-[#dfd9c9] font-(family-name:--font-casual)">
@@ -113,7 +160,7 @@ export default function EnergyBlocksPage() {
           gridAutoRows: `${TILE_HEIGHT}px`,
         }}
       >
-        {EMOTION_LIST.map((emotion) => {
+        {order.map((emotion) => {
           const isActive = emotion.key === selectedKey;
           return (
             <button
@@ -177,8 +224,8 @@ export default function EnergyBlocksPage() {
           src="/assets/info-box.svg"
           className="absolute inset-0 block size-full"
         />
-        {/* One-word descriptor, centered both axes per Figma inset
-            [46.19% 9.62% 45.03% 9.82%]. Source: EMOTION_ONE_WORD. */}
+        {/* One-sentence description, centered both axes per Figma inset
+            [46.19% 9.62% 45.03% 9.82%]. Source: EMOTION_DESCRIPTION. */}
         <div
           className="absolute flex items-center justify-center"
           style={{
@@ -188,8 +235,8 @@ export default function EnergyBlocksPage() {
             bottom: `${398.38 * 0.4503}px`,
           }}
         >
-          <p className="text-center text-[36px] font-bold leading-[normal] text-black">
-            {EMOTION_ONE_WORD[selected.key]}
+          <p className="text-center text-[24px] font-bold leading-[normal] text-black">
+            {EMOTION_DESCRIPTION[selected.key]}
           </p>
         </div>
       </div>

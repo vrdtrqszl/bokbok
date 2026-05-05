@@ -682,61 +682,179 @@ export const EMOTIONS: Record<EmotionKey, Emotion> = {
 
 export const EMOTION_LIST: Emotion[] = Object.values(EMOTIONS);
 
-// One-word descriptor used by the Energy Blocks catalog page (info panel).
-// Kept separate from EMOTIONS so adding/tweaking the descriptor list doesn't
-// churn the rest of the catalog block. One word per emotion — distilled to
-// what the feeling fundamentally IS, rather than the displayName synonym.
-export const EMOTION_ONE_WORD: Record<EmotionKey, string> = {
-  happiness: "Contentment",
-  joy: "Delight",
-  excitement: "Buzz",
-  anticipation: "Eagerness",
-  hope: "Possibility",
-  thrill: "Rush",
-  pleasure: "Enjoyment",
-  calmness: "Stillness",
-  satisfaction: "Fulfillment",
-  relief: "Release",
-  gratitude: "Appreciation",
-  intimacy: "Closeness",
-  anger: "Fury",
-  irritation: "Annoyance",
-  passion: "Fire",
-  jealousy: "Possessiveness",
-  envy: "Coveting",
-  sadness: "Sorrow",
-  depression: "Heaviness",
-  loneliness: "Isolation",
-  disappointment: "Letdown",
-  despair: "Hopelessness",
-  frustration: "Vexation",
-  love: "Warmth",
-  moved: "Tenderness",
-  longing: "Yearning",
-  nostalgia: "Remembrance",
-  guilt: "Remorse",
-  regret: "Wistfulness",
-  anxiety: "Worry",
-  tension: "Tightness",
-  pressure: "Burden",
-  stress: "Overwhelm",
-  confused: "Bewilderment",
-  hesitation: "Pause",
-  helplessness: "Powerlessness",
-  emptiness: "Hollow",
-  boredom: "Dullness",
-  fatigue: "Exhaustion",
-  apathy: "Indifference",
-  surprise: "Astonishment",
-  curiosity: "Wonder",
-  engagement: "Flow",
-  confidence: "Self-Assurance",
-  pride: "Accomplishment",
-  liberation: "Freedom",
-  "hurt-feelings": "Wounding",
-  shame: "Disgrace",
-  disgust: "Revulsion",
-  insight: "Clarity",
+// One-sentence description used by the Energy Blocks catalog page (info
+// panel). One sentence per emotion, written in the same "[Emotion] is a
+// <adj> <emotion> that <does X> when <Y>" cadence as the Figma reference.
+// Kept separate from EMOTIONS so churning copy doesn't touch creature-gen
+// fields like keywords / valence.
+export const EMOTION_DESCRIPTION: Record<EmotionKey, string> = {
+  happiness:
+    "Happiness is a steady, warm sense of well-being that settles in when life feels good as it is.",
+  joy:
+    "Joy is a bright, lifting emotion that bursts out when something delights the mind and body.",
+  excitement:
+    "Excitement is a buzzing surge of energy that builds when something stirring is on the way.",
+  anticipation:
+    "Anticipation is a leaning-forward feeling that arises when you expect something good is about to happen.",
+  hope:
+    "Hope is a quiet upward pull that arises when you trust good things might still come.",
+  thrill:
+    "Thrill is a sharp, electric rush that hits when life suddenly turns vivid and uncertain.",
+  pleasure:
+    "Pleasure is a simple, embodied sweetness that arises when something pleases the senses.",
+  calmness:
+    "Calmness is a soft, settled feeling that arrives when the mind and body finally let go.",
+  satisfaction:
+    "Satisfaction is a grounded sense of fullness that follows when something has been completed well.",
+  relief:
+    "Relief is a loosening wave that washes through when a strain or worry finally lifts.",
+  gratitude:
+    "Gratitude is a warm openness that arises when you recognize what others have given you.",
+  intimacy:
+    "Intimacy is a close, soft warmth that arises when guards drop between two people.",
+  anger:
+    "Anger is a hot, sharp emotion stirred by a sense of being wronged or blocked.",
+  irritation:
+    "Irritation is a small, prickly feeling that flares when something keeps rubbing the wrong way.",
+  passion:
+    "Passion is a burning intensity that arises when something matters to you deeply.",
+  jealousy:
+    "Jealousy is a clenching ache that appears when you fear losing what is yours.",
+  envy:
+    "Envy is a sour pull that arises when someone has what you wish were yours.",
+  sadness:
+    "Sadness is a low, heavy emotion that arises when something loved is lost or out of reach.",
+  depression:
+    "Depression is a heavy, all-over flatness that settles in when energy and meaning drain away.",
+  loneliness:
+    "Loneliness is a hollow ache that arises when connection with others feels far away.",
+  disappointment:
+    "Disappointment is a quiet drop that follows when reality turns out smaller than what you'd hoped.",
+  despair:
+    "Despair is a bottomless dark that takes hold when no path forward seems possible.",
+  frustration:
+    "Frustration is a pressed-up feeling that builds when effort keeps meeting a wall.",
+  love:
+    "Love is a warm, expanding emotion that draws you toward someone or something with care.",
+  moved:
+    "Being moved is a swelling tenderness that wells up when something quietly touches the heart.",
+  longing:
+    "Longing is a slow, aching reach toward someone or something far away.",
+  nostalgia:
+    "Nostalgia is a bittersweet warmth that visits when memories of the past come back vividly.",
+  guilt:
+    "Guilt is a weight on the chest that arises when you sense you've harmed someone.",
+  regret:
+    "Regret is a backwards-looking ache for the choice you wish you hadn't made.",
+  anxiety:
+    "Anxiety is a jittery unease that hums in the body when an unknown future presses in.",
+  tension:
+    "Tension is a tight, braced feeling that holds the body when threat or strain hovers near.",
+  pressure:
+    "Pressure is a pressing-in weight that arises when too much rests on what you do next.",
+  stress:
+    "Stress is an overheated load that piles up when more is asked than the body can carry.",
+  confused:
+    "Confusion is a tangled blur that settles in when nothing quite makes sense.",
+  hesitation:
+    "Hesitation is a held-breath pause that arises when the next step is unclear.",
+  helplessness:
+    "Helplessness is a heavy stillness that settles in when nothing you do seems to help.",
+  emptiness:
+    "Emptiness is a wide, hollow quiet that lingers when feeling and meaning have drained out.",
+  boredom:
+    "Boredom is a flat, slow drag that builds when nothing is interesting enough to engage you.",
+  fatigue:
+    "Fatigue is a bone-deep heaviness that arrives when the body has nothing left to give.",
+  apathy:
+    "Apathy is a flat indifference that settles in when nothing seems worth caring about.",
+  surprise:
+    "Surprise is a brief, suspended emotion sparked by something unexpected.",
+  curiosity:
+    "Curiosity is a leaning-forward openness that arises when something pulls you to know more.",
+  engagement:
+    "Engagement is a focused absorption that takes hold when what you're doing fully meets you.",
+  confidence:
+    "Confidence is a steady, rooted self-trust that holds you up when you act in the world.",
+  pride:
+    "Pride is a lifting warmth that follows when you know you've done something well.",
+  liberation:
+    "Liberation is a wide, free expansion that follows when something heavy finally lets go.",
+  "hurt-feelings":
+    "Hurt feelings are a tender bruise that arises when someone close brushes against you carelessly.",
+  shame:
+    "Shame is a shrinking heat that arises when you feel exposed as not good enough.",
+  disgust:
+    "Disgust is a recoiling emotion the body uses to push away what feels unsafe or unclean.",
+  insight:
+    "Insight is a quiet click that arrives when something previously hidden suddenly becomes clear.",
+};
+
+// Coarse color group per emotion — used by the Energy Blocks page to keep
+// same-coloured tiles from sitting next to each other in the random grid.
+// Groups are a best-effort match of the PNG palette; tweak if the artwork
+// shifts. (Ungrouped or unknown ⇒ "neutral".)
+export type EmotionColorGroup =
+  | "red"
+  | "orange"
+  | "yellow"
+  | "green"
+  | "blue"
+  | "purple"
+  | "pink"
+  | "grey";
+
+export const EMOTION_COLOR_GROUP: Record<EmotionKey, EmotionColorGroup> = {
+  happiness: "yellow",
+  joy: "yellow",
+  excitement: "orange",
+  anticipation: "orange",
+  hope: "green",
+  thrill: "red",
+  pleasure: "pink",
+  calmness: "blue",
+  satisfaction: "green",
+  relief: "blue",
+  gratitude: "pink",
+  intimacy: "pink",
+  anger: "red",
+  irritation: "red",
+  passion: "red",
+  jealousy: "green",
+  envy: "green",
+  sadness: "blue",
+  depression: "purple",
+  loneliness: "blue",
+  disappointment: "grey",
+  despair: "grey",
+  frustration: "red",
+  love: "pink",
+  moved: "pink",
+  longing: "purple",
+  nostalgia: "orange",
+  guilt: "grey",
+  regret: "grey",
+  anxiety: "blue",
+  tension: "red",
+  pressure: "grey",
+  stress: "red",
+  confused: "purple",
+  hesitation: "blue",
+  helplessness: "grey",
+  emptiness: "grey",
+  boredom: "grey",
+  fatigue: "grey",
+  apathy: "grey",
+  surprise: "yellow",
+  curiosity: "blue",
+  engagement: "orange",
+  confidence: "yellow",
+  pride: "yellow",
+  liberation: "purple",
+  "hurt-feelings": "red",
+  shame: "purple",
+  disgust: "green",
+  insight: "yellow",
 };
 
 export type EmotionScore = {
