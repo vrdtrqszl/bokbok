@@ -154,20 +154,19 @@ export function generateCreature(scores: EmotionScore[]): CreatureSpec {
     let y = 0;
 
     if (i > 0) {
-      // Rejection-sampling for a slot that (a) anchors to an existing block
-      // so the body stays connected and (b) keeps comfortable distance from
-      // every OTHER block so we don't end up with a stack of overlapping
-      // blobs. We sample TRIES candidate angles around random anchors and
-      // keep the candidate whose nearest non-anchor neighbour is farthest
-      // away (normalised by average block size). Bail early once a candidate
-      // clears the comfort threshold — that's "good enough", saves cycles,
-      // and over many blocks this produces an organic, branching cluster
-      // that reads like a creature instead of a single dense blob.
-      const TRIES = 12;
-      const ACCEPT = 0.55; // normalised gap considered "enough breathing room"
-      let bestX = 0;
-      let bestY = 0;
-      let bestGap = -Infinity;
+      // Two placement personalities, mixed 65 / 35:
+      //   - clump  (65%): prefer spots close to existing neighbours, so the
+      //                   body fills in and reads as a tight mass
+      //   - branch (35%): prefer spots far from existing neighbours, so the
+      //                   silhouette gains organic, creature-like limbs
+      // Both still anchor to a previously-placed block (random angle around
+      // it) so the body never disconnects. The mode is decided per block.
+      const wantBranch = rand() < 0.35;
+      const TRIES = 8;
+      const BRANCH_COMFORT = 0.55; // branch mode bails early at this gap
+      const CLUMP_FLOOR = 0.3; // clump mode rejects near-identical overlaps
+      let best: { x: number; y: number; gap: number } | null = null;
+
       for (let t = 0; t < TRIES; t++) {
         const anchor = blocks[Math.floor(rand() * blocks.length)];
         const angle = rand() * TAU;
@@ -178,9 +177,8 @@ export function generateCreature(scores: EmotionScore[]): CreatureSpec {
         const dist = (0.65 + rand() * 0.17) * avgScale;
         const cx = anchor.x + Math.cos(angle) * dist;
         const cy = anchor.y + Math.sin(angle) * dist;
-        // Score the candidate by how far the NEAREST non-anchor block is,
-        // normalised by their average size — pushes new blocks into open
-        // space rather than into the crowd already next to the anchor.
+        // Distance to nearest *non-anchor* block, normalised by avg scale.
+        // Higher = more breathing room; lower = nestled into the crowd.
         let minGap = Infinity;
         for (const b of blocks) {
           if (b === anchor) continue;
@@ -188,15 +186,32 @@ export function generateCreature(scores: EmotionScore[]): CreatureSpec {
             Math.hypot(b.x - cx, b.y - cy) / ((b.scale + scale) / 2);
           if (gap < minGap) minGap = gap;
         }
-        if (minGap > bestGap) {
-          bestGap = minGap;
-          bestX = cx;
-          bestY = cy;
+        const sample = { x: cx, y: cy, gap: minGap };
+
+        if (best === null) {
+          // Seed with whatever the first try produced — guarantees we always
+          // have a placement even if every later candidate gets rejected.
+          best = sample;
+        } else if (wantBranch) {
+          if (sample.gap > best.gap) best = sample;
+        } else {
+          // Clump: replace if (a) we previously seeded with a near-identical
+          // overlap and this one is acceptable, or (b) this candidate sits
+          // closer to the body than the current best (without fully
+          // overlapping any block).
+          if (
+            sample.gap >= CLUMP_FLOOR &&
+            (best.gap < CLUMP_FLOOR || sample.gap < best.gap)
+          ) {
+            best = sample;
+          }
         }
-        if (minGap >= ACCEPT) break;
+
+        if (wantBranch && sample.gap >= BRANCH_COMFORT) break;
       }
-      x = bestX;
-      y = bestY;
+
+      x = best!.x;
+      y = best!.y;
     }
 
     blocks.push({
