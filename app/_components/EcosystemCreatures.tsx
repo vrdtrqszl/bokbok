@@ -23,11 +23,11 @@ export const creaturePositions = new Map<string, [number, number, number]>();
 // the visible y=0 region is x ±7.83, z ∈ [-8.34, 5.83]; radius 4.5 keeps
 // creature bodies inside the close-side z+ edge with a small halo margin.
 const WANDER_MAX_RADIUS = 4.5;
-// Per-hop step distance — bumped up from the original "hop in place" range
-// to a more cartoony "boing!" range so creatures actually traverse the
-// space between jumps.
-const HOP_MIN_STEP = 0.25;
-const HOP_MAX_STEP = 1.1;
+// Per-hop step distance — short, snappy hops so creatures look busy and
+// dynamic without lurching across the scene. Pair this with the shorter
+// jumpDuration / rest below for a quicker, more cartoony rhythm.
+const HOP_MIN_STEP = 0.15;
+const HOP_MAX_STEP = 0.55;
 
 function EnergyBlock({ block }: { block: CreatureBlock }) {
   const texture = useLoader(TextureLoader, block.imagePath);
@@ -124,11 +124,11 @@ function EnergyCreature({
         }
         w.to.set(nx, 0, nz);
         w.progress = 0;
-        // Cartoony jumps: snappier (0.35–0.7 s) and bouncier — height
-        // scales with hop distance so a long leap also goes higher,
-        // matching the feel of an actual cartoon jump.
-        w.jumpDuration = 0.35 + Math.random() * 0.35;
-        const heightFromStep = 0.55 + step * 0.6; // 0.7 (small hop) – 1.21 (big leap)
+        // Cartoony jumps: snappy (0.30–0.55 s) and bouncy — short steps
+        // get the same kind of high arcs you'd see in a cartoon, so the
+        // creatures look pop-y rather than measured.
+        w.jumpDuration = 0.30 + Math.random() * 0.25;
+        const heightFromStep = 0.65 + step * 0.5; // 0.73 (small) – 0.93 (max)
         w.maxHeight = heightFromStep + Math.random() * 0.25;
       }
     } else {
@@ -143,9 +143,9 @@ function EnergyCreature({
         w.pos.y = 0;
         // Trigger a short landing-squash phase so the impact reads.
         w.squashUntil = t + 0.14;
-        // Brief rest before the next hop — varied so the rhythm doesn't
-        // feel mechanical.
-        w.nextJumpAt = t + 0.2 + Math.random() * 0.5;
+        // Brief rest before the next hop — shorter than before so the
+        // overall cadence stays quick and busy.
+        w.nextJumpAt = t + 0.12 + Math.random() * 0.32;
       }
     }
 
@@ -182,7 +182,7 @@ function EnergyCreature({
       // the apex but we want max tilt at takeoff and landing, so use cos.
       const travelDir = Math.sign(w.to.x - w.from.x || 1);
       const tiltPhase = Math.cos(w.progress * Math.PI); // 1 → 0 → -1
-      g.rotation.z = tiltPhase * 0.22 * travelDir;
+      g.rotation.z = tiltPhase * 0.30 * travelDir;
     } else {
       g.rotation.z = Math.sin(t * 0.6 + phase) * 0.03;
     }
@@ -196,30 +196,27 @@ function EnergyCreature({
     const baseNext = baseCur + (targetScale - baseCur) * 0.15;
     g.userData.baseScale = baseNext;
 
-    // Cartoon squash-and-stretch. Two contributions:
-    //   • In-flight stretch: tall + narrow at the apex of every jump,
-    //     proportional to how much height the arc gives. Volume-preserved
-    //     so the body doesn't visually balloon or shrink.
+    // Cartoon squash-and-stretch. Vertical-only — X/Z stay locked at the
+    // base scale so the body never visibly widens, only tall⇄short:
+    //   • In-flight stretch: tall at the apex of every jump, eased back
+    //     down toward takeoff and landing.
     //   • Landing squash: short ~140 ms phase right after touch-down where
     //     the body squishes flat then springs back to neutral.
-    let stretchX = 1;
+    // Amplitudes are bumped vs. the old volume-preserving version since
+    // there's no horizontal counter-squish smoothing the read.
     let stretchY = 1;
     if (inAir) {
       const arc = Math.sin(w.progress * Math.PI); // 0 → 1 → 0
-      const s = arc * 0.28; // up to +28% taller at apex
-      stretchY = 1 + s;
-      stretchX = 1 / Math.sqrt(stretchY); // volume-preserving
+      stretchY = 1 + arc * 0.40; // up to +40% taller at apex
     } else if (t < w.squashUntil) {
       const SQUASH_DURATION = 0.14;
-      const phase01 = 1 - (w.squashUntil - t) / SQUASH_DURATION; // 0 → 1 over the window
+      const phase01 = 1 - (w.squashUntil - t) / SQUASH_DURATION; // 0 → 1
       // Strongest squash at start of phase, easing back to 1 by phase01 = 1.
-      const s = (1 - phase01) * 0.30; // 0.30 squash, decays over 140 ms
-      stretchY = 1 - s;
-      stretchX = 1 / Math.sqrt(stretchY);
+      stretchY = 1 - (1 - phase01) * 0.40; // 0.40 squash, decays over 140 ms
     }
 
     const finalBase = baseNext * breath;
-    g.scale.set(finalBase * stretchX, finalBase * stretchY, finalBase);
+    g.scale.set(finalBase, finalBase * stretchY, finalBase);
   });
 
   return (
