@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import MainViewport, { type FocusTarget, type ResetTrigger } from "./_components/MainViewport";
-import { deleteCreatureById } from "@/lib/ecosystem";
+import { creaturePositions } from "./_components/EcosystemCreatures";
+import { deleteCreatureById, loadEcosystem } from "@/lib/ecosystem";
 import { creatureFocusBox, emotionByKey, type CreatureSpec } from "@/lib/creature";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
 
@@ -103,6 +104,62 @@ export default function MainPage() {
     ];
     setFocusTarget({ position: pos, ts: Date.now(), distance, targetOffset });
   };
+
+  // Optional focus from /?focus=<id> — set when the user clicks "Go to
+  // Ecosystem" on the Create page after upload. Polls briefly until the
+  // creature registers a 3D world position via `creaturePositions`, then
+  // runs the same focus math as a click selection. The URL is then
+  // cleaned so a refresh doesn't re-fire the zoom.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const focusId = params.get("focus");
+    if (!focusId) return;
+
+    let cancelled = false;
+    let attempts = 0;
+    const tryFocus = async () => {
+      if (cancelled) return;
+      const list = await loadEcosystem();
+      const c = list.find((x) => x.id === focusId);
+      if (!c) {
+        // Creature isn't in the store yet (shared-mode write hasn't
+        // landed) — give it a moment.
+        attempts++;
+        if (attempts > 60) return;
+        window.setTimeout(tryFocus, 100);
+        return;
+      }
+      const pos = creaturePositions.get(focusId);
+      if (!pos) {
+        // EcosystemCreatures hasn't registered this creature's world
+        // position yet — wait a tick.
+        attempts++;
+        if (attempts > 60) return;
+        window.setTimeout(tryFocus, 100);
+        return;
+      }
+      if (cancelled) return;
+      setSelected(c);
+      const bbox = creatureFocusBox(c);
+      const PEAK = 1.06;
+      const d_h = (bbox.halfWidth * PEAK) / 0.514;
+      const d_v = (bbox.halfHeight * PEAK) / 0.414;
+      const distance = Math.max(2.0, d_h, d_v);
+      const targetOffset: [number, number, number] = [
+        bbox.centerX,
+        bbox.centerY * 0.394,
+        bbox.centerY * -0.919,
+      ];
+      setFocusTarget({ position: pos, ts: Date.now(), distance, targetOffset });
+      // Strip the query so a refresh starts clean.
+      window.history.replaceState(null, "", "/");
+    };
+    tryFocus();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleEdit = () => {
     if (!selected) return;

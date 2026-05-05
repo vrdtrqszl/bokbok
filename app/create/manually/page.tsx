@@ -413,23 +413,44 @@ function CreateManuallyPageInner() {
 
       {/* ── Upload to Ecosystem / Uploaded button (Figma 2065:53) ────────── */}
       {uploadStatus === "uploaded" ? (
-        <button
-          type="button"
-          disabled
-          className="absolute left-[1158px] top-[433px] block h-[27px] w-[112px] cursor-default overflow-visible bg-transparent p-0"
-        >
-          <img
-            alt=""
-            src="/assets/uploaded-box.svg"
-            className="absolute inset-0 block size-full"
-          />
-          <span
-            className="absolute flex items-center justify-center text-center text-[24px] font-bold leading-[normal] text-black"
-            style={{ inset: "-3.7% 0.88% -7.41% 0.88%" }}
+        <>
+          <button
+            type="button"
+            disabled
+            className="absolute left-[1158px] top-[433px] block h-[27px] w-[112px] cursor-default overflow-visible bg-transparent p-0"
           >
-            Uploaded
-          </span>
-        </button>
+            <img
+              alt=""
+              src="/assets/uploaded-box.svg"
+              className="absolute inset-0 block size-full"
+            />
+            <span
+              className="absolute flex items-center justify-center text-center text-[24px] font-bold leading-[normal] text-black"
+              style={{ inset: "-3.7% 0.88% -7.41% 0.88%" }}
+            >
+              Uploaded
+            </span>
+          </button>
+          {/* Go to Ecosystem (Figma 2130:299) — appears once uploaded. Sends
+              the user back to the main page with ?focus=<id> so the camera
+              zooms straight onto the new creature. */}
+          <button
+            type="button"
+            onClick={() => {
+              if (!creature?.id) return;
+              router.push(`/?focus=${encodeURIComponent(creature.id)}`);
+            }}
+            title="Go to ecosystem"
+            className="absolute left-[1277px] top-[436px] block h-[23px] w-[22px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:scale-110 active:scale-95"
+          >
+            <img
+              alt="Go to ecosystem"
+              src="/assets/go-to-ecosystem.svg"
+              className="block size-full"
+              style={{ transform: "scale(1.045)", transformOrigin: "center" }}
+            />
+          </button>
+        </>
       ) : (
         <button
           type="button"
