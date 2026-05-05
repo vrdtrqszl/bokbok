@@ -500,9 +500,10 @@ export default function ManualCanvas({
                     <SelectionBox />
 
                     {/* Rotate handle — invisible click target on the
-                        SVG's top-center circle (block-space y ≈ -11%). */}
+                        SVG's top-center circle (block-space y ≈ -11%).
+                        Cursor is the hand-drawn rotate-arc (Figma 2129:241). */}
                     <div
-                      className="absolute left-1/2 -translate-x-1/2 cursor-crosshair"
+                      className="cursor-rotate-arc absolute left-1/2 -translate-x-1/2"
                       style={{ top: "-12%", width: "16px", height: "16px" }}
                       onMouseDown={(e) => {
                         e.stopPropagation();

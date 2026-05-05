@@ -75,6 +75,12 @@ textarea,
   cursor: url('/assets/clench-hand.svg') 12 8, grabbing;
 }
 
+/* Rotate handle cursor — hand-drawn arc arrow (Figma 2129:241).
+   Hotspot 15,7 is the center of the 30×15 SVG. */
+.cursor-rotate-arc {
+  cursor: url('/assets/cursor-rotate.svg') 15 7, crosshair !important;
+}
+
 /* Hide all scrollbars site-wide while keeping scroll functionality. */
 * {
   scrollbar-width: none; /* Firefox */
