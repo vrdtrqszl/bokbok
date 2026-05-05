@@ -554,14 +554,17 @@ export default function ManualCanvas({
                     </div>
 
                     {/* Resize handle — fixed-size square visual + click
-                        area at bottom-right of wrapper. Same fixed sizes
-                        as the rotate handle so they stay constant
-                        regardless of block.scale. */}
+                        area centered ON the wrapper's bottom-right CORNER.
+                        right/bottom: -14px shifts the 28×28 hover box so
+                        its center lands exactly at (wrapper_right, wrapper_
+                        bottom); the 14×14 icon is then flex-centered inside,
+                        giving the visual impression of "anchored at the
+                        corner" rather than floating just inside it. */}
                     <div
                       className="cursor-scale-arrow absolute flex items-center justify-center"
                       style={{
-                        right: "-12px",
-                        bottom: "-12px",
+                        right: "-14px",
+                        bottom: "-14px",
                         width: "28px",
                         height: "28px",
                         pointerEvents: "auto",
