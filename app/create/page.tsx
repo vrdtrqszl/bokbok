@@ -86,7 +86,7 @@ function CreatePageInner() {
       alert("Please write your journal entry first.");
       return;
     }
-    const scores = extractEmotions(text, 5);
+    const scores = extractEmotions(text, 3);
     const c = generateCreature(scores);
     if (editingId) c.id = editingId;
     setCreature(c);
@@ -109,7 +109,7 @@ function CreatePageInner() {
         alert("Please write your journal entry first.");
         return;
       }
-      const scores = extractEmotions(text, 5);
+      const scores = extractEmotions(text, 3);
       toUpload = generateCreature(scores);
       if (editingId) toUpload.id = editingId;
       setCreature(toUpload);

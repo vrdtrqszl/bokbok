@@ -107,17 +107,40 @@ export function generateCreature(scores: EmotionScore[]): CreatureSpec {
   // Strongest emotion dominates: scale slightly larger, dead center.
   const sorted = [...scores].sort((a, b) => b.score - a.score);
 
-  // Decide how many block instances each emotion contributes. Strong emotions
-  // duplicate up to 3 times; weaker ones stay at 1.
+  // Decide how many block instances each emotion contributes, and at what
+  // base scale. Both grow with the per-emotion `score` (= keyword hits in the
+  // journal) — the stronger an emotion shows up in the writing, the more
+  // present it becomes on the creature, both in count and in size. Caps:
+  //   - duplicates: 1..4 (5 for the lead) — keeps the cluster readable
+  //   - baseScale:  0.95..1.25 from intensity, lead gets a +0.08 bump
+  // Filler emotions from extractEmotions() (score=0.5) settle at 1 dup at
+  // 0.95 so they round out the body without overpowering it.
+  const MIN_BLOCKS = 3;
   const placements: Array<{ emotion: Emotion; baseScale: number }> = [];
   for (let i = 0; i < sorted.length; i++) {
     const { emotion, score } = sorted[i];
     const isLead = i === 0;
-    const dup = isLead && score >= 2 ? 3 : score >= 2 ? 2 : 1;
-    const baseScale = isLead ? 1.1 : 0.95;
+    // Duplicates ramp linearly with score, rounded to int. Lead is bumped so
+    // the dominant emotion always has visible presence.
+    const dupRaw = Math.max(1, Math.min(4, Math.round(score)));
+    const dup = isLead ? Math.max(2, dupRaw) : dupRaw;
+    // Scale ramp: start at 0.95 (filler floor) and add 0.05 per score-step
+    // above 1. Cap at 1.25 so even very strong emotions don't dwarf the rest.
+    const intensityScale =
+      0.95 + Math.max(0, Math.min(score, 6) - 1) * 0.05;
+    const baseScale = Math.min(1.33, intensityScale + (isLead ? 0.08 : 0));
     for (let d = 0; d < dup; d++) {
       placements.push({ emotion, baseScale });
     }
+  }
+
+  // Floor: at least MIN_BLOCKS blocks. If the scored input was thin (e.g. a
+  // very short journal with one keyword hit), top up by duplicating the lead
+  // emotion so the creature still reads as a cluster, not a lone block.
+  while (placements.length < MIN_BLOCKS && sorted.length > 0) {
+    const lead = sorted[0];
+    const intensityScale = 0.95 + Math.max(0, Math.min(lead.score, 6) - 1) * 0.05;
+    placements.push({ emotion: lead.emotion, baseScale: Math.min(1.33, intensityScale + 0.08) });
   }
 
   for (let i = 0; i < placements.length; i++) {
