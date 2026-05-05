@@ -60,6 +60,7 @@ function MonthGrid({
   creaturesByDate,
   onSelect,
   selectedId,
+  cycleTick,
 }: {
   year: number;
   monthIndex: number;
@@ -67,6 +68,10 @@ function MonthGrid({
   creaturesByDate: Map<string, CreatureSpec[]>;
   onSelect?: (c: CreatureSpec) => void;
   selectedId?: string | null;
+  // Globally-incrementing counter that advances every 1.5s. Cells with
+  // multiple creatures use `cycleTick % length` to rotate through them so
+  // every busy day cycles in lockstep across the visible months.
+  cycleTick: number;
 }) {
   const days = daysInMonth(year, monthIndex);
   const startDow = firstWeekday(year, monthIndex);
@@ -98,8 +103,11 @@ function MonthGrid({
         const weekIndex = Math.floor((startDow + i) / 7);
         const dateISO = `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(date).padStart(2, "0")}`;
         const cellCreatures = creaturesByDate.get(dateISO);
+        // Cycle through every creature on this date — index wraps with
+        // the global tick so days with one creature stay put and days
+        // with several flip through them every 1.5s.
         const showCreature = cellCreatures && cellCreatures.length > 0
-          ? cellCreatures[0]
+          ? cellCreatures[cycleTick % cellCreatures.length]
           : null;
         return (
           <Fragment key={date}>
@@ -184,6 +192,18 @@ export default function CalenderPage() {
       window.removeEventListener("storage", onChange);
       unsubscribeRemote();
     };
+  }, []);
+
+  // Global tick — advances every 1.5s. Multi-creature cells rotate
+  // through their list using this counter, so all busy days cycle in
+  // lockstep (one timer, no per-cell intervals). Single-creature cells
+  // are unaffected because `0 % 1 === 0`.
+  const [cycleTick, setCycleTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      setCycleTick((t) => t + 1);
+    }, 1500);
+    return () => window.clearInterval(id);
   }, []);
 
   // Index by ISO date so each MonthGrid cell can lookup in O(1).
@@ -299,6 +319,7 @@ export default function CalenderPage() {
               creaturesByDate={creaturesByDate}
               onSelect={setSelected}
               selectedId={selected?.id ?? null}
+              cycleTick={cycleTick}
             />
           )),
         )}
