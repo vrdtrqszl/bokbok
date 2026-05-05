@@ -129,10 +129,19 @@ export default function EncyclopediaPage() {
         />
       </div>
 
-      {/* Creature boxes grid — one box per ecosystem creature, 4 cols. */}
+      {/* Creature boxes grid — Figma exact values:
+            container 895.6×697 at (70, 172)
+            4 columns of 211.15-px boxes, 17-px column gap
+            rows of 213.27-px boxes, 15-px row gap
+          Both grid-template-columns AND grid-auto-rows set explicitly so
+          every row matches the box height even when a row has fewer than
+          four creatures (the implicit auto would shrink incomplete rows). */}
       <div
-        className="absolute left-[70px] top-[172px] grid h-[697px] gap-x-[17px] gap-y-[15px] overflow-x-clip overflow-y-auto"
-        style={{ gridTemplateColumns: "repeat(4, 211.15px)" }}
+        className="absolute left-[70px] top-[172px] grid h-[697px] w-[895.6px] gap-x-[17px] gap-y-[15px] overflow-x-clip overflow-y-auto"
+        style={{
+          gridTemplateColumns: "repeat(4, 211.15px)",
+          gridAutoRows: "213.27px",
+        }}
       >
         {creatures.length === 0 ? (
           <div className="col-span-4 mt-12 flex flex-col items-center gap-3 text-center text-[18px] font-bold leading-relaxed text-black/40">
