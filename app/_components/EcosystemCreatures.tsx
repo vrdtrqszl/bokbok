@@ -20,14 +20,21 @@ export const creaturePositions = new Map<string, [number, number, number]>();
 
 // Outer bound on the XZ plane — creatures bounce back if they'd jump past it.
 // Matches the original layout. At camera (0, 14, 6) FOV 45° aspect ~1.234,
-// the visible y=0 region is x ±7.83, z ∈ [-8.34, 5.83]; radius 4.5 keeps
-// creature bodies inside the close-side z+ edge with a small halo margin.
-const WANDER_MAX_RADIUS = 4.5;
-// Per-hop step distance — short, snappy hops so creatures look busy and
-// dynamic without lurching across the scene. Pair this with the shorter
-// jumpDuration / rest below for a quicker, more cartoony rhythm.
-const HOP_MIN_STEP = 0.15;
-const HOP_MAX_STEP = 0.55;
+// the visible y=0 region is x ±7.83, z ∈ [-8.34, 5.83]; radius 5.0 lets
+// the (now smaller) creatures range farther across the scene.
+const WANDER_MAX_RADIUS = 5.0;
+// Per-hop step distance — large enough for the creatures to actually
+// traverse the scene (vs. fidgeting in place), small enough that each
+// hop is still a discrete cartoon "boing" rather than a long flight.
+const HOP_MIN_STEP = 0.30;
+const HOP_MAX_STEP = 0.85;
+// Global render scale for ecosystem creatures. The wandering view in the
+// main scene reads as a populated landscape rather than a few large
+// creatures, so we shrink each group uniformly. Camera/focus math in the
+// page uses the unscaled bbox; the resulting zoom-view margin is on
+// purpose (the creature sits a bit inside its viewfinder rather than
+// hugging the edges).
+const ECOSYSTEM_SCALE = 0.7;
 
 function EnergyBlock({ block }: { block: CreatureBlock }) {
   const texture = useLoader(TextureLoader, block.imagePath);
@@ -128,7 +135,7 @@ function EnergyCreature({
         // get the same kind of high arcs you'd see in a cartoon, so the
         // creatures look pop-y rather than measured.
         w.jumpDuration = 0.30 + Math.random() * 0.25;
-        const heightFromStep = 0.65 + step * 0.5; // 0.73 (small) – 0.93 (max)
+        const heightFromStep = 0.65 + step * 0.5; // 0.80 (min step) – 1.08 (max)
         w.maxHeight = heightFromStep + Math.random() * 0.25;
       }
     } else {
@@ -215,7 +222,7 @@ function EnergyCreature({
       stretchY = 1 - (1 - phase01) * 0.40; // 0.40 squash, decays over 140 ms
     }
 
-    const finalBase = baseNext * breath;
+    const finalBase = baseNext * breath * ECOSYSTEM_SCALE;
     g.scale.set(finalBase, finalBase * stretchY, finalBase);
   });
 
