@@ -95,8 +95,8 @@ export default function EnergyBlocksPage() {
       {/* Top nav — Figma values per node, with the row stair-stepping
           slightly down across the bar:
             Create        (2102:152)  x=35  y=48 w=91
-            Calender      (2102:153)  x=115 y=51 w=151
-            Encyclopedia  (2102:157)  x=255 y=51 w=151
+            Calendar      (2102:153)  x=115 y=51 w=151
+            BokBokpedia  (2102:157)  x=255 y=51 w=151
           Energy Blocks (active here) and About sit at y=54. */}
       <Link
         href="/create"
@@ -108,13 +108,13 @@ export default function EnergyBlocksPage() {
         href="/calender"
         className="absolute left-[190.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        Calender
+        Calendar
       </Link>
       <Link
         href="/encyclopedia"
         className="absolute left-[330.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        Encyclopedia
+        BokBokpedia
       </Link>
 
       {/* Active tab indicator behind Energy Blocks (Figma 2122:125 → 2129:230
@@ -139,7 +139,7 @@ export default function EnergyBlocksPage() {
         About
       </Link>
 
-      {/* Main wavy frame (Figma 2102:185) — same asset as Calender/Encyclopedia. */}
+      {/* Main wavy frame (Figma 2102:185) — same asset as Calendar/BokBokpedia. */}
       <div className="pointer-events-none absolute left-[27px] top-[85px] h-[789.67px] w-[974.69px]">
         <img
           alt=""
@@ -227,7 +227,7 @@ export default function EnergyBlocksPage() {
             </span>
           </>
         ) : (
-          /* Empty-state hint — same styling as the Calender / Encyclopedia
+          /* Empty-state hint — same styling as the Calendar / BokBokpedia
              pages so the three viewfinders read as a family. */
           <div className="absolute inset-0 flex items-center justify-center text-center text-[14px] leading-relaxed text-black/40">
             Click an energy block in the

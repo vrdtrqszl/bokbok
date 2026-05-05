@@ -10,7 +10,7 @@ import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
 import ViewportZoomControls from "@/app/_components/ViewportZoomControls";
 
-export default function EncyclopediaPage() {
+export default function BokBokpediaPage() {
   const router = useRouter();
   const [creatures, setCreatures] = useState<CreatureSpec[]>([]);
   const [selected, setSelected] = useState<CreatureSpec | null>(null);
@@ -76,8 +76,8 @@ export default function EncyclopediaPage() {
       {/* Top nav — Figma values per node, with the row stair-stepping
           slightly down across the bar:
             Create        (2102:152)  x=35  y=48 w=91
-            Calender      (2102:153)  x=115 y=51 w=151
-            Encyclopedia  (2102:157)  x=255 y=51 w=151
+            Calendar      (2102:153)  x=115 y=51 w=151
+            BokBokpedia  (2102:157)  x=255 y=51 w=151
           Energy Blocks and About (further right) sit at y=54. */}
       <Link
         href="/create"
@@ -89,10 +89,10 @@ export default function EncyclopediaPage() {
         href="/calender"
         className="absolute left-[190.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        Calender
+        Calendar
       </Link>
 
-      {/* Active tab indicator behind Encyclopedia — shifted +3px with the label. */}
+      {/* Active tab indicator behind BokBokpedia — shifted +3px with the label. */}
       <div className="absolute left-[255px] top-[44px] h-[53.89px] w-[152.19px]">
         <img
           alt=""
@@ -101,7 +101,7 @@ export default function EncyclopediaPage() {
         />
       </div>
       <span className="absolute left-[330.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 text-center text-[24px] font-bold text-black">
-        Encyclopedia
+        BokBokpedia
       </span>
 
       {/* Energy Blocks (Figma 2109:248) — at x=418, y=54, w=151. */}
@@ -223,7 +223,7 @@ export default function EncyclopediaPage() {
             <div className="flex h-full w-full items-center justify-center text-center text-[14px] leading-relaxed text-black/40">
               Click a creature in the
               <br />
-              encyclopedia to view it
+              BokBokpedia to view it
             </div>
           )}
         </div>
