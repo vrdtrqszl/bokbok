@@ -38,7 +38,7 @@ export default function EnergyBlocksPage() {
       {/* BokBok logo / Home link */}
       <Link
         href="/"
-        className="absolute left-[591px] top-[17px] block h-[72px] w-[257px] cursor-pointer whitespace-nowrap text-center text-[64px] leading-normal text-black font-(family-name:--font-fancy)"
+        className="absolute left-[1213.5px] top-[24px] block -translate-x-1/2 cursor-pointer whitespace-nowrap text-[48px] leading-normal text-black font-(family-name:--font-fancy)"
       >
         BokBok
       </Link>
@@ -89,11 +89,6 @@ export default function EnergyBlocksPage() {
       >
         About
       </Link>
-
-      {/* Login icon */}
-      <div className="absolute left-[1381px] top-[40px] h-[35.67px] w-[24.91px]">
-        <img alt="login" src="/assets/login.svg" className="block size-full" />
-      </div>
 
       {/* Main wavy frame (Figma 2102:185) — same asset as Calender/Encyclopedia. */}
       <div className="pointer-events-none absolute left-[27px] top-[85px] h-[789.67px] w-[974.69px]">

@@ -68,7 +68,7 @@ export default function EncyclopediaPage() {
       {/* BokBok logo / Home link */}
       <Link
         href="/"
-        className="absolute left-[591px] top-[17px] block h-[72px] w-[257px] cursor-pointer whitespace-nowrap text-center text-[64px] leading-normal text-black font-(family-name:--font-fancy)"
+        className="absolute left-[1213.5px] top-[24px] block -translate-x-1/2 cursor-pointer whitespace-nowrap text-[48px] leading-normal text-black font-(family-name:--font-fancy)"
       >
         BokBok
       </Link>
@@ -119,11 +119,6 @@ export default function EncyclopediaPage() {
       >
         About
       </Link>
-
-      {/* Login icon */}
-      <div className="absolute left-[1381px] top-[40px] h-[35.67px] w-[24.91px]">
-        <img alt="login" src="/assets/login.svg" className="block size-full" />
-      </div>
 
       {/* Search box — filters the encyclopedia grid by name or date. */}
       <div className="absolute left-[42px] top-[111px] h-[44px] w-[225px] overflow-hidden">
