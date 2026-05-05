@@ -682,6 +682,63 @@ export const EMOTIONS: Record<EmotionKey, Emotion> = {
 
 export const EMOTION_LIST: Emotion[] = Object.values(EMOTIONS);
 
+// One-word descriptor used by the Energy Blocks catalog page (info panel).
+// Kept separate from EMOTIONS so adding/tweaking the descriptor list doesn't
+// churn the rest of the catalog block. One word per emotion — distilled to
+// what the feeling fundamentally IS, rather than the displayName synonym.
+export const EMOTION_ONE_WORD: Record<EmotionKey, string> = {
+  happiness: "Contentment",
+  joy: "Delight",
+  excitement: "Buzz",
+  anticipation: "Eagerness",
+  hope: "Possibility",
+  thrill: "Rush",
+  pleasure: "Enjoyment",
+  calmness: "Stillness",
+  satisfaction: "Fulfillment",
+  relief: "Release",
+  gratitude: "Appreciation",
+  intimacy: "Closeness",
+  anger: "Fury",
+  irritation: "Annoyance",
+  passion: "Fire",
+  jealousy: "Possessiveness",
+  envy: "Coveting",
+  sadness: "Sorrow",
+  depression: "Heaviness",
+  loneliness: "Isolation",
+  disappointment: "Letdown",
+  despair: "Hopelessness",
+  frustration: "Vexation",
+  love: "Warmth",
+  moved: "Tenderness",
+  longing: "Yearning",
+  nostalgia: "Remembrance",
+  guilt: "Remorse",
+  regret: "Wistfulness",
+  anxiety: "Worry",
+  tension: "Tightness",
+  pressure: "Burden",
+  stress: "Overwhelm",
+  confused: "Bewilderment",
+  hesitation: "Pause",
+  helplessness: "Powerlessness",
+  emptiness: "Hollow",
+  boredom: "Dullness",
+  fatigue: "Exhaustion",
+  apathy: "Indifference",
+  surprise: "Astonishment",
+  curiosity: "Wonder",
+  engagement: "Flow",
+  confidence: "Self-Assurance",
+  pride: "Accomplishment",
+  liberation: "Freedom",
+  "hurt-feelings": "Wounding",
+  shame: "Disgrace",
+  disgust: "Revulsion",
+  insight: "Clarity",
+};
+
 export type EmotionScore = {
   emotion: Emotion;
   score: number;

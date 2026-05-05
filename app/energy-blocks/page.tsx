@@ -2,34 +2,29 @@
 
 // Energy Blocks catalog page (Figma 2102:151).
 //
-// Six primary emotions laid out in a 3×2 grid inside the main wavy frame.
-// Clicking a tile updates the right-hand "creature view" (PNG + name) and
-// the info panel (1–2 sentence description). Joy is selected by default,
-// matching the Figma reference.
+// All 50 emotions listed in a 3-column grid inside the main wavy frame —
+// the visible 3×2 chunk matches the Figma reference, and the rest scrolls
+// down. Clicking a tile updates the right-hand "creature view" (PNG +
+// name) and the info panel (one-word descriptor from EMOTION_ONE_WORD).
+// Joy is selected by default to match the Figma reference.
 
 import Link from "next/link";
 import { useState } from "react";
-import { EMOTIONS, type EmotionKey } from "@/lib/emotions";
+import { EMOTIONS, EMOTION_LIST, EMOTION_ONE_WORD, type EmotionKey } from "@/lib/emotions";
 
-// Order matches the Figma layout (left→right, top→bottom). Six primary
-// emotions chosen to span the valence spectrum (positive / neutral /
-// negative) and all backed by descriptions in the catalog.
-const PRIMARY_EMOTIONS: EmotionKey[] = [
-  "joy",
-  "sadness",
-  "anger",
-  "surprise",
-  "love",
-  "disgust",
-];
-
-// Grid layout inside the main box (974.69 × 789.67). Coordinates
-// derived from Figma 2102:185 — three columns of ~278×278 PNGs at
-// y=40 (top row) and y=424 (bottom row).
-const COL_LEFTS = [23, 352, 679] as const;   // image left edge (px)
-const ROW_TOPS = [40, 424] as const;          // image top edge (px)
-const TILE_SIZE = 278;                         // image width/height (square)
-const LABEL_HEIGHT = 36;                       // matches text-[24px] line-box
+// Grid metrics inside the main box (974.69 × 789.67). Column positions
+// (23 / 352 / 679) and image size (278) come straight from Figma 2102:185;
+// the column gap (51) and row gap (62) are derived from those positions
+// so the visible portion matches the reference exactly.
+const TILE_SIZE = 278;       // image width/height (square)
+const LABEL_HEIGHT = 36;     // matches text-[24px] line-box
+const TILE_HEIGHT = TILE_SIZE + 8 + LABEL_HEIGHT; // image + 8px gap + label
+const COL_GAP = 51;          // 352 - (23 + 278) — col 2 left minus col 1 right
+const ROW_GAP = 62;          // 424 - (40 + 322) — row 2 top minus row 1 bottom
+const PAD_LEFT = 23;         // first column's x inside the main box
+const PAD_TOP = 40;          // first row's y inside the main box
+const PAD_RIGHT = 16;        // 974.69 - (23 + 278×3 + 51×2)
+const PAD_BOTTOM = 30;       // breathing room at the bottom of the scroll
 
 export default function EnergyBlocksPage() {
   const [selectedKey, setSelectedKey] = useState<EmotionKey>("joy");
@@ -101,30 +96,35 @@ export default function EnergyBlocksPage() {
         />
       </div>
 
-      {/* 3×2 grid of energy blocks, anchored inside the main frame. */}
-      <div className="absolute left-[27px] top-[85px] h-[789.67px] w-[974.69px]">
-        {PRIMARY_EMOTIONS.map((key, i) => {
-          const emotion = EMOTIONS[key];
-          const col = i % 3;
-          const row = Math.floor(i / 3);
-          const left = COL_LEFTS[col];
-          const top = ROW_TOPS[row];
-          const isActive = key === selectedKey;
+      {/* All 50 emotions, 3-col scrollable grid inside the main frame.
+          The first 6 fit the original Figma 3×2 layout exactly (column
+          positions 23/352/679 at y=40 then y=424); rows 7..17 continue
+          downward at the same pitch and become reachable via scroll. */}
+      <div
+        className="absolute left-[27px] top-[85px] grid h-[789.67px] w-[974.69px] overflow-y-auto overflow-x-clip"
+        style={{
+          gridTemplateColumns: `repeat(3, ${TILE_SIZE}px)`,
+          columnGap: `${COL_GAP}px`,
+          rowGap: `${ROW_GAP}px`,
+          paddingTop: `${PAD_TOP}px`,
+          paddingBottom: `${PAD_BOTTOM}px`,
+          paddingLeft: `${PAD_LEFT}px`,
+          paddingRight: `${PAD_RIGHT}px`,
+          gridAutoRows: `${TILE_HEIGHT}px`,
+        }}
+      >
+        {EMOTION_LIST.map((emotion) => {
+          const isActive = emotion.key === selectedKey;
           return (
             <button
-              key={key}
+              key={emotion.key}
               type="button"
-              onClick={() => setSelectedKey(key)}
+              onClick={() => setSelectedKey(emotion.key)}
               aria-pressed={isActive}
-              className={`absolute block cursor-pointer bg-transparent p-0 transition-transform hover:scale-[1.02] active:scale-95 ${
+              className={`relative block cursor-pointer bg-transparent p-0 transition-transform hover:scale-[1.02] active:scale-95 ${
                 isActive ? "scale-[1.02]" : ""
               }`}
-              style={{
-                left: `${left}px`,
-                top: `${top}px`,
-                width: `${TILE_SIZE}px`,
-                height: `${TILE_SIZE + 8 + LABEL_HEIGHT}px`,
-              }}
+              style={{ width: `${TILE_SIZE}px`, height: `${TILE_HEIGHT}px` }}
             >
               <img
                 alt={emotion.displayName}
@@ -177,8 +177,8 @@ export default function EnergyBlocksPage() {
           src="/assets/info-box.svg"
           className="absolute inset-0 block size-full"
         />
-        {/* Description, centered both axes per Figma inset
-            [46.19% 9.62% 45.03% 9.82%]. */}
+        {/* One-word descriptor, centered both axes per Figma inset
+            [46.19% 9.62% 45.03% 9.82%]. Source: EMOTION_ONE_WORD. */}
         <div
           className="absolute flex items-center justify-center"
           style={{
@@ -188,8 +188,8 @@ export default function EnergyBlocksPage() {
             bottom: `${398.38 * 0.4503}px`,
           }}
         >
-          <p className="text-center text-[24px] font-bold leading-[normal] text-black">
-            {selected.description ?? ""}
+          <p className="text-center text-[36px] font-bold leading-[normal] text-black">
+            {EMOTION_ONE_WORD[selected.key]}
           </p>
         </div>
       </div>
