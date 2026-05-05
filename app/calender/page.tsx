@@ -199,18 +199,22 @@ export default function CalenderPage() {
   }, [creatures]);
 
   // On mount, scroll the month list so today's month is at the top of the
-  // visible area (clamped to the available year range).
+  // visible area (clamped to the available year range). Uses offsetTop —
+  // unlike getBoundingClientRect, it returns design pixels regardless of
+  // any CSS transform on an ancestor (ViewportFit's scale would otherwise
+  // make the rect-based math undershoot the target on non-100% windows).
   useEffect(() => {
     const today = new Date();
     const year = Math.min(YEAR_END, Math.max(YEAR_START, today.getFullYear()));
     const targetId = `month-${year}-${today.getMonth()}`;
-    const target = document.getElementById(targetId);
+    const target = document.getElementById(targetId) as HTMLElement | null;
     const container = scrollRef.current;
     if (!target || !container) return;
-    // Position target at the top of the scroll container.
-    const containerTop = container.getBoundingClientRect().top;
-    const targetTop = target.getBoundingClientRect().top;
-    container.scrollTop += targetTop - containerTop;
+    // target.offsetParent is the scroll container (it's the nearest
+    // positioned ancestor). target.offsetTop is therefore the target's
+    // top relative to the container's content origin — scrolling there
+    // puts the month at the visible top.
+    container.scrollTop = target.offsetTop;
   }, []);
 
   return (
