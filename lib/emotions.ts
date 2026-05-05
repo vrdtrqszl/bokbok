@@ -862,24 +862,114 @@ export type EmotionScore = {
   score: number;
 };
 
+// English negation tokens. We scan the ~18 chars before each ASCII keyword
+// match — but only treat the hit as negated if the negation is in the SAME
+// clause (no comma / period / "but" / "and" / "yet" between the negation
+// and the keyword). Without this clause-awareness, "I'm not sad, just
+// tired" would wrongly negate "tired" because "not" still sits within the
+// lookback window. Without word-boundary anchoring (which buildKeywordRegex
+// adds for ASCII keywords) the old substring scoring also let "unhappy"
+// trigger happiness — both fixes together produce sensible matches.
+const ENGLISH_NEGATIONS =
+  /\b(?:not|no|never|hardly|barely|cannot|isn't|wasn't|aren't|weren't|don't|didn't|doesn't|won't|wouldn't|couldn't|shouldn't|haven't|hasn't|hadn't)\b/gi;
+const CLAUSE_BREAK = /[.,;!?]|\b(?:but|yet|though|however|and|or)\b/i;
+const NEGATION_LOOKBACK_CHARS = 18;
+
+// Returns true iff a negation in the SAME clause as `start` precedes it
+// within NEGATION_LOOKBACK_CHARS. The "same clause" test rejects the
+// negation if any clause-break punctuation/conjunction sits between the
+// negation and `start` — so "I'm not sad, just tired" doesn't negate
+// "tired" but "I'm not very happy" does negate "happy".
+function isEnglishNegated(text: string, start: number): boolean {
+  const before = text.slice(Math.max(0, start - NEGATION_LOOKBACK_CHARS), start);
+  let lastNegEnd = -1;
+  ENGLISH_NEGATIONS.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = ENGLISH_NEGATIONS.exec(before)) !== null) {
+    lastNegEnd = m.index + m[0].length;
+    if (ENGLISH_NEGATIONS.lastIndex === m.index) ENGLISH_NEGATIONS.lastIndex++;
+  }
+  if (lastNegEnd === -1) return false;
+  const between = before.slice(lastNegEnd);
+  return !CLAUSE_BREAK.test(between);
+}
+
+function escapeForRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function isAsciiKeyword(s: string): boolean {
+  for (let i = 0; i < s.length; i++) {
+    if (s.charCodeAt(i) > 127) return false;
+  }
+  return true;
+}
+
+// Build a regex for a single keyword:
+//   English (ASCII): anchor at a word boundary on the LEFT only, no end
+//     anchor — so "happy" matches "happy", "happily", "happiness" but
+//     NOT "unhappy" (the previous substring scoring incorrectly counted
+//     "unhappy" as happiness).
+//   Korean / mixed: plain substring — Hangul agglutinates and there's no
+//     prefix-false-positive risk in journal text.
+function buildKeywordRegex(keyword: string): RegExp {
+  const k = keyword.toLowerCase();
+  if (isAsciiKeyword(k)) {
+    return new RegExp(`\\b${escapeForRegex(k)}`, "gi");
+  }
+  return new RegExp(escapeForRegex(k), "gi");
+}
+
 /**
  * Extract emotions from text via keyword matching. Returns top emotions
  * sorted by score, descending. Always returns at least `minResults` (default 5)
  * by topping up with random emotions weighted toward the input's overall valence
  * if not enough keyword hits are found.
+ *
+ * Match rules:
+ *   - English keywords use a word-start anchor (\b<kw>) so substrings like
+ *     "happy" inside "unhappy" don't score happiness.
+ *   - Negations within ~18 chars before an English match cancel that hit,
+ *     so "I'm not happy" doesn't score happiness either.
+ *   - Hits are deduped per emotion by character range, so a single word
+ *     like "laughed" only counts once even if both "laugh" and "laughed"
+ *     are in the keyword list.
  */
 export function extractEmotions(text: string, minResults = 5): EmotionScore[] {
   const lower = text.toLowerCase();
   const scored: EmotionScore[] = [];
 
   for (const emotion of EMOTION_LIST) {
+    // Track [start, end) ranges of counted hits to suppress double-counting
+    // when multiple keywords match the same word (e.g. "laugh" and
+    // "laughed" both inside "laughed").
+    const used: Array<[number, number]> = [];
     let score = 0;
     for (const kw of emotion.keywords) {
       const k = kw.toLowerCase();
       if (!k) continue;
-      // Count occurrences. Use simple split-based count (ok for keyword length >= 2).
-      const parts = lower.split(k);
-      score += parts.length - 1;
+      const isAscii = isAsciiKeyword(k);
+      const re = buildKeywordRegex(k);
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(lower)) !== null) {
+        const start = m.index;
+        const end = start + k.length;
+        if (re.lastIndex === start) re.lastIndex++; // guard against zero-width
+        // Skip hits already covered by an earlier keyword for this emotion.
+        let overlaps = false;
+        for (const [s, e] of used) {
+          if (start < e && end > s) {
+            overlaps = true;
+            break;
+          }
+        }
+        if (overlaps) continue;
+        // Skip hits negated within their clause (English only — Korean
+        // negation handling is harder and lower ROI; left as future work).
+        if (isAscii && isEnglishNegated(lower, start)) continue;
+        used.push([start, end]);
+        score += 1;
+      }
     }
     if (score > 0) scored.push({ emotion, score });
   }
