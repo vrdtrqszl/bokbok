@@ -241,13 +241,16 @@ export default function MainPage() {
       />
 
       {/* Hover tooltip (Figma 2130:272) — name on top, date YYYYMMDD below.
-          Positioned in design pixels next to the cursor (slight 12-px right/
-          down offset so it doesn't sit under the cursor itself). z-[200] keeps
-          it above the right-side panels and the wavy main-box overlay. */}
+          Position offsets clear the hand-drawn cursor: the SVG cursor is
+          22×27 px with hotspot (4, 0), so its body extends from (x-4, y)
+          to (x+18, y+27). Tooltip top is set to y+32 (5 px gap past the
+          cursor's bottom edge) and left to x+14 (just right of the cursor
+          shaft) so the two never overlap. z-[200] keeps it above the
+          right-side panels and the wavy main-box overlay. */}
       {hoveredCreature && !petMode && (
         <div
           className="pointer-events-none absolute z-[200] whitespace-nowrap text-center text-[16px] font-bold leading-normal text-black font-(family-name:--font-casual)"
-          style={{ left: hoverPos.x + 12, top: hoverPos.y + 12 }}
+          style={{ left: hoverPos.x + 14, top: hoverPos.y + 32 }}
         >
           <p className="m-0">{hoveredCreature.name ?? "Creature"}</p>
           <p className="m-0">
