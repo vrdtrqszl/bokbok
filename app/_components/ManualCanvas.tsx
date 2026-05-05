@@ -518,46 +518,74 @@ export default function ManualCanvas({
                     {/* Hand-drawn selection box (Figma 2129:230). */}
                     <SelectionBox />
 
-                    {/* Rotate handle — overlays the SVG's top-center circle.
-                        pointer-events: auto re-enables interaction (parent
-                        is pointer-events: none).
-                        Generous 30%-wide × 25%-tall hover area entirely
-                        ABOVE the block (top:-25% to 0%) so it never eats
-                        into the block's grab area but still gives plenty
-                        of slop for grabbing the rotate handle. */}
+                    {/* Rotate handle — fixed-size circle visual + click
+                        area at top-center of wrapper. The visible circle
+                        SVG is 14×14 px regardless of block.scale; the
+                        outer div is 28×28 px so there's plenty of hover
+                        slop. The visible circle is centered inside via
+                        flex. */}
                     <div
-                      className="cursor-rotate-arc absolute left-1/2 -translate-x-1/2"
+                      className="cursor-rotate-arc absolute left-1/2 -translate-x-1/2 flex items-center justify-center"
                       style={{
-                        top: "-25%",
-                        width: "30%",
-                        height: "25%",
+                        top: "-22px",
+                        width: "32px",
+                        height: "28px",
                         pointerEvents: "auto",
                       }}
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         startDrag(e, block.id, "rotate");
                       }}
-                    />
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="95 0 21 21"
+                        style={{ pointerEvents: "none" }}
+                      >
+                        <path
+                          d="M108.131 1.35724C105.231 1.40084 102.81 1.89488 100.417 3.30434C98.4599 4.46679 95.763 7.82336 96.0385 10.4389C96.111 11.1363 96.6329 11.4124 96.7779 11.8919C96.9664 12.5603 96.7779 13.2433 96.9519 13.8826C97.1839 14.7254 97.5899 16.2075 98.2279 16.905C98.8224 17.5589 100.374 18.4452 101.229 18.6341C101.795 18.7649 102.447 18.4888 103.013 18.5615C104.013 18.6922 104.158 19.0846 104.898 19.2589C110.567 20.5667 115.048 16.3819 115.019 10.8312C115.004 8.39005 114.598 5.61471 113.206 3.60949C111.51 1.16835 109.219 0.543531 106.435 0.499939"
+                          fill="#DFD9C9"
+                          stroke="black"
+                          strokeMiterlimit={10}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      </svg>
+                    </div>
 
-                    {/* Resize handle — overlays the SVG's bottom-right
-                        square. 25×25% hover area BELOW-RIGHT of the block
-                        (top edge at 100% wrapper height, right edge 3%
-                        past wrapper right) so it doesn't conflict with
-                        the block's grab area. */}
+                    {/* Resize handle — fixed-size square visual + click
+                        area at bottom-right of wrapper. Same fixed sizes
+                        as the rotate handle so they stay constant
+                        regardless of block.scale. */}
                     <div
-                      className="cursor-scale-arrow absolute"
+                      className="cursor-scale-arrow absolute flex items-center justify-center"
                       style={{
-                        right: "-3%",
-                        bottom: "-25%",
-                        width: "25%",
-                        height: "25%",
+                        right: "-12px",
+                        bottom: "-12px",
+                        width: "28px",
+                        height: "28px",
                         pointerEvents: "auto",
                       }}
                       onMouseDown={(e) => {
                         e.stopPropagation();
                         startDrag(e, block.id, "resize");
                       }}
-                    />
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="198 223 21 21"
+                        style={{ pointerEvents: "none" }}
+                      >
+                        <path
+                          d="M200.629 224.85C200.599 226.92 200.039 228.67 200.039 230.78C200.039 233.22 200.179 235.59 199.579 237.89C199.279 239.04 198.949 242.76 199.989 243.27C201.029 243.78 204.129 243.23 205.319 243.23H209.519C210.899 243.23 212.279 243.21 213.659 243.23C214.739 243.25 215.099 242.81 215.999 242.61C217.329 242.31 217.559 243.1 217.819 241.51C218.039 240.17 217.809 238.64 217.809 237.28C217.809 234.97 218.279 232.11 217.759 229.89C217.309 227.97 216.819 226.23 216.549 224.34C215.559 223.92 214.149 224.81 213.049 224.87C211.949 224.93 210.879 224.86 209.799 224.86C208.809 224.86 207.819 224.87 206.839 224.86C205.539 224.85 204.809 225.29 200.619 224.86L200.629 224.85Z"
+                          fill="#DFD9C9"
+                          stroke="black"
+                          strokeMiterlimit={10}
+                          vectorEffect="non-scaling-stroke"
+                        />
+                      </svg>
+                    </div>
                   </div>
                 )}
               </Fragment>
