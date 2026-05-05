@@ -212,28 +212,34 @@ function CreatePageInner() {
         Journal for:
       </span>
 
-      {/* Date display — Figma 24:241 (x=381 y=210 w=265 h=51, text-[32px]).
-          Font auto-shrinks for long dates so they never reach the ▽ button. */}
-      <span
-        className="absolute left-[381px] top-[210px] flex h-[51px] w-[265px] flex-col justify-center overflow-hidden whitespace-nowrap text-center font-bold leading-[normal] tracking-tight text-black"
-        style={{ fontSize: `${dateFontSize}px` }}
-      >
-        {dateLabel}
-      </span>
-
-      {/* Date dropdown ▽ — Figma position (x=634 y=231 w=17.49 h=17.08) */}
-      <button
-        type="button"
-        onClick={() => setPickerOpen((v) => !v)}
-        aria-expanded={pickerOpen}
-        className="absolute left-[634px] top-[231px] z-[10] block h-[17.08px] w-[17.49px] cursor-pointer bg-transparent p-0 transition-transform active:scale-90"
-      >
-        <img
-          alt="pick date"
-          src="/assets/date-button.svg"
-          className="absolute inset-0 block size-full"
-        />
-      </button>
+      {/* Date row — text + ▽ button laid out as a flex group so the button
+          always sits right next to the text. The whole group is centered in
+          the same 265-px slot the text used to occupy alone; the row's gap
+          (~8 px) is what the user sees between the date and the ▽ icon.
+          Font auto-shrinks (dateFontSize) so the row never overflows the
+          slot — that's how we keep the button from being pushed under the
+          text or past the slot edge for very long dates like
+          "2026 September 30". */}
+      <div className="absolute left-[381px] top-[210px] flex h-[51px] w-[265px] items-center justify-center gap-[8px] overflow-hidden whitespace-nowrap">
+        <span
+          className="font-bold leading-[normal] tracking-tight text-black"
+          style={{ fontSize: `${dateFontSize}px` }}
+        >
+          {dateLabel}
+        </span>
+        <button
+          type="button"
+          onClick={() => setPickerOpen((v) => !v)}
+          aria-expanded={pickerOpen}
+          className="z-[10] block h-[17.08px] w-[17.49px] shrink-0 cursor-pointer bg-transparent p-0 transition-transform active:scale-90"
+        >
+          <img
+            alt="pick date"
+            src="/assets/date-button.svg"
+            className="block size-full"
+          />
+        </button>
+      </div>
 
       {/* Date picker popup */}
       {pickerOpen && (

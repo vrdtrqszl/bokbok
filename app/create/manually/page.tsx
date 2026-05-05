@@ -242,29 +242,30 @@ function CreateManuallyPageInner() {
         Journal for:
       </span>
 
-      {/* Date display — Figma 24:241 (x=675 y=210 w=265 h=51, text-[32px]).
-          Font auto-shrinks for unusually long dates so the text never
-          extends past the 265px span into the ▽ button. */}
-      <span
-        className="absolute left-[675px] top-[210px] flex h-[51px] w-[265px] flex-col justify-center overflow-hidden whitespace-nowrap text-center font-bold leading-[normal] tracking-tight text-black"
-        style={{ fontSize: `${dateFontSize}px` }}
-      >
-        {dateLabel}
-      </span>
-
-      {/* Date dropdown ▽ — Figma 24:243 (x=928 y=231 w=17.49 h=17.08) */}
-      <button
-        type="button"
-        onClick={() => setPickerOpen((v) => !v)}
-        aria-expanded={pickerOpen}
-        className="absolute left-[928px] top-[231px] z-[10] block h-[17.08px] w-[17.49px] cursor-pointer bg-transparent p-0 transition-transform active:scale-90"
-      >
-        <img
-          alt="pick date"
-          src="/assets/date-button.svg"
-          className="absolute inset-0 block size-full"
-        />
-      </button>
+      {/* Date row — text + ▽ button as a flex group so the button always
+          sits right next to the date. Font auto-shrinks (dateFontSize)
+          to keep the whole row inside the 265-px slot for long months
+          like "September". */}
+      <div className="absolute left-[675px] top-[210px] flex h-[51px] w-[265px] items-center justify-center gap-[8px] overflow-hidden whitespace-nowrap">
+        <span
+          className="font-bold leading-[normal] tracking-tight text-black"
+          style={{ fontSize: `${dateFontSize}px` }}
+        >
+          {dateLabel}
+        </span>
+        <button
+          type="button"
+          onClick={() => setPickerOpen((v) => !v)}
+          aria-expanded={pickerOpen}
+          className="z-[10] block h-[17.08px] w-[17.49px] shrink-0 cursor-pointer bg-transparent p-0 transition-transform active:scale-90"
+        >
+          <img
+            alt="pick date"
+            src="/assets/date-button.svg"
+            className="block size-full"
+          />
+        </button>
+      </div>
 
       {/* Date picker popup */}
       {pickerOpen && (
