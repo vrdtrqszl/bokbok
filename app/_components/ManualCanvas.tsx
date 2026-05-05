@@ -63,6 +63,12 @@ export default function ManualCanvas({
   const clipboardRef = useRef<CanvasBlock | null>(null);
   const nextZ = useRef(0);
   const dragRef = useRef<DragState | null>(null);
+  // Right-click context menu — null when closed, canvas-local coords when open.
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    blockId: string;
+  } | null>(null);
 
   // ── imperative handle ──────────────────────────────────────────────────────
 
@@ -314,10 +320,13 @@ export default function ManualCanvas({
         ]);
         setSelectedId(id);
       }
+      if (e.key === "Escape" && contextMenu) {
+        setContextMenu(null);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedId]);
+  }, [selectedId, contextMenu]);
 
   // ── toolbar actions ────────────────────────────────────────────────────────
 
@@ -349,6 +358,63 @@ export default function ManualCanvas({
     if (!selectedId) return;
     setBlocks((p) => p.filter((b) => b.id !== selectedId));
     setSelectedId(null);
+  };
+  // Context-menu actions (Figma 2129:214). All operate on the currently-
+  // selected block — handleBlockContextMenu sets selectedId before opening
+  // the menu, so this works for the right-clicked block.
+  const duplicate = () => {
+    const sel = blocksRef.current.find((b) => b.id === selectedId);
+    if (!sel) return;
+    const id = uid();
+    setBlocks((p) => [
+      ...p,
+      { ...sel, id, x: sel.x + 20, y: sel.y + 20, zIndex: nextZ.current++ },
+    ]);
+    setSelectedId(id);
+  };
+  const rotate = () =>
+    selectedId &&
+    setBlocks((p) =>
+      p.map((b) =>
+        b.id === selectedId ? { ...b, rotation: (b.rotation + 90) % 360 } : b,
+      ),
+    );
+  const bringToFront = () =>
+    selectedId &&
+    setBlocks((p) =>
+      p.map((b) => (b.id === selectedId ? { ...b, zIndex: nextZ.current++ } : b)),
+    );
+  const bringToBack = () => {
+    if (!selectedId) return;
+    const minZ = Math.min(...blocksRef.current.map((b) => b.zIndex));
+    setBlocks((p) =>
+      p.map((b) => (b.id === selectedId ? { ...b, zIndex: minZ - 1 } : b)),
+    );
+  };
+  const originalPosition = () =>
+    selectedId &&
+    setBlocks((p) =>
+      p.map((b) =>
+        b.id === selectedId
+          ? { ...b, x: 0, y: 0, rotation: 0, scale: 1, flipH: false, flipV: false }
+          : b,
+      ),
+    );
+
+  // Right-click on a block: open context menu at the cursor (in canvas-local
+  // design pixels, not actual pixels — the menu is rendered inside the
+  // ViewportFit-scaled tree, so it gets scaled along with the rest).
+  const openContextMenu = (e: React.MouseEvent, blockId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setSelectedId(blockId);
+    const rect = canvasEl.current?.getBoundingClientRect();
+    const offsetW = canvasEl.current?.offsetWidth ?? 1;
+    if (!rect) return;
+    const scale = rect.width / offsetW; // ViewportFit scale (post-transform / pre)
+    const localX = (e.clientX - rect.left) / scale;
+    const localY = (e.clientY - rect.top) / scale;
+    setContextMenu({ x: localX, y: localY, blockId });
   };
 
   const hasSelected = !!blocks.find((b) => b.id === selectedId);
@@ -406,6 +472,7 @@ export default function ManualCanvas({
                   zIndex: block.zIndex,
                 }}
                 onMouseDown={(e) => startDrag(e, block.id, "move")}
+                onContextMenu={(e) => openContextMenu(e, block.id)}
               >
                 <img
                   src={block.imagePath}
@@ -463,6 +530,63 @@ export default function ManualCanvas({
               </div>
             );
           })}
+
+        {/* Right-click context menu (Figma 2129:214). Hand-drawn outline +
+            9 actions. The transparent backdrop catches outside clicks (and
+            right-clicks) to dismiss. The menu is rendered inside the canvas
+            so its coords are in design pixels and ViewportFit's scale
+            handles visual sizing. */}
+        {contextMenu && (
+          <>
+            <div
+              className="fixed inset-0 z-[299]"
+              onClick={() => setContextMenu(null)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                setContextMenu(null);
+              }}
+            />
+            <div
+              className="absolute z-[300] h-[220px] w-[124px] font-(family-name:--font-casual)"
+              style={{ left: contextMenu.x, top: contextMenu.y }}
+              onContextMenu={(e) => e.preventDefault()}
+            >
+              <img
+                alt=""
+                src="/assets/function-box.svg"
+                className="pointer-events-none absolute inset-0 size-full"
+              />
+              <ul
+                className="absolute m-0 flex list-none flex-col p-0"
+                style={{ inset: "3.18% 8.06% 2.76% 8.06%" }}
+              >
+                {[
+                  { label: "copy", action: copy },
+                  { label: "paste", action: paste },
+                  { label: "duplicate", action: duplicate },
+                  { label: "rotate", action: rotate },
+                  { label: "flip horizontal", action: flipH },
+                  { label: "flip vertical", action: flipV },
+                  { label: "bring to front", action: bringToFront },
+                  { label: "bring to back", action: bringToBack },
+                  { label: "original position", action: originalPosition },
+                ].map(({ label, action }) => (
+                  <li
+                    key={label}
+                    role="button"
+                    onClick={() => {
+                      action();
+                      setContextMenu(null);
+                    }}
+                    className="flex flex-1 items-center justify-center text-center text-[16px] leading-[normal] text-black hover:bg-black/5"
+                  >
+                    {label}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
