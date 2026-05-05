@@ -122,9 +122,12 @@ export default function ManualCanvas({
         for (const b of current) {
           if (!seen.has(b.emotionKey)) {
             seen.add(b.emotionKey);
+            // Fall back to the raw key if the catalog doesn't know it —
+            // can happen when a creature was made under an older catalog.
+            const meta = EMOTIONS[b.emotionKey];
             emotions.push({
               key: b.emotionKey,
-              displayName: EMOTIONS[b.emotionKey].displayName,
+              displayName: meta?.displayName ?? String(b.emotionKey),
               score: 1,
             });
           }

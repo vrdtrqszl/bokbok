@@ -11,13 +11,15 @@ import Link from "next/link";
 import { useState } from "react";
 import { EMOTIONS, type EmotionKey } from "@/lib/emotions";
 
-// Order matches the Figma layout (left→right, top→bottom).
+// Order matches the Figma layout (left→right, top→bottom). Six primary
+// emotions chosen to span the valence spectrum (positive / neutral /
+// negative) and all backed by descriptions in the catalog.
 const PRIMARY_EMOTIONS: EmotionKey[] = [
   "joy",
   "sadness",
   "anger",
-  "fear",
   "surprise",
+  "love",
   "disgust",
 ];
 

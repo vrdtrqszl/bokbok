@@ -2,6 +2,12 @@
 .next
 node_modules
 
+# Source PNGs for the energy-block catalog. The repo only ships the
+# normalized copies under public/energy-blocks/ — the unnormalized
+# originals stay on disk as a reference but are not tracked.
+/50 energy blocks/
+/energy blocks/
+
 # Environment files — contain Supabase keys, never commit.
 .env
 .env.local
