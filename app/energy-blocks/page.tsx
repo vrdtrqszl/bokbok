@@ -246,7 +246,7 @@ export default function EnergyBlocksPage() {
           src="/assets/info-box.svg"
           className="absolute inset-0 block size-full"
         />
-        {selected && (
+        {selected ? (
           /* One-sentence description, centered both axes per Figma inset
              [46.19% 9.62% 45.03% 9.82%]. Source: EMOTION_DESCRIPTION. */
           <div
@@ -261,6 +261,13 @@ export default function EnergyBlocksPage() {
             <p className="text-center text-[24px] font-bold leading-[normal] text-black">
               {EMOTION_DESCRIPTION[selected.key]}
             </p>
+          </div>
+        ) : (
+          /* Empty-state hint — pairs with the viewfinder hint above. */
+          <div className="absolute inset-0 flex items-center justify-center px-[39px] text-center text-[14px] leading-relaxed text-black/40">
+            Each block holds a feeling.
+            <br />
+            Click one to read about it.
           </div>
         )}
       </div>
