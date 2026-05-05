@@ -149,6 +149,7 @@ export default function MainViewport({
   fullscreen = false,
   onExitFullscreen,
   petMode = false,
+  onCreatureHover,
 }: {
   onCreatureSelect?: (c: CreatureSpec, position: [number, number, number]) => void;
   selectedCreatureId?: string | null;
@@ -161,6 +162,8 @@ export default function MainViewport({
   onExitFullscreen?: () => void;
   /** When true, clicking a creature pets it (makes it shake) instead of focusing the camera. */
   petMode?: boolean;
+  /** Fires with the hovered creature on enter, null on leave. */
+  onCreatureHover?: (creature: CreatureSpec | null) => void;
 } = {}) {
   const apiRef = useRef<CameraApi | null>(null);
 
@@ -244,6 +247,7 @@ export default function MainViewport({
               selectedId={selectedCreatureId}
               query={query}
               petMode={petMode}
+              onHover={onCreatureHover}
             />
           </Suspense>
           <ControlsBridge

@@ -52,6 +52,7 @@ function EnergyCreature({
   onSelect,
   selected,
   petMode,
+  onHover,
 }: {
   creature: CreatureSpec;
   position: [number, number, number];
@@ -59,6 +60,8 @@ function EnergyCreature({
   selected?: boolean;
   /** When true, clicking pets the creature (shake) instead of selecting. */
   petMode?: boolean;
+  /** Fires when the pointer enters/leaves a creature. Pass null on leave. */
+  onHover?: (creature: CreatureSpec | null) => void;
 }) {
   const groupRef = useRef<Group | null>(null);
   const [hovered, setHovered] = useState(false);
@@ -201,12 +204,15 @@ function EnergyCreature({
       onPointerOver={(e) => {
         e.stopPropagation();
         setHovered(true);
-        // Don't override the page-level hand cursor while in pet mode.
-        if (!petMode) document.body.style.cursor = "pointer";
+        // Don't override the page-level cursor — the global hand-drawn
+        // arrow (or pet-mode hand) wins via inheritance. Setting
+        // body.style.cursor = "pointer" used to clobber it with the
+        // standard browser pointer.
+        onHover?.(creature);
       }}
       onPointerOut={() => {
         setHovered(false);
-        if (!petMode) document.body.style.cursor = "";
+        onHover?.(null);
       }}
     >
       {creature.blocks.map((b, i) => (
@@ -226,12 +232,15 @@ export default function EcosystemCreatures({
   selectedId,
   query,
   petMode,
+  onHover,
 }: {
   onSelect?: (c: CreatureSpec, position: [number, number, number]) => void;
   selectedId?: string | null;
   query?: string;
   /** When true, clicking a creature pets it (shake) instead of selecting. */
   petMode?: boolean;
+  /** Fires with the hovered creature on enter, null on leave. */
+  onHover?: (creature: CreatureSpec | null) => void;
 } = {}) {
   const [creatures, setCreatures] = useState<CreatureSpec[]>([]);
 
@@ -288,6 +297,7 @@ export default function EcosystemCreatures({
             onSelect={onSelect}
             selected={selectedId === c.id}
             petMode={petMode}
+            onHover={onHover}
           />
         );
       })}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import MainViewport, { type FocusTarget, type ResetTrigger } from "./_components/MainViewport";
 import { deleteCreatureById } from "@/lib/ecosystem";
 import { creatureFocusBox, emotionByKey, type CreatureSpec } from "@/lib/creature";
@@ -17,6 +17,11 @@ export default function MainPage() {
   // Pet mode: when on, the cursor becomes a hand and clicking a creature
   // makes it shake wildly instead of opening the focus view.
   const [petMode, setPetMode] = useState(false);
+  // Hover tooltip state: the creature currently under the cursor (if any)
+  // and the cursor position in design pixels.
+  const [hoveredCreature, setHoveredCreature] = useState<CreatureSpec | null>(null);
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const pageRef = useRef<HTMLDivElement | null>(null);
 
   // Track the browser's actual fullscreen state so the button reflects it
   // even when the user exits via Escape.
@@ -35,6 +40,24 @@ export default function MainPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [petMode]);
+
+  // Track cursor position in DESIGN pixels (relative to the 1440×900 page)
+  // while a creature is hovered. clientX/Y are in actual viewport pixels;
+  // we convert through the page's bounding rect so the tooltip lands at
+  // the cursor regardless of ViewportFit's scale.
+  useEffect(() => {
+    if (!hoveredCreature) return;
+    const onMove = (e: MouseEvent) => {
+      const rect = pageRef.current?.getBoundingClientRect();
+      if (!rect || rect.width === 0 || rect.height === 0) return;
+      setHoverPos({
+        x: ((e.clientX - rect.left) / rect.width) * 1440,
+        y: ((e.clientY - rect.top) / rect.height) * 900,
+      });
+    };
+    window.addEventListener("mousemove", onMove);
+    return () => window.removeEventListener("mousemove", onMove);
+  }, [hoveredCreature]);
 
   const toggleFullscreen = () => {
     if (document.fullscreenElement) {
@@ -99,6 +122,7 @@ export default function MainPage() {
 
   return (
     <div
+      ref={pageRef}
       className={`relative mx-auto h-[900px] w-[1440px] bg-[#dfd9c9] font-(family-name:--font-casual) ${
         // In fullscreen, MainViewport expands beyond 1440×900 in design
         // coords to fill the actual window — so the page must NOT clip.
@@ -213,7 +237,24 @@ export default function MainPage() {
         fullscreen={isFullscreen}
         onExitFullscreen={toggleFullscreen}
         petMode={petMode}
+        onCreatureHover={setHoveredCreature}
       />
+
+      {/* Hover tooltip (Figma 2130:272) — name on top, date YYYYMMDD below.
+          Positioned in design pixels next to the cursor (slight 12-px right/
+          down offset so it doesn't sit under the cursor itself). z-[200] keeps
+          it above the right-side panels and the wavy main-box overlay. */}
+      {hoveredCreature && !petMode && (
+        <div
+          className="pointer-events-none absolute z-[200] whitespace-nowrap text-center text-[16px] font-bold leading-normal text-black font-(family-name:--font-casual)"
+          style={{ left: hoverPos.x + 12, top: hoverPos.y + 12 }}
+        >
+          <p className="m-0">{hoveredCreature.name ?? "Creature"}</p>
+          <p className="m-0">
+            {hoveredCreature.dateISO?.replace(/-/g, "") ?? ""}
+          </p>
+        </div>
+      )}
 
       {/* Right-side panels — hidden in fullscreen mode. */}
       {!isFullscreen && (
