@@ -65,6 +65,16 @@ textarea,
   cursor: url('/assets/cursor-text.svg') 4 11, text !important;
 }
 
+/* Manual canvas grab cursor — open hand-drawn hand (Figma 4:79) when
+   hovering a block, clenched fist (Figma 2129:171) while actively
+   dragging. Hotspots are roughly the center of each cursor SVG. */
+.block-grab-cursor {
+  cursor: url('/assets/hand-cursor.svg') 16 16, grab;
+}
+.block-grab-cursor:active {
+  cursor: url('/assets/clench-hand.svg') 12 8, grabbing;
+}
+
 /* Hide all scrollbars site-wide while keeping scroll functionality. */
 * {
   scrollbar-width: none; /* Firefox */
