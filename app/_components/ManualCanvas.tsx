@@ -442,7 +442,13 @@ export default function ManualCanvas({
         className="absolute inset-0 overflow-hidden"
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDrop}
-        onClick={() => setSelectedId(null)}
+        // Clear selection only when clicking the bare canvas, NOT when a
+        // block-click bubbles up. (Without this guard, clicking a block
+        // would select it via mousedown, then immediately deselect via the
+        // bubbled click — the build-box flashed for a frame and vanished.)
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setSelectedId(null);
+        }}
       >
         {blocks.length === 0 && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center text-center text-[13px] leading-relaxed text-black/30">
