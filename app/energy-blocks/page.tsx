@@ -202,7 +202,7 @@ export default function EnergyBlocksPage() {
           src="/assets/creature-view.svg"
           className="absolute inset-0 block size-full"
         />
-        {selected && (
+        {selected ? (
           <>
             {/* Selected energy block PNG, sized + centered to roughly match
                 the Figma reference (left 14.13%, right 15.72%). */}
@@ -226,6 +226,14 @@ export default function EnergyBlocksPage() {
               {selected.displayName}
             </span>
           </>
+        ) : (
+          /* Empty-state hint — same styling as the Calender / Encyclopedia
+             pages so the three viewfinders read as a family. */
+          <div className="absolute inset-0 flex items-center justify-center text-center text-[14px] leading-relaxed text-black/40">
+            Click an energy block in the
+            <br />
+            gallery to view it
+          </div>
         )}
       </div>
 
