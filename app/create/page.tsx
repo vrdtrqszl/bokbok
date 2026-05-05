@@ -90,12 +90,16 @@ function CreatePageInner() {
     const c = generateCreature(scores);
     if (editingId) c.id = editingId;
     setCreature(c);
-    // Auto-fill a whimsical random name; the user can rewrite it before upload.
-    setName(randomCreatureName(c.emotions[0]?.displayName));
+    // Name is NOT auto-filled — the user has to type one before upload.
     setUploadStatus("idle");
   };
 
   const handleUpload = () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      alert("Please give your creature a name first.");
+      return;
+    }
     const text = currentJournalText();
     // One-click flow: if the user hasn't clicked Generate yet, build the
     // creature now from the journal text.
@@ -111,13 +115,9 @@ function CreatePageInner() {
       setCreature(toUpload);
     }
 
-    const dominant = toUpload.emotions[0]?.displayName;
-    // Use the (possibly user-edited) name; if blank, fall back to a random one.
-    const finalName =
-      name.trim() || randomCreatureName(dominant) || "Creature";
     const enriched: CreatureSpec = {
       ...toUpload,
-      name: finalName,
+      name: trimmedName,
       journalText: text,
       dateISO: toISO(selectedDate),
       source: "generate",
@@ -306,13 +306,15 @@ function CreatePageInner() {
             // Persist current state (which may include a new date, edited
             // journal text, or renamed creature) — replaces in place by id.
             if (creature) {
+              const trimmedName = name.trim();
+              if (!trimmedName) {
+                alert("Please give your creature a name first.");
+                return;
+              }
               const text = currentJournalText();
-              const dominant = creature.emotions[0]?.displayName;
-              const finalName =
-                name.trim() || creature.name || randomCreatureName(dominant) || "Creature";
               uploadCreature({
                 ...creature,
-                name: finalName,
+                name: trimmedName,
                 journalText: text,
                 dateISO: toISO(selectedDate),
                 source: creature.source ?? "generate",
@@ -364,7 +366,13 @@ function CreatePageInner() {
         <button
           type="button"
           onClick={handleUpload}
-          className="absolute left-[1104px] top-[433px] block h-[27px] w-[227px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform active:scale-95"
+          disabled={!name.trim()}
+          title={!name.trim() ? "Give your creature a name first" : undefined}
+          className={`absolute left-[1104px] top-[433px] block h-[27px] w-[227px] overflow-visible bg-transparent p-0 transition-transform ${
+            name.trim()
+              ? "cursor-pointer active:scale-95"
+              : "cursor-not-allowed opacity-40"
+          }`}
         >
           <img
             alt=""

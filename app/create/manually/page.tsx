@@ -95,11 +95,16 @@ function CreateManuallyPageInner() {
     // Preserve id when editing so the upload replaces in place.
     if (editingId) spec.id = editingId;
     setCreature(spec);
-    setName(randomCreatureName(spec.emotions[0]?.displayName));
+    // Name is NOT auto-filled — the user has to type one before upload.
     setUploadStatus("idle");
   };
 
   const handleUpload = () => {
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      alert("Please give your creature a name first.");
+      return;
+    }
     // One-click flow: if the user hasn't clicked Generate yet, build the
     // creature from whatever's currently on the canvas.
     let toUpload = creature;
@@ -117,12 +122,9 @@ function CreateManuallyPageInner() {
     // Read the latest journal text from DOM to bypass state-sync timing issues
     const currentText = (textareaRef.current?.value ?? journalText).trim();
 
-    const dominant = toUpload.emotions[0]?.displayName;
-    const finalName =
-      name.trim() || randomCreatureName(dominant) || "Creature";
     const enriched: CreatureSpec = {
       ...toUpload,
-      name: finalName,
+      name: trimmedName,
       journalText: currentText,
       dateISO: toISO(selectedDate),
       source: "manually",
@@ -354,17 +356,19 @@ function CreateManuallyPageInner() {
         type="button"
         onClick={() => {
           if (editingId) {
+            const trimmedName = name.trim();
+            if (!trimmedName) {
+              alert("Please give your creature a name first.");
+              return;
+            }
             // Pull latest blocks from the canvas in case the user edited it.
             const liveSpec = canvasHandle.current?.toCreatureSpec() ?? creature;
             if (liveSpec) {
               if (editingId) liveSpec.id = editingId;
-              const dominant = liveSpec.emotions[0]?.displayName;
               const text = (textareaRef.current?.value ?? journalText).trim();
-              const finalName =
-                name.trim() || liveSpec.name || randomCreatureName(dominant) || "Creature";
               uploadCreature({
                 ...liveSpec,
-                name: finalName,
+                name: trimmedName,
                 journalText: text,
                 dateISO: toISO(selectedDate),
                 source: "manually",
@@ -413,7 +417,13 @@ function CreateManuallyPageInner() {
         <button
           type="button"
           onClick={handleUpload}
-          className="absolute left-[1104px] top-[433px] block h-[27px] w-[227px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform active:scale-95"
+          disabled={!name.trim()}
+          title={!name.trim() ? "Give your creature a name first" : undefined}
+          className={`absolute left-[1104px] top-[433px] block h-[27px] w-[227px] overflow-visible bg-transparent p-0 transition-transform ${
+            name.trim()
+              ? "cursor-pointer active:scale-95"
+              : "cursor-not-allowed opacity-40"
+          }`}
         >
           <img
             alt=""
