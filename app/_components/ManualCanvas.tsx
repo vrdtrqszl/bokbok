@@ -424,18 +424,9 @@ export default function ManualCanvas({
 
   return (
     <div className="relative size-full select-none">
-      {/* Toolbar — only visible when a block is selected */}
-      {hasSelected && (
-        <div className="absolute left-2 top-2 z-[200] flex items-center gap-[4px] rounded-[6px] bg-white/80 p-[4px] shadow-sm backdrop-blur-sm">
-          <Btn onClick={flipH} title="Flip horizontal">⇔ H</Btn>
-          <Btn onClick={flipV} title="Flip vertical">⇕ V</Btn>
-          <div className="mx-[2px] h-[16px] w-px bg-black/20" />
-          <Btn onClick={copy} title="Copy (⌘C)">⎘</Btn>
-          <Btn onClick={paste} title="Paste (⌘V)">⎙</Btn>
-          <div className="mx-[2px] h-[16px] w-px bg-black/20" />
-          <Btn onClick={del} title="Delete" danger>✕</Btn>
-        </div>
-      )}
+      {/* Toolbar removed — all of these actions are reachable through
+          the right-click context menu (Figma 2129:214) and keyboard
+          shortcuts (Cmd/Ctrl+C/V, Delete). */}
 
       {/* Canvas */}
       <div
