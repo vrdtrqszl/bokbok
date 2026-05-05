@@ -44,6 +44,9 @@ export type Emotion = {
   // and for layout hints (e.g., positive emotions cluster brighter)
   valence: 1 | 0 | -1;
   keywords: string[]; // matched as case-insensitive substrings
+  // 1–2 sentence description, shown on the Energy Blocks page info panel.
+  // Optional — only the 6 primary emotions shown on that page need it today.
+  description?: string;
 };
 
 export const EMOTIONS: Record<EmotionKey, Emotion> = {
@@ -59,6 +62,8 @@ export const EMOTIONS: Record<EmotionKey, Emotion> = {
       "yay", "wonderful", "great", "awesome",
       "기쁘", "기쁨", "행복", "즐거", "즐겁", "신나", "웃", "좋",
     ],
+    description:
+      "Joy is a positive emotion felt in the mind and body when desires or expectations are fulfilled.",
   },
   sadness: {
     id: 2,
@@ -71,6 +76,8 @@ export const EMOTIONS: Record<EmotionKey, Emotion> = {
       "sorrow", "miserable", "down", "blue", "depressed",
       "슬프", "슬픔", "울", "눈물", "우울", "서글", "쓸쓸",
     ],
+    description:
+      "Sadness is a low, heavy emotion that arises when something loved is lost or out of reach.",
   },
   anger: {
     id: 3,
@@ -83,6 +90,8 @@ export const EMOTIONS: Record<EmotionKey, Emotion> = {
       "annoyed", "annoying", "irritated", "irritating", "fume", "fuming",
       "화나", "화가", "분노", "짜증", "열받", "빡",
     ],
+    description:
+      "Anger is a hot, sharp emotion stirred by a sense of being wronged or blocked.",
   },
   fear: {
     id: 4,
@@ -95,6 +104,8 @@ export const EMOTIONS: Record<EmotionKey, Emotion> = {
       "frightened", "frightening", "panic", "horrified", "dread",
       "무섭", "두렵", "두려", "겁", "공포", "오싹",
     ],
+    description:
+      "Fear is a tightening emotion that warns the body of danger, real or imagined.",
   },
   surprise: {
     id: 5,
@@ -107,6 +118,8 @@ export const EMOTIONS: Record<EmotionKey, Emotion> = {
       "astonished", "stunned", "wow", "unexpected", "sudden", "suddenly",
       "놀라", "놀랐", "헐", "갑자기", "깜짝",
     ],
+    description:
+      "Surprise is a brief, suspended emotion sparked by something unexpected.",
   },
   disgust: {
     id: 6,
@@ -119,6 +132,8 @@ export const EMOTIONS: Record<EmotionKey, Emotion> = {
       "repulsive", "revolt", "revolting", "sick",
       "역겨", "더러", "구역", "거부감", "혐오",
     ],
+    description:
+      "Disgust is a recoiling emotion the body uses to push away what feels unsafe or unclean.",
   },
   love: {
     id: 7,
