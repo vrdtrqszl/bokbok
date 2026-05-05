@@ -1,12 +1,12 @@
 "use client";
 
-// Energy Blocks catalog page (Figma 2102:151).
+// Energy Blocks catalog page (Figma 2102:151 + 2133:350 grid revision).
 //
-// All 50 emotions listed in a 3-column grid inside the main wavy frame —
-// the visible 3×2 chunk matches the Figma reference, and the rest scrolls
-// down. Clicking a tile updates the right-hand "creature view" (PNG +
-// name) and the info panel (one-word descriptor from EMOTION_ONE_WORD).
-// Joy is selected by default to match the Figma reference.
+// All 50 emotions listed in a 5-column grid inside the main wavy frame.
+// The visible 5×3-ish chunk matches the Figma reference at 2133:350 — the
+// rest scrolls down. Clicking a tile updates the right-hand "creature
+// view" (PNG + name) and the info panel (one-sentence description from
+// EMOTION_DESCRIPTION). Joy is selected by default.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -51,18 +51,21 @@ function shuffleWithColorSpread(list: Emotion[], cols: number): Emotion[] {
   return out;
 }
 
-// Grid metrics inside the main box (974.69 × 789.67). Column positions
-// (23 / 352 / 679) and image size (278) come straight from Figma 2102:185;
-// the column gap (51) and row gap (62) are derived from those positions
-// so the visible portion matches the reference exactly.
-const TILE_SIZE = 278;       // image width/height (square)
+// Grid metrics inside the main box (974.69 × 789.67). Derived from
+// Figma 2133:350 — the page-relative percentages there resolve to:
+//   tile width  = 11.22% × 1440 ≈ 162 px
+//   col pitch   = 13.21% × 1440 ≈ 190 px (so col gap ≈ 28 px)
+//   row pitch   = 224 px (Δ between row tops 95 / 319 / 543)
+//   first row's image y = 95 (page) ≈ 10 px below the main-box top.
+const NUM_COLS = 5;
+const TILE_SIZE = 162;       // image width/height (square)
 const LABEL_HEIGHT = 36;     // matches text-[24px] line-box
-const TILE_HEIGHT = TILE_SIZE + 8 + LABEL_HEIGHT; // image + 8px gap + label
-const COL_GAP = 51;          // 352 - (23 + 278) — col 2 left minus col 1 right
-const ROW_GAP = 62;          // 424 - (40 + 322) — row 2 top minus row 1 bottom
-const PAD_LEFT = 23;         // first column's x inside the main box
-const PAD_TOP = 40;          // first row's y inside the main box
-const PAD_RIGHT = 16;        // 974.69 - (23 + 278×3 + 51×2)
+const TILE_HEIGHT = TILE_SIZE + 8 + LABEL_HEIGHT; // image + 8 gap + label
+const COL_GAP = 28;          // ≈ col pitch (190) − tile width (162)
+const ROW_GAP = 18;          // ≈ row pitch (224) − tile height (206)
+const PAD_LEFT = 33;         // first column's x inside the main box
+const PAD_TOP = 10;          // first row's y inside the main box
+const PAD_RIGHT = 18;        // 974.69 − (33 + 162×5 + 28×4) ≈ 18
 const PAD_BOTTOM = 30;       // breathing room at the bottom of the scroll
 
 export default function EnergyBlocksPage() {
@@ -74,7 +77,7 @@ export default function EnergyBlocksPage() {
   // colour-spaced random order so the user gets a fresh layout each visit.
   const [order, setOrder] = useState<Emotion[]>(() => EMOTION_LIST);
   useEffect(() => {
-    setOrder(shuffleWithColorSpread(EMOTION_LIST, 3));
+    setOrder(shuffleWithColorSpread(EMOTION_LIST, NUM_COLS));
   }, []);
 
   return (
@@ -143,14 +146,15 @@ export default function EnergyBlocksPage() {
         />
       </div>
 
-      {/* All 50 emotions, 3-col scrollable grid inside the main frame.
-          The first 6 fit the original Figma 3×2 layout exactly (column
-          positions 23/352/679 at y=40 then y=424); rows 7..17 continue
-          downward at the same pitch and become reachable via scroll. */}
+      {/* All 50 emotions, 5-col scrollable grid inside the main frame.
+          The visible top portion matches Figma 2133:350 — 5 tiles per
+          row at 162×162, ~28 px column gap, ~18 px row gap; rows beyond
+          row 3 reach below the main-box bottom and are reached by
+          scrolling. */}
       <div
         className="absolute left-[27px] top-[85px] grid h-[789.67px] w-[974.69px] overflow-y-auto overflow-x-clip"
         style={{
-          gridTemplateColumns: `repeat(3, ${TILE_SIZE}px)`,
+          gridTemplateColumns: `repeat(${NUM_COLS}, ${TILE_SIZE}px)`,
           columnGap: `${COL_GAP}px`,
           rowGap: `${ROW_GAP}px`,
           paddingTop: `${PAD_TOP}px`,
@@ -168,17 +172,18 @@ export default function EnergyBlocksPage() {
               type="button"
               onClick={() => setSelectedKey(emotion.key)}
               aria-pressed={isActive}
-              className={`relative block cursor-pointer bg-transparent p-0 transition-transform hover:scale-[1.02] active:scale-95 ${
-                isActive ? "scale-[1.02]" : ""
+              className={`relative block cursor-pointer bg-transparent p-0 transition-transform hover:scale-[1.04] active:scale-95 ${
+                isActive ? "scale-[1.04]" : ""
               }`}
               style={{ width: `${TILE_SIZE}px`, height: `${TILE_HEIGHT}px` }}
             >
               <img
                 alt={emotion.displayName}
                 src={emotion.imagePath}
-                className="pointer-events-none absolute left-0 top-0 block size-[278px] object-contain"
+                className="pointer-events-none absolute left-0 top-0 block object-contain"
+                style={{ width: `${TILE_SIZE}px`, height: `${TILE_SIZE}px` }}
               />
-              <span className="pointer-events-none absolute left-0 right-0 bottom-0 block text-center text-[24px] font-bold leading-[normal] text-black">
+              <span className="pointer-events-none absolute left-0 right-0 bottom-0 block truncate whitespace-nowrap text-center text-[24px] font-bold leading-[normal] text-black">
                 {emotion.displayName}
               </span>
             </button>
