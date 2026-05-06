@@ -185,7 +185,7 @@ export default function EnergyBlocksPage() {
                 className="pointer-events-none absolute left-0 top-0 block object-contain"
                 style={{ width: `${TILE_SIZE}px`, height: `${TILE_SIZE}px` }}
               />
-              <span className="pointer-events-none absolute left-0 right-0 bottom-0 block truncate whitespace-nowrap text-center text-[24px] font-bold leading-[normal] text-black">
+              <span className="pointer-events-none absolute left-0 right-0 bottom-0 block whitespace-nowrap text-center text-[20px] font-bold leading-[normal] text-black">
                 {emotion.displayName}
               </span>
             </button>
