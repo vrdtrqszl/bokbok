@@ -38,12 +38,16 @@ export default function ViewportFit({ children }: { children: React.ReactNode })
 
   return (
     <div
-      // Fills the viewport, centers the scaled stage. Background color
-      // matches the page so letterbox bars are seamless.
+      // Fills the viewport, centers the scaled stage. Carries the grain
+      // background (.bg-grain) so the texture extends across the entire
+      // viewport — including the letterbox bars on aspect-ratio mismatch.
+      // Pages inside this wrapper are transparent so they don't double up
+      // with their own grain at a different scale (which would create a
+      // visible seam at the design-frame edge).
+      className="bg-grain"
       style={{
         position: "fixed",
         inset: 0,
-        background: "#dfd9c9",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
