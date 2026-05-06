@@ -127,7 +127,7 @@ function CreatePageInner() {
   };
 
   return (
-    <div className="relative mx-auto h-[900px] w-[1440px] overflow-hidden bg-[#dfd9c9] font-(family-name:--font-casual)">
+    <div className="relative mx-auto h-[900px] w-[1440px] overflow-hidden bg-grain font-(family-name:--font-casual)">
       {/* BokBok logo / Home link */}
       <Link
         href="/"

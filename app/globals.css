@@ -29,7 +29,23 @@
   --font-fancy: "Orange", cursive;
 }
 
+/* Page background — beige grain texture from the design comp (1920×1080
+   JPG). Layered over a #dfd9c9 fallback so the page never goes blank if
+   the image is still loading or fails. Used by every top-level page div
+   in place of the old solid `bg-[#dfd9c9]`. */
+.bg-grain {
+  background-color: #dfd9c9;
+  background-image: url('/assets/bg-grain.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
 html, body {
+  /* Solid #dfd9c9 fallback in case the grain JPG fails to load. The
+     grain itself is applied via the .bg-grain utility on each page so
+     the texture stays inside the design frame and doesn't bleed into
+     the body's letterbox area on wide monitors. */
   background: #dfd9c9;
   margin: 0;
   padding: 0;

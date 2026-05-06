@@ -8,6 +8,9 @@ node_modules
 /50 energy blocks/
 /energy blocks/
 
+# Source artwork that already has a normalized public/ copy.
+/grain background.jpg
+
 # Environment files — contain Supabase keys, never commit.
 .env
 .env.local

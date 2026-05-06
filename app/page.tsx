@@ -180,7 +180,7 @@ export default function MainPage() {
   return (
     <div
       ref={pageRef}
-      className={`relative mx-auto h-[900px] w-[1440px] bg-[#dfd9c9] font-(family-name:--font-casual) ${
+      className={`relative mx-auto h-[900px] w-[1440px] bg-grain font-(family-name:--font-casual) ${
         // In fullscreen, MainViewport expands beyond 1440×900 in design
         // coords to fill the actual window — so the page must NOT clip.
         isFullscreen ? "overflow-visible" : "overflow-hidden"
