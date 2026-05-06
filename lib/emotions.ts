@@ -3,9 +3,10 @@
 // by extractEmotions() for a simple substring/word-boundary match.
 //
 // The catalog is exactly the 50-emotion set under /50 energy blocks/ in the
-// repo root: ids 1..50, with id 47 holding "hurt-feelings" (the original PNG
+// repo root: ids 1..50, with id 47 holding "embarrassment" (the original PNG
 // was checked in as a duplicate "31._HURT_FEELINGS.png" — we put it where the
-// numbering left a gap so the catalog is 1..50 contiguous).
+// numbering left a gap so the catalog is 1..50 contiguous, and relabelled to
+// embarrassment to match the design intent).
 
 export type EmotionKey =
   | "happiness"
@@ -54,7 +55,7 @@ export type EmotionKey =
   | "confidence"
   | "pride"
   | "liberation"
-  | "hurt-feelings"
+  | "embarrassment"
   | "shame"
   | "disgust"
   | "insight";
@@ -628,16 +629,19 @@ export const EMOTIONS: Record<EmotionKey, Emotion> = {
       "자유", "해방", "후련",
     ],
   },
-  "hurt-feelings": {
+  embarrassment: {
     id: 47,
-    key: "hurt-feelings",
-    displayName: "Hurt Feelings",
-    imagePath: "/energy-blocks/47-hurt-feelings.png",
+    key: "embarrassment",
+    displayName: "Embarrassment",
+    imagePath: "/energy-blocks/47-embarrassment.png",
     valence: -1,
     keywords: [
-      "hurt", "hurts", "wounded", "stung", "betrayed", "broken heart",
-      "heartbreak", "heartbroken", "rejected", "rejection",
-      "상처", "마음이 아", "서운",
+      "embarrass", "embarrassed", "embarrassing", "embarrassment",
+      "awkward", "awkwardly",
+      "blush", "blushed", "blushing",
+      "cringe", "cringed", "cringy", "cringeworthy",
+      "mortified", "mortifying",
+      "민망", "창피", "쪽팔", "어색",
     ],
   },
   shame: {
@@ -647,9 +651,9 @@ export const EMOTIONS: Record<EmotionKey, Emotion> = {
     imagePath: "/energy-blocks/48-shame.png",
     valence: -1,
     keywords: [
-      "shame", "ashamed", "shameful", "disgrace", "disgraced", "humiliation",
-      "embarrass", "embarrassed", "embarrassing", "cringe", "cringed",
-      "수치", "부끄러", "민망", "창피", "쪽팔",
+      "shame", "ashamed", "shameful", "disgrace", "disgraced",
+      "humiliation", "humiliated",
+      "수치", "부끄러",
     ],
   },
   disgust: {
@@ -780,8 +784,8 @@ export const EMOTION_DESCRIPTION: Record<EmotionKey, string> = {
     "Pride is a lifting warmth that follows when you know you've done something well.",
   liberation:
     "Liberation is a wide, free expansion that follows when something heavy finally lets go.",
-  "hurt-feelings":
-    "Hurt feelings are a tender bruise that arises when someone close brushes against you carelessly.",
+  embarrassment:
+    "Embarrassment is a flushed unease that rises when you feel suddenly, awkwardly seen.",
   shame:
     "Shame is a shrinking heat that arises when you feel exposed as not good enough.",
   disgust:
@@ -851,7 +855,7 @@ export const EMOTION_COLOR_GROUP: Record<EmotionKey, EmotionColorGroup> = {
   confidence: "yellow",
   pride: "yellow",
   liberation: "purple",
-  "hurt-feelings": "red",
+  embarrassment: "red",
   shame: "purple",
   disgust: "green",
   insight: "yellow",
