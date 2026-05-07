@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import ViewportFit from "./_components/ViewportFit";
+import SeedBootstrap from "./_components/SeedBootstrap";
 
 export const metadata: Metadata = {
   title: "BokBok",
@@ -21,6 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
+        <SeedBootstrap />
         <ViewportFit>{children}</ViewportFit>
       </body>
     </html>

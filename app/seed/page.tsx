@@ -49,7 +49,13 @@ export default function SeedPage() {
     setError(null);
     try {
       const n = await clearDecJanSeeds();
-      setStatus(`Removed ${n} seeded creature${n === 1 ? "" : "s"}.`);
+      // Also wipe the auto-seed flag so the next page mount re-seeds
+      // cleanly. Without this, "clear" would leave the user permanently
+      // seedless until they manually flipped the flag.
+      window.localStorage.removeItem("bokbok:dec-jan-seeded:v1");
+      setStatus(
+        `Removed ${n} seeded creature${n === 1 ? "" : "s"}. Auto-seed flag reset — next visit will re-seed.`,
+      );
     } catch (e) {
       setError(String(e instanceof Error ? e.message : e));
     } finally {
