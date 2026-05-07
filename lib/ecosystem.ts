@@ -10,6 +10,7 @@
 // forget the returned promise.
 
 import type { CreatureSpec } from "./creature";
+import { sanitizeCreatureForCatalog } from "./creature";
 import { isSharedMode } from "./supabase";
 import {
   loadEcosystemRemote,
@@ -60,8 +61,18 @@ function deleteLocal(id: string): boolean {
 // ── public API (async, mode-aware) ────────────────────────────────────────
 
 export async function loadEcosystem(): Promise<CreatureSpec[]> {
-  if (isSharedMode()) return loadEcosystemRemote();
-  return loadLocal();
+  const list = isSharedMode() ? await loadEcosystemRemote() : loadLocal();
+  // Sanitize against the current catalog so creatures stored before a
+  // catalog rename / swap don't pass 404 imagePaths down to r3f's
+  // useLoader (which would crash the whole React tree on a missing
+  // texture). Drops blocks that can't be remapped, and drops creatures
+  // that end up with zero blocks.
+  const cleaned: CreatureSpec[] = [];
+  for (const c of list) {
+    const fixed = sanitizeCreatureForCatalog(c);
+    if (fixed) cleaned.push(fixed);
+  }
+  return cleaned;
 }
 
 export async function uploadCreature(creature: CreatureSpec): Promise<void> {
@@ -80,8 +91,10 @@ export async function uploadCreature(creature: CreatureSpec): Promise<void> {
 export async function findCreatureById(
   id: string,
 ): Promise<CreatureSpec | null> {
-  if (isSharedMode()) return findCreatureByIdRemote(id);
-  return loadLocal().find((c) => c.id === id) ?? null;
+  const raw = isSharedMode()
+    ? await findCreatureByIdRemote(id)
+    : (loadLocal().find((c) => c.id === id) ?? null);
+  return raw ? sanitizeCreatureForCatalog(raw) : null;
 }
 
 export async function deleteCreatureById(id: string): Promise<boolean> {

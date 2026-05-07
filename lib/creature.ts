@@ -277,6 +277,50 @@ export function emotionByKey(key: EmotionKey) {
   return byKey.get(key);
 }
 
+// Set of every imagePath the current catalog ships. Used by
+// sanitizeCreatureForCatalog to detect blocks that point at PNGs we no
+// longer have on disk (creatures stored before a catalog rename / swap).
+const VALID_IMAGE_PATHS = new Set<string>(EMOTION_LIST.map((e) => e.imagePath));
+
+/**
+ * Re-hydrate a stored creature against the CURRENT emotion catalog.
+ * Stored creatures captured `block.imagePath` at upload time, so when the
+ * catalog renames / removes a key (e.g. 31 → 50 swap, hurt-feelings →
+ * embarrassment) those paths can become 404s. r3f's useLoader throws on a
+ * missing texture and crashes the whole React tree — this helper avoids
+ * that by:
+ *
+ *   1. If a block's imagePath is still valid, leave it alone.
+ *   2. Otherwise, try to remap by `emotionKey` to the current catalog's
+ *      path for that key.
+ *   3. If the key is also unknown, drop the block.
+ *
+ * Returns `null` if the cleanup leaves the creature with zero blocks (we'd
+ * rather not render an empty stub than render a dot).
+ */
+export function sanitizeCreatureForCatalog(
+  creature: CreatureSpec,
+): CreatureSpec | null {
+  const cleanedBlocks: CreatureBlock[] = [];
+  for (const b of creature.blocks) {
+    if (VALID_IMAGE_PATHS.has(b.imagePath)) {
+      cleanedBlocks.push(b);
+      continue;
+    }
+    const meta = byKey.get(b.emotionKey);
+    if (meta) {
+      cleanedBlocks.push({ ...b, imagePath: meta.imagePath });
+      continue;
+    }
+    // Unknown key + invalid path → can't render. Drop it.
+  }
+  if (cleanedBlocks.length === 0) return null;
+  // Also drop emotion entries whose key no longer exists in the catalog
+  // so the info-panel listing stays consistent with the rendered blocks.
+  const cleanedEmotions = creature.emotions.filter((e) => byKey.has(e.key));
+  return { ...creature, blocks: cleanedBlocks, emotions: cleanedEmotions };
+}
+
 // Whimsical adjectives for auto-naming new creatures (combined with the
 // dominant emotion's display name, e.g. "Tiny Joy", "Wandering Sadness").
 const RANDOM_ADJECTIVES = [

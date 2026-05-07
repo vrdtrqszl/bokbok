@@ -5,6 +5,7 @@ import { OrbitControls } from "@react-three/drei";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { Vector3 } from "three";
 import EcosystemCreatures from "./EcosystemCreatures";
+import CreaturesErrorBoundary from "./CreaturesErrorBoundary";
 import type { CreatureSpec } from "@/lib/creature";
 
 // Match ViewportFit's design canvas. Used to compute the fullscreen
@@ -241,15 +242,17 @@ export default function MainViewport({
           <ambientLight intensity={0.8} />
           <directionalLight position={[5, 5, 5]} intensity={0.6} />
           <directionalLight position={[-3, -2, -4]} intensity={0.2} />
-          <Suspense fallback={null}>
-            <EcosystemCreatures
-              onSelect={onCreatureSelect}
-              selectedId={selectedCreatureId}
-              query={query}
-              petMode={petMode}
-              onHover={onCreatureHover}
-            />
-          </Suspense>
+          <CreaturesErrorBoundary>
+            <Suspense fallback={null}>
+              <EcosystemCreatures
+                onSelect={onCreatureSelect}
+                selectedId={selectedCreatureId}
+                query={query}
+                petMode={petMode}
+                onHover={onCreatureHover}
+              />
+            </Suspense>
+          </CreaturesErrorBoundary>
           <ControlsBridge
             apiRef={apiRef}
             focusTarget={focusTarget}
