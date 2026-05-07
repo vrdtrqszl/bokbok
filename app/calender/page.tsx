@@ -172,13 +172,21 @@ export default function CalendarPage() {
     setSelected(null);
   };
 
+  // True after the very first ecosystem load attempt settles. Gates the
+  // initial-scroll effect so it can wait for the actual data instead of
+  // jumping to today before creatures load.
+  const [creaturesLoaded, setCreaturesLoaded] = useState(false);
+
   // Live ecosystem load + cross-tab sync + Supabase realtime (no-op in
   // local mode).
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
       loadEcosystem().then((list) => {
-        if (!cancelled) setCreatures(list);
+        if (!cancelled) {
+          setCreatures(list);
+          setCreaturesLoaded(true);
+        }
       });
     };
     refresh();
@@ -218,15 +226,37 @@ export default function CalendarPage() {
     return map;
   }, [creatures]);
 
-  // On mount, scroll the month list so today's month is at the top of the
-  // visible area (clamped to the available year range). Uses offsetTop —
-  // unlike getBoundingClientRect, it returns design pixels regardless of
-  // any CSS transform on an ancestor (ViewportFit's scale would otherwise
-  // make the rect-based math undershoot the target on non-100% windows).
+  // Initial scroll target: prefer the LATEST month that actually has a
+  // creature (so the user lands on their data instead of an empty month
+  // — important when "today" is ahead of all journals, e.g. a demo seed
+  // sitting in past months). Falls back to today's month if the
+  // ecosystem is empty. Runs once after the first load settles, gated
+  // by `creaturesLoaded` and `initialScrollDone` so refreshes / tab
+  // sync don't yank the scroll position later.
+  const initialScrollDone = useRef(false);
   useEffect(() => {
-    const today = new Date();
-    const year = Math.min(YEAR_END, Math.max(YEAR_START, today.getFullYear()));
-    const targetId = `month-${year}-${today.getMonth()}`;
+    if (!creaturesLoaded || initialScrollDone.current) return;
+    initialScrollDone.current = true;
+
+    let targetYear: number;
+    let targetMonth: number;
+    let latest = -Infinity;
+    for (const c of creatures) {
+      if (!c.dateISO) continue;
+      const t = new Date(`${c.dateISO}T00:00:00`).getTime();
+      if (Number.isFinite(t) && t > latest) latest = t;
+    }
+    if (latest > -Infinity) {
+      const d = new Date(latest);
+      targetYear = Math.min(YEAR_END, Math.max(YEAR_START, d.getFullYear()));
+      targetMonth = d.getMonth();
+    } else {
+      const today = new Date();
+      targetYear = Math.min(YEAR_END, Math.max(YEAR_START, today.getFullYear()));
+      targetMonth = today.getMonth();
+    }
+
+    const targetId = `month-${targetYear}-${targetMonth}`;
     const target = document.getElementById(targetId) as HTMLElement | null;
     const container = scrollRef.current;
     if (!target || !container) return;
@@ -235,7 +265,7 @@ export default function CalendarPage() {
     // top relative to the container's content origin — scrolling there
     // puts the month at the visible top.
     container.scrollTop = target.offsetTop;
-  }, []);
+  }, [creaturesLoaded, creatures]);
 
   return (
     <div className="relative mx-auto h-[900px] w-[1440px] overflow-hidden font-(family-name:--font-casual)">
