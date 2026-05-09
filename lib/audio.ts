@@ -34,7 +34,15 @@ let reverbInput: DelayNode | null = null;
 
 function ensureCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
-  if (ctx) return ctx;
+  if (ctx) {
+    // Existing ctx — kick off resume synchronously in case the browser
+    // suspended it (page lost focus, autoplay policy, etc.). Fire-and-
+    // forget; we don't need to wait for the promise.
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
+    return ctx;
+  }
   const w = window as WindowWithAudio;
   const Ctor = w.AudioContext ?? w.webkitAudioContext;
   if (!Ctor) return null;
@@ -47,7 +55,7 @@ function ensureCtx(): AudioContext | null {
   ctx = next;
 
   masterGain = next.createGain();
-  masterGain.gain.value = 0.32;
+  masterGain.gain.value = 0.45;
   masterGain.connect(next.destination);
 
   // Cheap but pretty "reverb": feedback delay with a tone control. The wet
@@ -70,18 +78,15 @@ function ensureCtx(): AudioContext | null {
   wet.connect(masterGain);
   reverbInput = delay;
 
-  return next;
-}
-
-async function resumeIfNeeded(): Promise<void> {
-  if (!ctx) return;
-  if (ctx.state === "suspended") {
-    try {
-      await ctx.resume();
-    } catch {
-      /* ignore — browser blocked it */
-    }
+  // CRUCIAL for autoplay policy: kick off resume() synchronously inside
+  // the (presumed) user gesture that created the context. The promise it
+  // returns can settle later — we don't need to await it because we
+  // schedule events with explicit start times relative to currentTime,
+  // which the engine handles correctly even while resuming.
+  if (next.state === "suspended") {
+    next.resume().catch(() => {});
   }
+  return next;
 }
 
 // Pentatonic-biased scale across two octaves. With many voices stacking,
@@ -179,13 +184,13 @@ function playVoice(
 
 /**
  * Single energy block "voice" — useful for hover / tap previews on the
- * Energy Blocks gallery if we wire one up later.
+ * Energy Blocks gallery if we wire one up later. Synchronous: returns
+ * immediately after scheduling.
  */
-export async function playEnergyBlock(key: EmotionKey): Promise<void> {
+export function playEnergyBlock(key: EmotionKey): void {
   const c = ensureCtx();
   if (!c || !masterGain) return;
-  await resumeIfNeeded();
-  playVoice(c, masterGain, pitchFor(key), { duration: 1.15, amp: 0.24 });
+  playVoice(c, masterGain, pitchFor(key), { duration: 1.15, amp: 0.30 });
 }
 
 /**
@@ -193,13 +198,18 @@ export async function playEnergyBlock(key: EmotionKey): Promise<void> {
  * when a creature is generated on /create (and from the manual canvas's
  * upload path) so the user hears the assembled emotional cluster the
  * moment it comes into being.
+ *
+ * Synchronous on purpose: the previous async version awaited a context
+ * resume between the click handler and voice scheduling, and that
+ * microtask boundary can fall outside the user-gesture window in
+ * stricter browsers (Safari especially), silently blocking audio.
+ * ensureCtx() now kicks off resume() fire-and-forget — the engine
+ * resumes while we schedule, and scheduled events with explicit
+ * currentTime offsets play correctly once the resume settles.
  */
-export async function playCreatureGiggle(
-  blocks: CreatureBlock[],
-): Promise<void> {
+export function playCreatureGiggle(blocks: CreatureBlock[]): void {
   const c = ensureCtx();
   if (!c || !masterGain) return;
-  await resumeIfNeeded();
   if (blocks.length === 0) return;
 
   // Cap voices so a 12-block creature doesn't turn into a wall of noise.
@@ -218,7 +228,7 @@ export async function playCreatureGiggle(
   // reads as a giggle rather than a metronome.
   voices.forEach((b, i) => {
     const offset = i * 0.075 + Math.random() * 0.04;
-    const amp = 0.15 + Math.random() * 0.06;
+    const amp = 0.20 + Math.random() * 0.08;
     const dur = 0.85 + Math.random() * 0.45;
     playVoice(c, masterGain!, pitchFor(b.emotionKey), {
       startOffset: offset,
