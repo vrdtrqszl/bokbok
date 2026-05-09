@@ -41,27 +41,22 @@
   background-repeat: no-repeat;
 }
 
-/* Soft fade at the top and bottom of any scrollable container so content
+/* Soft fade on ALL FOUR EDGES of any scrollable container so content
    dissolves into the surrounding wavy frame instead of getting clipped at
-   a hard rectangular line. 6 % of the container's height at each end is
-   transparent → black, so the fade scales naturally from a tiny
-   144 px popover to a 790 px gallery. Keep both `mask-image` and the
-   `-webkit-` prefix for full WebKit / Chromium coverage. */
+   a hard rectangular line. Two linear gradients (vertical + horizontal)
+   are combined with mask-composite: intersect so the mask is opaque only
+   where BOTH gradients are opaque — i.e., the central rectangle, with a
+   6 % transparent band on every edge. Keep both `mask-*` and `-webkit-mask-*`
+   for full WebKit / Chromium coverage. */
 .scroll-fade {
-  mask-image: linear-gradient(
-    to bottom,
-    transparent 0%,
-    black 6%,
-    black 94%,
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent 0%,
-    black 6%,
-    black 94%,
-    transparent 100%
-  );
+  mask-image:
+    linear-gradient(to bottom, transparent 0%, black 6%, black 94%, transparent 100%),
+    linear-gradient(to right,  transparent 0%, black 6%, black 94%, transparent 100%);
+  mask-composite: intersect;
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent 0%, black 6%, black 94%, transparent 100%),
+    linear-gradient(to right,  transparent 0%, black 6%, black 94%, transparent 100%);
+  -webkit-mask-composite: source-in;
 }
 
 html, body {
