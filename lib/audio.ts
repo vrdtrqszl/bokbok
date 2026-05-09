@@ -335,12 +335,25 @@ function voiceTotalDur(style: GroupStyle): number {
 
 /**
  * Single energy block "voice" — fires the group's syllable pattern.
- * Wired to /energy-blocks tile clicks.
+ * Wired to /energy-blocks tile clicks AND the main-page ambient chatter
+ * (which calls this with a small amp for distant creatures and a loud
+ * amp for the focused one).
  */
-export function playEnergyBlock(key: EmotionKey): void {
+export function playEnergyBlock(key: EmotionKey, amp = 0.36): void {
   const c = ensureCtx();
   if (!c || !masterGain) return;
-  playVoice(c, masterGain, pitchFor(key), styleFor(key), { amp: 0.36 });
+  playVoice(c, masterGain, pitchFor(key), styleFor(key), { amp });
+}
+
+/**
+ * Force-create + resume the AudioContext. Call from a user gesture (e.g.
+ * the first pointerdown on the main page) so subsequent timer-driven
+ * audio (ambient chatter) can fire without being blocked by autoplay
+ * policy. Returns true if the context is now alive.
+ */
+export function unlockAudio(): boolean {
+  const c = ensureCtx();
+  return !!c;
 }
 
 /**

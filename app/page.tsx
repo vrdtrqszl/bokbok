@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import MainViewport, { type FocusTarget, type ResetTrigger } from "./_components/MainViewport";
 import { creaturePositions } from "./_components/EcosystemCreatures";
-import { deleteCreatureById, loadEcosystem } from "@/lib/ecosystem";
+import { deleteCreatureById, loadEcosystem, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { creatureFocusBox, emotionByKey, type CreatureSpec } from "@/lib/creature";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
+import { unlockAudio } from "@/lib/audio";
+import { ambientChatter } from "@/lib/ambientChatter";
 
 export default function MainPage() {
   const router = useRouter();
@@ -31,6 +33,47 @@ export default function MainPage() {
     document.addEventListener("fullscreenchange", onChange);
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
+
+  // Ambient chatter — continuous low-volume voice noise from every creature
+  // in the ecosystem, with the focused creature popping out at high volume.
+  // Only runs on the main page (this useEffect lives here, not in layout),
+  // and only after the user's first pointerdown (browser autoplay policy
+  // blocks audio before any user gesture). The ecosystem subscription
+  // re-feeds creatures into the loop whenever the store changes.
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = () => {
+      loadEcosystem().then((list) => {
+        if (!cancelled) ambientChatter.setCreatures(list);
+      });
+    };
+    refresh();
+    window.addEventListener("ecosystem:changed", refresh);
+    window.addEventListener("storage", refresh);
+    const unsubscribeRemote = subscribeRemoteEcosystem(refresh);
+
+    // First gesture anywhere on the page unlocks the AudioContext and
+    // starts the chatter loop. `once` removes the listener automatically.
+    const onFirstGesture = () => {
+      if (unlockAudio()) ambientChatter.start();
+    };
+    window.addEventListener("pointerdown", onFirstGesture, { once: true });
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("ecosystem:changed", refresh);
+      window.removeEventListener("storage", refresh);
+      window.removeEventListener("pointerdown", onFirstGesture);
+      unsubscribeRemote();
+      ambientChatter.stop();
+    };
+  }, []);
+
+  // Push selection changes into the chatter loop so the focused creature
+  // becomes the loud voice and the rest fall back to ambient amp.
+  useEffect(() => {
+    ambientChatter.setSelected(selected?.id ?? null);
+  }, [selected?.id]);
 
   // Exit pet mode on Escape — feels natural for "I'm done petting".
   useEffect(() => {
