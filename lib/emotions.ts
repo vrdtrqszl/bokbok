@@ -794,71 +794,99 @@ export const EMOTION_DESCRIPTION: Record<EmotionKey, string> = {
     "Insight is a quiet click that arrives when something previously hidden suddenly becomes clear.",
 };
 
-// Coarse color group per emotion — used by the Energy Blocks page to keep
-// same-coloured tiles from sitting next to each other in the random grid.
-// Groups are a best-effort match of the PNG palette; tweak if the artwork
-// shifts. (Ungrouped or unknown ⇒ "neutral".)
+// Coarse color group per emotion. Two consumers:
+//   1. Energy Blocks page — keeps same-coloured tiles from sitting next to
+//      each other in the random grid.
+//   2. lib/audio — each group has its own voice character (waveform,
+//      pitch sweep direction, syllable pattern, filter, reverb), so all
+//      emotions inside a group "sound similar" while different groups
+//      sound clearly distinct.
+//
+// Membership matches the user's spec (Dec 2026):
+//   yellow  bright, expanding feelings
+//   green   stable / recovering feelings
+//   red     intense feelings
+//   blue    sinking feelings
+//   purple  complex / deep feelings
+//   orange  tension / anxiety feelings
+//   grey    flattened / blocked feelings
+//   mint    cognitive / neutral / clear states (catch-all)
 export type EmotionColorGroup =
-  | "red"
-  | "orange"
   | "yellow"
   | "green"
+  | "red"
   | "blue"
   | "purple"
-  | "pink"
-  | "grey";
+  | "orange"
+  | "grey"
+  | "mint";
 
 export const EMOTION_COLOR_GROUP: Record<EmotionKey, EmotionColorGroup> = {
+  // 🟡 yellow — bright, expanding feelings
   happiness: "yellow",
   joy: "yellow",
-  excitement: "orange",
-  anticipation: "orange",
-  hope: "green",
-  thrill: "red",
-  pleasure: "pink",
-  calmness: "blue",
+  excitement: "yellow",
+  anticipation: "yellow",
+  hope: "yellow",
+  thrill: "yellow",
+  pleasure: "yellow",
+
+  // 🟢 green — stable / recovering feelings
+  calmness: "green",
   satisfaction: "green",
-  relief: "blue",
-  gratitude: "pink",
-  intimacy: "pink",
+  relief: "green",
+  gratitude: "green",
+  intimacy: "green",
+
+  // 🔴 red — intense feelings
   anger: "red",
   irritation: "red",
   passion: "red",
-  jealousy: "green",
-  envy: "green",
+  jealousy: "red",
+  envy: "red",
+
+  // 🔵 blue — sinking feelings
   sadness: "blue",
-  depression: "purple",
+  depression: "blue",
   loneliness: "blue",
-  disappointment: "grey",
-  despair: "grey",
-  frustration: "red",
-  love: "pink",
-  moved: "pink",
+  disappointment: "blue",
+  despair: "blue",
+  frustration: "blue",
+
+  // 🟣 purple — complex / deep feelings
+  love: "purple",
+  moved: "purple",
   longing: "purple",
-  nostalgia: "orange",
-  guilt: "grey",
-  regret: "grey",
-  anxiety: "blue",
-  tension: "red",
-  pressure: "grey",
-  stress: "red",
-  confused: "purple",
-  hesitation: "blue",
+  nostalgia: "purple",
+  guilt: "purple",
+  regret: "purple",
+
+  // 🟠 orange — tension / anxiety feelings
+  anxiety: "orange",
+  tension: "orange",
+  pressure: "orange",
+  stress: "orange",
+  confused: "orange",
+  hesitation: "orange",
+
+  // ⚫ grey — flattened / blocked feelings
   helplessness: "grey",
   emptiness: "grey",
   boredom: "grey",
   fatigue: "grey",
   apathy: "grey",
-  surprise: "yellow",
-  curiosity: "blue",
-  engagement: "orange",
-  confidence: "yellow",
-  pride: "yellow",
-  liberation: "purple",
-  embarrassment: "red",
-  shame: "purple",
-  disgust: "green",
-  insight: "yellow",
+
+  // 🌿 mint — cognitive / neutral / clear states
+  surprise: "mint",
+  curiosity: "mint",
+  engagement: "mint",
+  confidence: "mint",
+  pride: "mint",
+  liberation: "mint",
+  embarrassment: "mint",
+  shame: "mint",
+  disgust: "mint",
+  insight: "mint",
 };
 
 export type EmotionScore = {
