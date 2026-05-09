@@ -153,7 +153,7 @@ export default function BokBokpediaPage() {
           every row matches the box height even when a row has fewer than
           four creatures (the implicit auto would shrink incomplete rows). */}
       <div
-        className="absolute left-[70px] top-[172px] grid h-[697px] w-[895.6px] gap-x-[17px] gap-y-[15px] overflow-x-clip overflow-y-auto"
+        className="scroll-fade absolute left-[70px] top-[172px] grid h-[697px] w-[895.6px] gap-x-[17px] gap-y-[15px] overflow-x-clip overflow-y-auto"
         style={{
           gridTemplateColumns: "repeat(4, 211.15px)",
           gridAutoRows: "213.27px",
@@ -257,7 +257,7 @@ export default function BokBokpediaPage() {
           {selected?.dateISO ?? "—"}
         </span>
 
-        <div className="absolute left-[26px] right-[18px] top-[96px] bottom-[58px] flex flex-col items-center overflow-y-auto overflow-x-hidden">
+        <div className="scroll-fade absolute left-[26px] right-[18px] top-[96px] bottom-[58px] flex flex-col items-center overflow-y-auto overflow-x-hidden">
           <div className="w-full text-[20px] font-bold leading-normal text-black">
             {selected ? (
               selected.journalText ? (

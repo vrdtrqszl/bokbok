@@ -544,7 +544,7 @@ function CreateManuallyPageInner() {
         </span>
 
         {/* Scrollable block grid */}
-        <div className="absolute left-[8px] right-[6px] top-[56px] bottom-[8px] overflow-y-auto overflow-x-hidden pr-[2px]">
+        <div className="scroll-fade absolute left-[8px] right-[6px] top-[56px] bottom-[8px] overflow-y-auto overflow-x-hidden pr-[2px]">
           {filteredBlocks.length === 0 ? (
             <div className="flex h-full items-center justify-center text-[13px] text-black/40">
               No results

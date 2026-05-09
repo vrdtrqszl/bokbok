@@ -486,7 +486,7 @@ function CreatePageInner() {
 
         {/* Emotion list — fills the same scroll region as the original diary block */}
         {creature && (
-          <div className="absolute left-[26px] right-[18px] top-[96px] bottom-[60px] overflow-y-auto overflow-x-hidden">
+          <div className="scroll-fade absolute left-[26px] right-[18px] top-[96px] bottom-[60px] overflow-y-auto overflow-x-hidden">
             <ul className="flex flex-col gap-[10px] text-[18px] font-bold leading-tight text-black">
               {creature.emotions.map(({ key, displayName, score }) => {
                 const e = emotionByKey(key);

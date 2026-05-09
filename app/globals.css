@@ -41,6 +41,29 @@
   background-repeat: no-repeat;
 }
 
+/* Soft fade at the top and bottom of any scrollable container so content
+   dissolves into the surrounding wavy frame instead of getting clipped at
+   a hard rectangular line. 6 % of the container's height at each end is
+   transparent → black, so the fade scales naturally from a tiny
+   144 px popover to a 790 px gallery. Keep both `mask-image` and the
+   `-webkit-` prefix for full WebKit / Chromium coverage. */
+.scroll-fade {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 6%,
+    black 94%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 6%,
+    black 94%,
+    transparent 100%
+  );
+}
+
 html, body {
   /* Solid #dfd9c9 fallback in case the grain JPG fails to load. The
      grain itself is applied via the .bg-grain utility on each page so

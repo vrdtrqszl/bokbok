@@ -155,7 +155,7 @@ export default function EnergyBlocksPage() {
           row 3 reach below the main-box bottom and are reached by
           scrolling. */}
       <div
-        className="absolute left-[27px] top-[85px] grid h-[789.67px] w-[974.69px] overflow-y-auto overflow-x-clip"
+        className="scroll-fade absolute left-[27px] top-[85px] grid h-[789.67px] w-[974.69px] overflow-y-auto overflow-x-clip"
         style={{
           gridTemplateColumns: `repeat(${NUM_COLS}, ${TILE_SIZE}px)`,
           columnGap: `${COL_GAP}px`,
@@ -165,15 +165,6 @@ export default function EnergyBlocksPage() {
           paddingLeft: `${PAD_LEFT}px`,
           paddingRight: `${PAD_RIGHT}px`,
           gridAutoRows: `${TILE_HEIGHT}px`,
-          // Soft fade-out at the top and bottom of the scroll viewport so
-          // tiles dissolve into the wavy frame instead of getting clipped
-          // at a hard line. 48 px solid → fully transparent at the very
-          // edge; in between, the mask is fully opaque so the middle of
-          // the grid renders normally.
-          maskImage:
-            "linear-gradient(to bottom, transparent 0px, black 48px, black calc(100% - 48px), transparent 100%)",
-          WebkitMaskImage:
-            "linear-gradient(to bottom, transparent 0px, black 48px, black calc(100% - 48px), transparent 100%)",
         }}
       >
         {order.map((emotion) => {

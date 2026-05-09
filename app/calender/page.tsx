@@ -337,7 +337,7 @@ export default function CalendarPage() {
       {/* Calendar months — scrollable, multi-year */}
       <div
         ref={scrollRef}
-        className="absolute left-[82px] top-[95px] flex h-[771px] w-[863px] flex-col items-center gap-[150px] overflow-y-auto overflow-x-clip text-center text-black"
+        className="scroll-fade absolute left-[82px] top-[95px] flex h-[771px] w-[863px] flex-col items-center gap-[150px] overflow-y-auto overflow-x-clip text-center text-black"
       >
         {YEARS.flatMap((year) =>
           MONTHS.map((_, monthIdx) => (
@@ -409,7 +409,7 @@ export default function CalendarPage() {
           {selected?.dateISO ?? "—"}
         </span>
 
-        <div className="absolute left-[26px] right-[18px] top-[96px] bottom-[58px] flex flex-col items-center overflow-y-auto overflow-x-hidden">
+        <div className="scroll-fade absolute left-[26px] right-[18px] top-[96px] bottom-[58px] flex flex-col items-center overflow-y-auto overflow-x-hidden">
           <div className="w-full text-[20px] font-bold leading-normal text-black">
             {selected ? (
               selected.journalText ? (
