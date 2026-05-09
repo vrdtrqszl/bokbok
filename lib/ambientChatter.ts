@@ -23,8 +23,9 @@ import type { CreatureSpec } from "./creature";
 import { playEnergyBlock } from "./audio";
 
 // Pacing: how often any creature chirps. Faster = more "talkative" room.
-const MIN_INTERVAL_MS = 320;
-const MAX_INTERVAL_MS = 720;
+// Tuned toward bird-flock / babies-babbling density (3–5 chirps/sec).
+const MIN_INTERVAL_MS = 200;
+const MAX_INTERVAL_MS = 480;
 
 // When a creature is selected, it gets this share of ticks (the rest go
 // to random other creatures, so background chatter continues).
@@ -73,9 +74,9 @@ function tick(): void {
 
   // Schedule the next tick. Slight bias toward faster cadence when a
   // creature is selected so the focused chatter feels engaged.
-  const min = selectedId ? MIN_INTERVAL_MS - 60 : MIN_INTERVAL_MS;
-  const max = selectedId ? MAX_INTERVAL_MS - 80 : MAX_INTERVAL_MS;
-  const delay = min + Math.random() * (max - min);
+  const min = selectedId ? MIN_INTERVAL_MS - 40 : MIN_INTERVAL_MS;
+  const max = selectedId ? MAX_INTERVAL_MS - 60 : MAX_INTERVAL_MS;
+  const delay = Math.max(80, min + Math.random() * (max - min));
   timer = window.setTimeout(tick, delay);
 }
 

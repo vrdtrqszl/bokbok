@@ -116,7 +116,10 @@ function pitchFor(key: EmotionKey): number {
 // Convert a semitone offset to a frequency-multiplier ratio.
 const semi = (s: number) => Math.pow(2, s / 12);
 
-// Group-specific voice recipe.
+// Group-specific voice recipe — tuned toward "baby cooing + birds
+// chirping": every group lives mostly in triangle/sine territory (no
+// buzzy square/saw except a tiny mix in red), pitches sit higher than
+// pure-talking territory, and most groups fire multi-syllable trills.
 type GroupStyle = {
   oscA: OscillatorType;
   oscB: OscillatorType;
@@ -124,6 +127,13 @@ type GroupStyle = {
   oscBMix: number;
   /** oscB detune in cents (used when oscA === oscB — chorus). */
   oscBDetuneCents: number;
+  /**
+   * Octave shift on the base scale pitch. +1 lifts the group an octave
+   * (bird register), 0 keeps it at the scale, -1 drops it (low-coo).
+   * Lets us separate groups by register without changing the per-emotion
+   * pitch identity.
+   */
+  octaveShift: number;
   /** Pitch sweep: start at target × sweepRatio. <1 = up, >1 = down. */
   sweepRatio: number;
   /** Sweep duration (s). */
@@ -142,84 +152,107 @@ type GroupStyle = {
   syllableSpacing: number;
   /** Reverb send (0..1). */
   reverbSend: number;
+  /** Vibrato LFO frequency (Hz). 0 disables. */
+  vibratoHz: number;
+  /** Vibrato peak deviation in cents. */
+  vibratoCents: number;
 };
 
-// Each group's "personality." Tuned so:
-//   - similar groups still sound related (yellow ↔ mint share brightness)
-//   - opposing groups read clearly different (yellow vs grey, red vs green)
-//   - multi-syllable groups (yellow / purple / orange) feel like babble
+// Each group's "personality." Aim:
+//   - bird-trill brightness for high-energy groups (yellow / mint / orange)
+//   - baby-coo softness for emotional groups (purple / green / blue)
+//   - clear separation between groups (registers + syllable patterns +
+//     waveforms), but related groups stay sonically akin
+//   - no buzzy square/saw except a small mix in red where it earns the
+//     "intense" character; everything else triangle/sine
 const GROUP_STYLES: Record<EmotionColorGroup, GroupStyle> = {
-  // 🟡 bright/expanding — bouncy chatter ("boo-DEE!")
+  // 🟡 bright/expanding — happy bird trill ("dee-DEE-DEEE!")
   yellow: {
-    oscA: "triangle", oscB: "square", oscBMix: 0.30, oscBDetuneCents: 0,
-    sweepRatio: 0.62, sweepDur: 0.055,
-    filterBase: 1900, filterPitchMult: 1.10, filterQ: 3.5,
-    attack: 0.012,
-    syllableDur: 0.18, syllableSteps: [0, +2], syllableSpacing: 0.085,
-    reverbSend: 0.16,
-  },
-  // 🟢 stable/recovery — gentle hum ("hmmm")
-  green: {
-    oscA: "sine", oscB: "triangle", oscBMix: 0.55, oscBDetuneCents: 0,
-    sweepRatio: 0.85, sweepDur: 0.10,
-    filterBase: 1100, filterPitchMult: 0.70, filterQ: 1.2,
-    attack: 0.045,
-    syllableDur: 0.40, syllableSteps: [0], syllableSpacing: 0,
-    reverbSend: 0.32,
-  },
-  // 🔴 intense — sharp bark ("YEH!")
-  red: {
-    oscA: "sawtooth", oscB: "square", oscBMix: 0.45, oscBDetuneCents: 0,
-    sweepRatio: 0.50, sweepDur: 0.035,
-    filterBase: 1500, filterPitchMult: 1.80, filterQ: 6.0,
-    attack: 0.005,
-    syllableDur: 0.20, syllableSteps: [0], syllableSpacing: 0,
-    reverbSend: 0.06,
-  },
-  // 🔵 sinking — descending sigh ("haaa…")
-  blue: {
-    oscA: "sine", oscB: "triangle", oscBMix: 0.40, oscBDetuneCents: 0,
-    sweepRatio: 1.50, sweepDur: 0.22,
-    filterBase: 800, filterPitchMult: 0.55, filterQ: 1.0,
-    attack: 0.030,
-    syllableDur: 0.55, syllableSteps: [0], syllableSpacing: 0,
-    reverbSend: 0.45,
-  },
-  // 🟣 complex/deep — wistful coo ("ooh-aww")
-  purple: {
-    oscA: "triangle", oscB: "triangle", oscBMix: 0.55, oscBDetuneCents: 14,
-    sweepRatio: 1.20, sweepDur: 0.090,
-    filterBase: 1200, filterPitchMult: 0.95, filterQ: 2.5,
-    attack: 0.025,
-    syllableDur: 0.30, syllableSteps: [0, -3], syllableSpacing: 0.130,
-    reverbSend: 0.38,
-  },
-  // 🟠 tension/anxiety — fluttery ("ba-be-ba")
-  orange: {
-    oscA: "square", oscB: "sawtooth", oscBMix: 0.20, oscBDetuneCents: 0,
-    sweepRatio: 0.78, sweepDur: 0.030,
-    filterBase: 1400, filterPitchMult: 1.05, filterQ: 7.0,
-    attack: 0.008,
-    syllableDur: 0.13, syllableSteps: [0, +1, -1], syllableSpacing: 0.060,
+    oscA: "triangle", oscB: "sine", oscBMix: 0.45, oscBDetuneCents: 0,
+    octaveShift: +1,
+    sweepRatio: 0.72, sweepDur: 0.030,
+    filterBase: 2400, filterPitchMult: 1.0, filterQ: 1.8,
+    attack: 0.010,
+    syllableDur: 0.115, syllableSteps: [0, +2, +4], syllableSpacing: 0.075,
     reverbSend: 0.20,
+    vibratoHz: 7, vibratoCents: 8,
   },
-  // ⚫ apathy — flat mutter ("mmf.")
+  // 🟢 stable/recovery — content baby coo ("mm-mmm")
+  green: {
+    oscA: "sine", oscB: "triangle", oscBMix: 0.35, oscBDetuneCents: 0,
+    octaveShift: 0,
+    sweepRatio: 0.88, sweepDur: 0.10,
+    filterBase: 1300, filterPitchMult: 0.70, filterQ: 0.9,
+    attack: 0.055,
+    syllableDur: 0.32, syllableSteps: [0, -2], syllableSpacing: 0.165,
+    reverbSend: 0.34,
+    vibratoHz: 4.5, vibratoCents: 6,
+  },
+  // 🔴 intense — sharp little chirp ("ya-YEH!")
+  red: {
+    oscA: "triangle", oscB: "square", oscBMix: 0.18, oscBDetuneCents: 0,
+    octaveShift: 0,
+    sweepRatio: 0.55, sweepDur: 0.030,
+    filterBase: 1600, filterPitchMult: 1.40, filterQ: 3.5,
+    attack: 0.006,
+    syllableDur: 0.14, syllableSteps: [0, +3], syllableSpacing: 0.070,
+    reverbSend: 0.10,
+    vibratoHz: 0, vibratoCents: 0,
+  },
+  // 🔵 sinking — soft low whoo ("ohh…")
+  blue: {
+    oscA: "sine", oscB: "triangle", oscBMix: 0.35, oscBDetuneCents: 0,
+    octaveShift: -1,
+    sweepRatio: 1.45, sweepDur: 0.20,
+    filterBase: 900, filterPitchMult: 0.55, filterQ: 0.8,
+    attack: 0.035,
+    syllableDur: 0.50, syllableSteps: [0], syllableSpacing: 0,
+    reverbSend: 0.46,
+    vibratoHz: 3.5, vibratoCents: 7,
+  },
+  // 🟣 complex/deep — wistful baby warble ("ooh-aww-eee")
+  purple: {
+    oscA: "triangle", oscB: "triangle", oscBMix: 0.55, oscBDetuneCents: 12,
+    octaveShift: 0,
+    sweepRatio: 1.15, sweepDur: 0.085,
+    filterBase: 1300, filterPitchMult: 0.85, filterQ: 1.4,
+    attack: 0.030,
+    syllableDur: 0.22, syllableSteps: [0, -2, -4], syllableSpacing: 0.115,
+    reverbSend: 0.40,
+    vibratoHz: 5, vibratoCents: 9,
+  },
+  // 🟠 tension/anxiety — fluttery rapid trill ("tip-tip-tip-tip")
+  orange: {
+    oscA: "triangle", oscB: "sine", oscBMix: 0.40, oscBDetuneCents: 0,
+    octaveShift: +1,
+    sweepRatio: 0.85, sweepDur: 0.020,
+    filterBase: 2000, filterPitchMult: 0.9, filterQ: 2.2,
+    attack: 0.007,
+    syllableDur: 0.075, syllableSteps: [0, +1, 0, -1, 0], syllableSpacing: 0.055,
+    reverbSend: 0.22,
+    vibratoHz: 9, vibratoCents: 6,
+  },
+  // ⚫ apathy — quiet sigh ("mmf")
   grey: {
     oscA: "sine", oscB: "sine", oscBMix: 0.0, oscBDetuneCents: 0,
+    octaveShift: -1,
     sweepRatio: 0.95, sweepDur: 0.15,
-    filterBase: 600, filterPitchMult: 0.40, filterQ: 0.8,
-    attack: 0.040,
+    filterBase: 700, filterPitchMult: 0.40, filterQ: 0.6,
+    attack: 0.055,
     syllableDur: 0.28, syllableSteps: [0], syllableSpacing: 0,
-    reverbSend: 0.10,
+    reverbSend: 0.14,
+    vibratoHz: 0, vibratoCents: 0,
   },
-  // 🌿 cognitive/clear — alert "boop!"
+  // 🌿 cognitive/clear — bright tweet ("tee-WEET!")
   mint: {
-    oscA: "triangle", oscB: "square", oscBMix: 0.35, oscBDetuneCents: 0,
-    sweepRatio: 0.70, sweepDur: 0.045,
-    filterBase: 2200, filterPitchMult: 1.20, filterQ: 4.5,
-    attack: 0.010,
-    syllableDur: 0.22, syllableSteps: [0], syllableSpacing: 0,
-    reverbSend: 0.15,
+    oscA: "triangle", oscB: "sine", oscBMix: 0.40, oscBDetuneCents: 0,
+    octaveShift: +1,
+    sweepRatio: 0.78, sweepDur: 0.035,
+    filterBase: 2600, filterPitchMult: 1.10, filterQ: 2.0,
+    attack: 0.009,
+    syllableDur: 0.13, syllableSteps: [0, +5], syllableSpacing: 0.070,
+    reverbSend: 0.18,
+    vibratoHz: 6, vibratoCents: 7,
   },
 };
 
@@ -245,6 +278,10 @@ function playSyllable(
   const t0 = c.currentTime + startOffset;
   const t1 = t0 + style.syllableDur;
 
+  // Apply per-group octave shift to the base pitch — lifts birds up,
+  // sinks lows down, while keeping each emotion's place in the scale.
+  const targetPitch = pitch * Math.pow(2, style.octaveShift);
+
   // Two oscillators — second is mixed in lower for a slight color edge.
   // If oscA === oscB, oscB is detuned for a chorus-y double.
   const oscA = c.createOscillator();
@@ -256,23 +293,41 @@ function playSyllable(
     oscB.detune.value = style.oscBDetuneCents;
   }
 
-  // Pitch sweep — start at sweepRatio × pitch, ramp to pitch over sweepDur.
+  // Pitch sweep — start at sweepRatio × target, ramp to target over sweepDur.
   // sweepRatio < 1 = upward chirp, > 1 = downward sigh.
-  const sweepStart = pitch * style.sweepRatio;
+  const sweepStart = targetPitch * style.sweepRatio;
   oscA.frequency.setValueAtTime(sweepStart, t0);
-  oscA.frequency.exponentialRampToValueAtTime(pitch, t0 + style.sweepDur);
+  oscA.frequency.exponentialRampToValueAtTime(targetPitch, t0 + style.sweepDur);
   oscB.frequency.setValueAtTime(sweepStart, t0);
-  oscB.frequency.exponentialRampToValueAtTime(pitch, t0 + style.sweepDur);
+  oscB.frequency.exponentialRampToValueAtTime(targetPitch, t0 + style.sweepDur);
+
+  // Optional vibrato — small LFO modulating both oscillators' frequency
+  // for trill / coo character. Skipped (no nodes created) when off.
+  let lfo: OscillatorNode | null = null;
+  if (style.vibratoHz > 0 && style.vibratoCents > 0) {
+    lfo = c.createOscillator();
+    lfo.type = "sine";
+    lfo.frequency.value = style.vibratoHz;
+    const lfoGain = c.createGain();
+    // Convert cents → Hz: peak deviation is target × (2^(cents/1200) − 1)
+    lfoGain.gain.value =
+      targetPitch * (Math.pow(2, style.vibratoCents / 1200) - 1);
+    lfo.connect(lfoGain);
+    lfoGain.connect(oscA.frequency);
+    lfoGain.connect(oscB.frequency);
+  }
 
   const mixA = c.createGain();
   mixA.gain.value = 1.0;
   const mixB = c.createGain();
   mixB.gain.value = style.oscBMix;
 
-  // Pitch-tracking resonant lowpass for percussive character.
+  // Pitch-tracking resonant lowpass — uses target pitch (post-shift) so the
+  // brightness scales with the actual register the voice plays in.
   const filter = c.createBiquadFilter();
   filter.type = "lowpass";
-  filter.frequency.value = style.filterBase + pitch * style.filterPitchMult;
+  filter.frequency.value =
+    style.filterBase + targetPitch * style.filterPitchMult;
   filter.Q.value = style.filterQ;
 
   // Snappy envelope: short attack then exponential decay (no sustain).
@@ -296,8 +351,10 @@ function playSyllable(
 
   oscA.start(t0);
   oscB.start(t0);
+  if (lfo) lfo.start(t0);
   oscA.stop(t1 + 0.02);
   oscB.stop(t1 + 0.02);
+  if (lfo) lfo.stop(t1 + 0.02);
 }
 
 type VoiceOptions = {
