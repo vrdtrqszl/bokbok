@@ -2,21 +2,27 @@
 //
 // Each of the 50 energy blocks has its own "voice" — a stable pitch derived
 // from the emotion's id and valence. When a creature is generated, its
-// blocks' voices stagger into a short cascading chord ("giggle") with the
-// brief that the result should feel mystical, jelly-like, and dreamy.
+// blocks' voices stagger into a quick cascading chatter ("giggle"). The
+// character target is playful / Animal-Crossing-villager / cute character
+// SFX — short chirpy "boops" rather than long mystical pads.
 //
-// We synthesize entirely with the Web Audio API (no audio files shipped),
-// so the soundbank stays in code:
-//   - sine + triangle oscillators slightly detuned → jelly chorus
-//   - low-pass filter → warmth (removes harsh harmonics)
-//   - LFO vibrato → ethereal wobble
-//   - feedback delay through a low-pass → dreamy shimmer tail
+// Per-voice recipe:
+//   - triangle + lower-volume square oscillators → woody/poppy edge that
+//     sits between sine smoothness and saw harshness, classic chirp tone
+//   - fast pitch sweep at attack (~50–80 ms): start ~25–35% below the
+//     target frequency and exponential-ramp UP to it, giving every note
+//     a "boop!" rising chirp
+//   - very fast attack (~12 ms) into exponential decay (no sustain) so
+//     each note stays short and snappy
+//   - resonant low-pass filter → percussive bonk/quack character
+//   - light feedback-delay reverb send (small room, not hall) for a
+//     hint of bounce without smearing the cascade
 //   - pentatonic-biased pitch table → consonant clusters even when many
 //     voices stack
 //
 // AudioContext is created lazily on first call; browsers require a user
-// gesture before audio can play, and our entry points (Generate button,
-// etc.) are all click handlers, so resume() succeeds the first time.
+// gesture before audio can play, and our entry points (Generate button /
+// energy block clicks) are all click handlers, so resume() succeeds.
 
 import { EMOTIONS, type EmotionKey } from "./emotions";
 import type { CreatureBlock } from "./creature";
@@ -55,21 +61,21 @@ function ensureCtx(): AudioContext | null {
   ctx = next;
 
   masterGain = next.createGain();
-  masterGain.gain.value = 0.45;
+  masterGain.gain.value = 0.50;
   masterGain.connect(next.destination);
 
-  // Cheap but pretty "reverb": feedback delay with a tone control. The wet
-  // signal feeds back into itself through a low-pass so each repeat is
-  // softer and darker than the last → trail decays organically.
+  // Tight "small room" reverb — feedback delay with a tone control, but
+  // shorter delay and less feedback than a hall reverb. Gives the chirpy
+  // notes a tiny bounce/space without smearing the cascade.
   const delay = next.createDelay(2.5);
-  delay.delayTime.value = 0.20;
+  delay.delayTime.value = 0.085;
   const fb = next.createGain();
-  fb.gain.value = 0.46;
+  fb.gain.value = 0.28;
   const tone = next.createBiquadFilter();
   tone.type = "lowpass";
-  tone.frequency.value = 2400;
+  tone.frequency.value = 2800;
   const wet = next.createGain();
-  wet.gain.value = 0.40;
+  wet.gain.value = 0.22;
 
   delay.connect(tone);
   tone.connect(fb);
@@ -123,63 +129,69 @@ function playVoice(
   pitch: number,
   opts: VoiceOptions = {},
 ): void {
-  const { startOffset = 0, duration = 0.95, amp = 0.18 } = opts;
+  const { startOffset = 0, duration = 0.26, amp = 0.30 } = opts;
   const t0 = c.currentTime + startOffset;
   const t1 = t0 + duration;
 
-  // Two oscillators, very slightly detuned. Sine for the body, triangle for
-  // a touch of upper-harmonic shimmer (still soft compared to saw/square).
-  const osc1 = c.createOscillator();
-  osc1.type = "sine";
-  osc1.frequency.value = pitch;
+  // Triangle (body) + square (chirpy edge). Square is mixed in lower so
+  // it adds a tiny "boop" formant without taking over the tone.
+  const oscTri = c.createOscillator();
+  oscTri.type = "triangle";
 
-  const osc2 = c.createOscillator();
-  osc2.type = "triangle";
-  osc2.frequency.value = pitch * (1 + 0.004 + Math.random() * 0.005); // ~7–15 cents
+  const oscSqr = c.createOscillator();
+  oscSqr.type = "square";
 
-  // Envelope: soft 80 ms attack, decay to 50% sustain, exponential release.
-  const env = c.createGain();
-  env.gain.setValueAtTime(0, t0);
-  env.gain.linearRampToValueAtTime(amp, t0 + 0.08);
-  env.gain.exponentialRampToValueAtTime(amp * 0.55, t0 + 0.4);
-  env.gain.exponentialRampToValueAtTime(0.001, t1);
+  // Pitch sweep at attack — start ~25–35% below the target and exponential-
+  // ramp UP to it over the first 60 ms. This is what makes every note
+  // read as "boop!" rather than a pure tone — the rising glide is the
+  // signature of Animal-Crossing-style character voices.
+  const sweepStart = pitch * (0.65 + Math.random() * 0.10);
+  const sweepDur = 0.05 + Math.random() * 0.025;
+  oscTri.frequency.setValueAtTime(sweepStart, t0);
+  oscTri.frequency.exponentialRampToValueAtTime(pitch, t0 + sweepDur);
+  oscSqr.frequency.setValueAtTime(sweepStart, t0);
+  oscSqr.frequency.exponentialRampToValueAtTime(pitch, t0 + sweepDur);
 
-  // Pitch-tracking lowpass: keeps low notes warm and high notes from
-  // turning shrill, since cutoff scales with fundamental.
+  // Mix: triangle full, square ~25%. Sum at the filter's input.
+  const mixTri = c.createGain();
+  mixTri.gain.value = 1.0;
+  const mixSqr = c.createGain();
+  mixSqr.gain.value = 0.25;
+
+  // Resonant low-pass — moderate cutoff that tracks pitch, with enough Q
+  // for the percussive "bonk/quack" character that gives villager-speech
+  // its woody pop.
   const filter = c.createBiquadFilter();
   filter.type = "lowpass";
-  filter.frequency.value = 1500 + pitch * 0.6;
-  filter.Q.value = 1.2;
+  filter.frequency.value = 1700 + pitch * 1.0;
+  filter.Q.value = 4.0;
 
-  // Vibrato LFO — ~5 Hz with a small pitch deviation. Reads as the dreamy
-  // wobble in the brief.
-  const lfo = c.createOscillator();
-  lfo.frequency.value = 4.2 + Math.random() * 2.4;
-  const lfoGain = c.createGain();
-  lfoGain.gain.value = pitch * 0.010; // ~10 cents peak deviation
-  lfo.connect(lfoGain);
-  lfoGain.connect(osc1.frequency);
-  lfoGain.connect(osc2.frequency);
+  // Snappy envelope: 12 ms attack into pure exponential decay — no
+  // sustain stage. Each note is short and bouncy, never droning.
+  const env = c.createGain();
+  env.gain.setValueAtTime(0, t0);
+  env.gain.linearRampToValueAtTime(amp, t0 + 0.012);
+  env.gain.exponentialRampToValueAtTime(0.001, t1);
 
-  // Wire: oscs → filter → env → master, with a parallel send to the global
-  // reverb so trails build up organically across stacked voices.
-  osc1.connect(filter);
-  osc2.connect(filter);
+  // Wire: oscs → mix → filter → env → master, with a small reverb send
+  // for tiny-room bounce.
+  oscTri.connect(mixTri);
+  oscSqr.connect(mixSqr);
+  mixTri.connect(filter);
+  mixSqr.connect(filter);
   filter.connect(env);
   env.connect(master);
   if (reverbInput) {
     const send = c.createGain();
-    send.gain.value = 0.55;
+    send.gain.value = 0.18;
     env.connect(send);
     send.connect(reverbInput);
   }
 
-  osc1.start(t0);
-  osc2.start(t0);
-  lfo.start(t0);
-  osc1.stop(t1 + 0.05);
-  osc2.stop(t1 + 0.05);
-  lfo.stop(t1 + 0.05);
+  oscTri.start(t0);
+  oscSqr.start(t0);
+  oscTri.stop(t1 + 0.02);
+  oscSqr.stop(t1 + 0.02);
 }
 
 /**
@@ -190,7 +202,7 @@ function playVoice(
 export function playEnergyBlock(key: EmotionKey): void {
   const c = ensureCtx();
   if (!c || !masterGain) return;
-  playVoice(c, masterGain, pitchFor(key), { duration: 1.15, amp: 0.30 });
+  playVoice(c, masterGain, pitchFor(key), { duration: 0.32, amp: 0.36 });
 }
 
 /**
@@ -224,12 +236,13 @@ export function playCreatureGiggle(blocks: CreatureBlock[]): void {
     );
   }
 
-  // Stagger voices ~75 ms apart with a touch of jitter, so the cascade
-  // reads as a giggle rather than a metronome.
+  // Stagger voices ~65 ms apart with a touch of jitter — quick chatter,
+  // never a metronome. Total cascade ≈ 0.5–0.9 s for a typical creature
+  // (about the rhythm of an Animal Crossing villager finishing a line).
   voices.forEach((b, i) => {
-    const offset = i * 0.075 + Math.random() * 0.04;
-    const amp = 0.20 + Math.random() * 0.08;
-    const dur = 0.85 + Math.random() * 0.45;
+    const offset = i * 0.065 + Math.random() * 0.025;
+    const amp = 0.26 + Math.random() * 0.09;
+    const dur = 0.22 + Math.random() * 0.10;
     playVoice(c, masterGain!, pitchFor(b.emotionKey), {
       startOffset: offset,
       duration: dur,
