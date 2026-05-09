@@ -18,6 +18,7 @@ import {
   type Emotion,
   type EmotionKey,
 } from "@/lib/emotions";
+import { playEnergyBlock } from "@/lib/audio";
 
 // Random shuffle (Fisher–Yates) followed by a greedy pass that swaps tiles
 // around so no two adjacent grid cells (left or directly above) share the
@@ -172,7 +173,13 @@ export default function EnergyBlocksPage() {
             <button
               key={emotion.key}
               type="button"
-              onClick={() => setSelectedKey(emotion.key)}
+              onClick={() => {
+                setSelectedKey(emotion.key);
+                // Play the block's voice on every tap — even tapping the
+                // same tile again replays the sound, since each click is a
+                // user gesture so the AudioContext stays unlocked.
+                playEnergyBlock(emotion.key);
+              }}
               aria-pressed={isActive}
               className={`relative block cursor-pointer bg-transparent p-0 transition-transform hover:scale-[1.04] active:scale-95 ${
                 isActive ? "scale-[1.04]" : ""
