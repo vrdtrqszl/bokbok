@@ -165,6 +165,15 @@ export default function EnergyBlocksPage() {
           paddingLeft: `${PAD_LEFT}px`,
           paddingRight: `${PAD_RIGHT}px`,
           gridAutoRows: `${TILE_HEIGHT}px`,
+          // Soft fade-out at the top and bottom of the scroll viewport so
+          // tiles dissolve into the wavy frame instead of getting clipped
+          // at a hard line. 48 px solid → fully transparent at the very
+          // edge; in between, the mask is fully opaque so the middle of
+          // the grid renders normally.
+          maskImage:
+            "linear-gradient(to bottom, transparent 0px, black 48px, black calc(100% - 48px), transparent 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, transparent 0px, black 48px, black calc(100% - 48px), transparent 100%)",
         }}
       >
         {order.map((emotion) => {
