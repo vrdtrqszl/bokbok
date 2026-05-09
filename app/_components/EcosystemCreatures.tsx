@@ -325,6 +325,16 @@ export default function EcosystemCreatures({
   return (
     <Suspense fallback={null}>
       {visible.map((c, i) => {
+        // While a creature is focused, hide every OTHER creature so the
+        // zoomed-in view isn't cluttered with neighbours wandering past
+        // the camera edges. The focused creature stays mounted with its
+        // current world position, so the camera doesn't lose it; the
+        // others unmount and re-spawn at their original angle/radius
+        // when focus is cleared. Ambient chatter still plays for
+        // unmounted creatures (it reads from loadEcosystem, not the
+        // rendered list), so the room still sounds inhabited.
+        if (selectedId && c.id !== selectedId) return null;
+
         const angle = (i / visible.length) * Math.PI * 2;
         const radius = visible.length === 1 ? 0 : 4;
         const pos: [number, number, number] = [
