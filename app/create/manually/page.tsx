@@ -5,6 +5,7 @@ import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { EMOTION_LIST } from "@/lib/emotions";
 import { uploadCreature, findCreatureById } from "@/lib/ecosystem";
+import { playCreatureGiggle } from "@/lib/audio";
 import { emotionByKey, randomCreatureName, type CreatureSpec } from "@/lib/creature";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import ManualCanvas, { type ManualCanvasHandle } from "@/app/_components/ManualCanvas";
@@ -131,6 +132,11 @@ function CreateManuallyPageInner() {
     };
     uploadCreature(enriched);
     setUploadStatus("uploaded");
+    // First-time-creation moment for hand-built creatures is the upload
+    // press (since blocks were dropped one at a time before that). Skip
+    // the giggle when editing an existing creature — that's a save, not
+    // a birth.
+    if (!editingId) playCreatureGiggle(enriched.blocks);
   };
 
   const handleDelete = () => {

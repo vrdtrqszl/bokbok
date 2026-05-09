@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { extractEmotions } from "@/lib/emotions";
 import { generateCreature, emotionByKey, randomCreatureName, type CreatureSpec } from "@/lib/creature";
 import { uploadCreature, findCreatureById } from "@/lib/ecosystem";
+import { playCreatureGiggle } from "@/lib/audio";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import DatePicker from "@/app/_components/DatePicker";
 
@@ -92,6 +93,10 @@ function CreatePageInner() {
     setCreature(c);
     // Name is NOT auto-filled — the user has to type one before upload.
     setUploadStatus("idle");
+    // Play the assembled "giggle" so the user hears the creature the moment
+    // it comes into being. Fire-and-forget — failures inside the audio
+    // module degrade silently (no audio just means no audio).
+    playCreatureGiggle(c.blocks);
   };
 
   const handleUpload = () => {
@@ -113,6 +118,11 @@ function CreatePageInner() {
       toUpload = generateCreature(scores);
       if (editingId) toUpload.id = editingId;
       setCreature(toUpload);
+      // One-click flow generated this creature for the first time — give it
+      // its giggle. (Already handled by handleGenerate when the user
+      // followed the two-step path, so we only play it on the synthesize-
+      // here branch.)
+      playCreatureGiggle(toUpload.blocks);
     }
 
     const enriched: CreatureSpec = {
