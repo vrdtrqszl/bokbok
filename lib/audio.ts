@@ -113,9 +113,6 @@ function pitchFor(key: EmotionKey): number {
   return SCALE_HZ[idx];
 }
 
-// Convert a semitone offset to a frequency-multiplier ratio.
-const semi = (s: number) => Math.pow(2, s / 12);
-
 // Group-specific voice recipe — tuned toward "baby cooing + birds
 // chirping": every group lives mostly in triangle/sine territory (no
 // buzzy square/saw except a tiny mix in red), pitches sit higher than
@@ -158,101 +155,107 @@ type GroupStyle = {
   vibratoCents: number;
 };
 
-// Each group's "personality." Aim:
-//   - bird-trill brightness for high-energy groups (yellow / mint / orange)
-//   - baby-coo softness for emotional groups (purple / green / blue)
-//   - clear separation between groups (registers + syllable patterns +
-//     waveforms), but related groups stay sonically akin
-//   - no buzzy square/saw except a small mix in red where it earns the
-//     "intense" character; everything else triangle/sine
+// Each group's "personality." Aim: baby babbling + bubble + mystical
+// creature. Recipe components:
+//   - sine/triangle ONLY — no square/saw anywhere. Keeps the timbre soft
+//     and vowel-like (no buzzy synth bite even in the "intense" red).
+//   - heavier vibrato (10–18 cents) + slow rate gives the wobbly cooing
+//     of an unsteady baby voice.
+//   - very low filter Q (0.3–1.0) — voices read as pure tones rather
+//     than honky synth blips.
+//   - multi-syllable groups now PORTAMENTO between syllables (see
+//     playUtterance), so a 3-syllable yellow voice glides across pitches
+//     instead of stepping. Reads as connected babble, not staccato.
+//   - filter envelope opens then closes during the utterance, giving a
+//     bubble-like "expand and contract" feel.
 const GROUP_STYLES: Record<EmotionColorGroup, GroupStyle> = {
-  // 🟡 bright/expanding — happy bird trill ("dee-DEE-DEEE!")
+  // 🟡 bright/expanding — happy babble ("ooh-deee-eee")
   yellow: {
-    oscA: "triangle", oscB: "sine", oscBMix: 0.45, oscBDetuneCents: 0,
+    oscA: "sine", oscB: "triangle", oscBMix: 0.30, oscBDetuneCents: 0,
     octaveShift: +1,
-    sweepRatio: 0.72, sweepDur: 0.030,
-    filterBase: 2400, filterPitchMult: 1.0, filterQ: 1.8,
-    attack: 0.010,
-    syllableDur: 0.115, syllableSteps: [0, +2, +4], syllableSpacing: 0.075,
-    reverbSend: 0.20,
-    vibratoHz: 7, vibratoCents: 8,
-  },
-  // 🟢 stable/recovery — content baby coo ("mm-mmm")
-  green: {
-    oscA: "sine", oscB: "triangle", oscBMix: 0.35, oscBDetuneCents: 0,
-    octaveShift: 0,
-    sweepRatio: 0.88, sweepDur: 0.10,
-    filterBase: 1300, filterPitchMult: 0.70, filterQ: 0.9,
-    attack: 0.055,
-    syllableDur: 0.32, syllableSteps: [0, -2], syllableSpacing: 0.165,
-    reverbSend: 0.34,
-    vibratoHz: 4.5, vibratoCents: 6,
-  },
-  // 🔴 intense — sharp little chirp ("ya-YEH!")
-  red: {
-    oscA: "triangle", oscB: "square", oscBMix: 0.18, oscBDetuneCents: 0,
-    octaveShift: 0,
-    sweepRatio: 0.55, sweepDur: 0.030,
-    filterBase: 1600, filterPitchMult: 1.40, filterQ: 3.5,
-    attack: 0.006,
-    syllableDur: 0.14, syllableSteps: [0, +3], syllableSpacing: 0.070,
-    reverbSend: 0.10,
-    vibratoHz: 0, vibratoCents: 0,
-  },
-  // 🔵 sinking — soft low whoo ("ohh…")
-  blue: {
-    oscA: "sine", oscB: "triangle", oscBMix: 0.35, oscBDetuneCents: 0,
-    octaveShift: -1,
-    sweepRatio: 1.45, sweepDur: 0.20,
-    filterBase: 900, filterPitchMult: 0.55, filterQ: 0.8,
-    attack: 0.035,
-    syllableDur: 0.50, syllableSteps: [0], syllableSpacing: 0,
-    reverbSend: 0.46,
-    vibratoHz: 3.5, vibratoCents: 7,
-  },
-  // 🟣 complex/deep — wistful baby warble ("ooh-aww-eee")
-  purple: {
-    oscA: "triangle", oscB: "triangle", oscBMix: 0.55, oscBDetuneCents: 12,
-    octaveShift: 0,
-    sweepRatio: 1.15, sweepDur: 0.085,
-    filterBase: 1300, filterPitchMult: 0.85, filterQ: 1.4,
+    sweepRatio: 0.78, sweepDur: 0.060,
+    filterBase: 1800, filterPitchMult: 0.85, filterQ: 0.7,
     attack: 0.030,
-    syllableDur: 0.22, syllableSteps: [0, -2, -4], syllableSpacing: 0.115,
+    syllableDur: 0.150, syllableSteps: [0, +2, +4], syllableSpacing: 0.110,
+    reverbSend: 0.30,
+    vibratoHz: 6.5, vibratoCents: 14,
+  },
+  // 🟢 stable/recovery — content coo ("mm-mmm")
+  green: {
+    oscA: "sine", oscB: "sine", oscBMix: 0.45, oscBDetuneCents: 18,
+    octaveShift: 0,
+    sweepRatio: 0.88, sweepDur: 0.12,
+    filterBase: 1200, filterPitchMult: 0.55, filterQ: 0.5,
+    attack: 0.060,
+    syllableDur: 0.36, syllableSteps: [0, -2], syllableSpacing: 0.190,
     reverbSend: 0.40,
-    vibratoHz: 5, vibratoCents: 9,
+    vibratoHz: 4.0, vibratoCents: 12,
   },
-  // 🟠 tension/anxiety — fluttery rapid trill ("tip-tip-tip-tip")
-  orange: {
-    oscA: "triangle", oscB: "sine", oscBMix: 0.40, oscBDetuneCents: 0,
-    octaveShift: +1,
-    sweepRatio: 0.85, sweepDur: 0.020,
-    filterBase: 2000, filterPitchMult: 0.9, filterQ: 2.2,
-    attack: 0.007,
-    syllableDur: 0.075, syllableSteps: [0, +1, 0, -1, 0], syllableSpacing: 0.055,
-    reverbSend: 0.22,
-    vibratoHz: 9, vibratoCents: 6,
-  },
-  // ⚫ apathy — quiet sigh ("mmf")
-  grey: {
-    oscA: "sine", oscB: "sine", oscBMix: 0.0, oscBDetuneCents: 0,
-    octaveShift: -1,
-    sweepRatio: 0.95, sweepDur: 0.15,
-    filterBase: 700, filterPitchMult: 0.40, filterQ: 0.6,
-    attack: 0.055,
-    syllableDur: 0.28, syllableSteps: [0], syllableSpacing: 0,
-    reverbSend: 0.14,
-    vibratoHz: 0, vibratoCents: 0,
-  },
-  // 🌿 cognitive/clear — bright tweet ("tee-WEET!")
-  mint: {
-    oscA: "triangle", oscB: "sine", oscBMix: 0.40, oscBDetuneCents: 0,
-    octaveShift: +1,
-    sweepRatio: 0.78, sweepDur: 0.035,
-    filterBase: 2600, filterPitchMult: 1.10, filterQ: 2.0,
-    attack: 0.009,
-    syllableDur: 0.13, syllableSteps: [0, +5], syllableSpacing: 0.070,
+  // 🔴 intense — bright but soft chirp ("ya-WEH!") — still no harsh wave
+  red: {
+    oscA: "triangle", oscB: "sine", oscBMix: 0.45, oscBDetuneCents: 0,
+    octaveShift: 0,
+    sweepRatio: 0.62, sweepDur: 0.045,
+    filterBase: 1500, filterPitchMult: 1.05, filterQ: 1.4,
+    attack: 0.014,
+    syllableDur: 0.16, syllableSteps: [0, +3], syllableSpacing: 0.085,
     reverbSend: 0.18,
-    vibratoHz: 6, vibratoCents: 7,
+    vibratoHz: 5.0, vibratoCents: 10,
+  },
+  // 🔵 sinking — long low whoo ("ohh…")
+  blue: {
+    oscA: "sine", oscB: "sine", oscBMix: 0.40, oscBDetuneCents: 14,
+    octaveShift: -1,
+    sweepRatio: 1.45, sweepDur: 0.22,
+    filterBase: 800, filterPitchMult: 0.45, filterQ: 0.4,
+    attack: 0.045,
+    syllableDur: 0.55, syllableSteps: [0], syllableSpacing: 0,
+    reverbSend: 0.50,
+    vibratoHz: 3.5, vibratoCents: 11,
+  },
+  // 🟣 complex/deep — mystical warble ("ooh-aww-eee")
+  purple: {
+    oscA: "triangle", oscB: "triangle", oscBMix: 0.60, oscBDetuneCents: 18,
+    octaveShift: 0,
+    sweepRatio: 1.10, sweepDur: 0.10,
+    filterBase: 1300, filterPitchMult: 0.75, filterQ: 0.8,
+    attack: 0.035,
+    syllableDur: 0.26, syllableSteps: [0, -2, -4], syllableSpacing: 0.135,
+    reverbSend: 0.46,
+    vibratoHz: 4.5, vibratoCents: 16,
+  },
+  // 🟠 tension/anxiety — bubbly rapid trill ("blip-blip-blip-blip")
+  orange: {
+    oscA: "sine", oscB: "triangle", oscBMix: 0.30, oscBDetuneCents: 0,
+    octaveShift: +1,
+    sweepRatio: 0.85, sweepDur: 0.025,
+    filterBase: 1900, filterPitchMult: 0.75, filterQ: 1.0,
+    attack: 0.012,
+    syllableDur: 0.090, syllableSteps: [0, +1, 0, -1, 0], syllableSpacing: 0.075,
+    reverbSend: 0.28,
+    vibratoHz: 8.0, vibratoCents: 9,
+  },
+  // ⚫ apathy — quiet sigh ("mmf…")
+  grey: {
+    oscA: "sine", oscB: "sine", oscBMix: 0.20, oscBDetuneCents: 8,
+    octaveShift: -1,
+    sweepRatio: 0.95, sweepDur: 0.18,
+    filterBase: 700, filterPitchMult: 0.35, filterQ: 0.3,
+    attack: 0.075,
+    syllableDur: 0.32, syllableSteps: [0], syllableSpacing: 0,
+    reverbSend: 0.18,
+    vibratoHz: 2.5, vibratoCents: 8,
+  },
+  // 🌿 cognitive/clear — bright bubble tweet ("tee-WEET!")
+  mint: {
+    oscA: "sine", oscB: "triangle", oscBMix: 0.35, oscBDetuneCents: 0,
+    octaveShift: +1,
+    sweepRatio: 0.80, sweepDur: 0.050,
+    filterBase: 2200, filterPitchMult: 0.95, filterQ: 0.8,
+    attack: 0.018,
+    syllableDur: 0.15, syllableSteps: [0, +5], syllableSpacing: 0.090,
+    reverbSend: 0.30,
+    vibratoHz: 5.5, vibratoCents: 12,
   },
 };
 
@@ -261,55 +264,80 @@ function styleFor(key: EmotionKey): GroupStyle {
   return GROUP_STYLES[group];
 }
 
-type SyllableOptions = {
+type UtteranceOptions = {
   startOffset: number;
   amp: number;
 };
 
-// Schedules ONE chirp at a single pitch with the given group style.
-function playSyllable(
+// Schedules ONE complete voice — across however many syllables the group
+// uses — as a single connected utterance. One pair of oscillators plays
+// from start to finish; the frequency curve PORTAMENTOs between syllable
+// pitches (with a brief brighter sweep at the very start), and the
+// envelope dips slightly between syllables to give them rhythmic shape
+// without re-attacking. The filter cutoff opens then closes across the
+// utterance for a bubble-like expand/contract feel.
+function playUtterance(
   c: AudioContext,
   master: GainNode,
-  pitch: number,
+  basePitch: number,
   style: GroupStyle,
-  opts: SyllableOptions,
+  opts: UtteranceOptions,
 ): void {
   const { startOffset, amp } = opts;
   const t0 = c.currentTime + startOffset;
-  const t1 = t0 + style.syllableDur;
 
   // Apply per-group octave shift to the base pitch — lifts birds up,
   // sinks lows down, while keeping each emotion's place in the scale.
-  const targetPitch = pitch * Math.pow(2, style.octaveShift);
+  // Plus tiny ±15-cent jitter per call so two consecutive plays of the
+  // same emotion don't sound mechanically identical (organic baby
+  // imprecision).
+  const jitter = Math.pow(2, ((Math.random() - 0.5) * 30) / 1200);
+  const targetPitch = basePitch * Math.pow(2, style.octaveShift) * jitter;
 
-  // Two oscillators — second is mixed in lower for a slight color edge.
-  // If oscA === oscB, oscB is detuned for a chorus-y double.
+  // Compute the absolute pitch each syllable lands on.
+  const sylPitches = style.syllableSteps.map(
+    (step) => targetPitch * Math.pow(2, step / 12),
+  );
+  const lastSylStart = (sylPitches.length - 1) * style.syllableSpacing;
+  const tEnd = t0 + lastSylStart + style.syllableDur;
+
+  // ── Oscillators ──────────────────────────────────────────────────────
   const oscA = c.createOscillator();
   oscA.type = style.oscA;
-
   const oscB = c.createOscillator();
   oscB.type = style.oscB;
   if (style.oscA === style.oscB && style.oscBDetuneCents !== 0) {
     oscB.detune.value = style.oscBDetuneCents;
   }
 
-  // Pitch sweep — start at sweepRatio × target, ramp to target over sweepDur.
-  // sweepRatio < 1 = upward chirp, > 1 = downward sigh.
-  const sweepStart = targetPitch * style.sweepRatio;
+  // ── Frequency curve ─────────────────────────────────────────────────
+  // Initial sweep — start at sweepRatio × first-syllable pitch, ramp
+  // exponentially to it over sweepDur. Up-sweep = chirp, down = sigh.
+  const sweepStart = sylPitches[0] * style.sweepRatio;
   oscA.frequency.setValueAtTime(sweepStart, t0);
-  oscA.frequency.exponentialRampToValueAtTime(targetPitch, t0 + style.sweepDur);
+  oscA.frequency.exponentialRampToValueAtTime(sylPitches[0], t0 + style.sweepDur);
   oscB.frequency.setValueAtTime(sweepStart, t0);
-  oscB.frequency.exponentialRampToValueAtTime(targetPitch, t0 + style.sweepDur);
+  oscB.frequency.exponentialRampToValueAtTime(sylPitches[0], t0 + style.sweepDur);
 
-  // Optional vibrato — small LFO modulating both oscillators' frequency
-  // for trill / coo character. Skipped (no nodes created) when off.
+  // Portamento between syllables — linearRamp to the next syllable's
+  // pitch over a brief glide. This is the key change that turns
+  // step-step-step chirps into a connected babble.
+  const PORTAMENTO_S = 0.045;
+  for (let i = 1; i < sylPitches.length; i++) {
+    const tSyl = t0 + i * style.syllableSpacing;
+    oscA.frequency.linearRampToValueAtTime(sylPitches[i], tSyl + PORTAMENTO_S);
+    oscB.frequency.linearRampToValueAtTime(sylPitches[i], tSyl + PORTAMENTO_S);
+  }
+
+  // ── Vibrato (optional) ──────────────────────────────────────────────
+  // One LFO runs through the whole utterance, modulating both oscillators
+  // for a unified wobble. Skipped entirely when vibrato is off.
   let lfo: OscillatorNode | null = null;
   if (style.vibratoHz > 0 && style.vibratoCents > 0) {
     lfo = c.createOscillator();
     lfo.type = "sine";
     lfo.frequency.value = style.vibratoHz;
     const lfoGain = c.createGain();
-    // Convert cents → Hz: peak deviation is target × (2^(cents/1200) − 1)
     lfoGain.gain.value =
       targetPitch * (Math.pow(2, style.vibratoCents / 1200) - 1);
     lfo.connect(lfoGain);
@@ -317,25 +345,45 @@ function playSyllable(
     lfoGain.connect(oscB.frequency);
   }
 
+  // ── Mix ─────────────────────────────────────────────────────────────
   const mixA = c.createGain();
   mixA.gain.value = 1.0;
   const mixB = c.createGain();
   mixB.gain.value = style.oscBMix;
 
-  // Pitch-tracking resonant lowpass — uses target pitch (post-shift) so the
-  // brightness scales with the actual register the voice plays in.
+  // ── Filter (with envelope) ──────────────────────────────────────────
+  // Low-Q lowpass that "opens" during the attack and slowly "closes"
+  // across the utterance — gives a bubble-like expand/contract shape.
+  const cutoffSettled = style.filterBase + targetPitch * style.filterPitchMult;
+  const cutoffPeak = cutoffSettled * 1.5;
+  const cutoffStart = cutoffSettled * 0.55;
   const filter = c.createBiquadFilter();
   filter.type = "lowpass";
-  filter.frequency.value =
-    style.filterBase + targetPitch * style.filterPitchMult;
   filter.Q.value = style.filterQ;
+  filter.frequency.setValueAtTime(cutoffStart, t0);
+  filter.frequency.linearRampToValueAtTime(cutoffPeak, t0 + style.attack * 1.6);
+  filter.frequency.exponentialRampToValueAtTime(cutoffSettled * 0.45, tEnd);
 
-  // Snappy envelope: short attack then exponential decay (no sustain).
+  // ── Amplitude envelope ──────────────────────────────────────────────
+  // Gentle attack, then dip-and-rebound across each syllable boundary so
+  // multi-syllable utterances feel articulated even though one pair of
+  // oscillators plays through them all. Final exponential release.
   const env = c.createGain();
-  env.gain.setValueAtTime(0, t0);
-  env.gain.linearRampToValueAtTime(amp, t0 + style.attack);
-  env.gain.exponentialRampToValueAtTime(0.001, t1);
+  env.gain.setValueAtTime(0.0001, t0);
+  env.gain.exponentialRampToValueAtTime(amp, t0 + style.attack);
+  for (let i = 1; i < sylPitches.length; i++) {
+    const tSyl = t0 + i * style.syllableSpacing;
+    // Tiny dip just before the next syllable lands (rhythm).
+    env.gain.exponentialRampToValueAtTime(
+      Math.max(0.0001, amp * 0.40),
+      Math.max(t0 + 0.001, tSyl - 0.018),
+    );
+    // Re-peak slightly attenuated as the syllable arrives.
+    env.gain.exponentialRampToValueAtTime(amp * 0.92, tSyl + 0.030);
+  }
+  env.gain.exponentialRampToValueAtTime(0.0001, tEnd);
 
+  // ── Wire ────────────────────────────────────────────────────────────
   oscA.connect(mixA);
   oscB.connect(mixB);
   mixA.connect(filter);
@@ -352,18 +400,19 @@ function playSyllable(
   oscA.start(t0);
   oscB.start(t0);
   if (lfo) lfo.start(t0);
-  oscA.stop(t1 + 0.02);
-  oscB.stop(t1 + 0.02);
-  if (lfo) lfo.stop(t1 + 0.02);
+  oscA.stop(tEnd + 0.05);
+  oscB.stop(tEnd + 0.05);
+  if (lfo) lfo.stop(tEnd + 0.05);
 }
 
 type VoiceOptions = {
   startOffset?: number;
-  /** Peak amp for syllables. */
+  /** Peak amp for the utterance. */
   amp?: number;
 };
 
-// One emotion's full "voice" — fires every syllable in the group's pattern.
+// Compatibility wrapper — early code paths called playVoice; now it's a
+// thin shim around playUtterance.
 function playVoice(
   c: AudioContext,
   master: GainNode,
@@ -372,19 +421,10 @@ function playVoice(
   opts: VoiceOptions = {},
 ): void {
   const { startOffset = 0, amp = 0.32 } = opts;
-  for (let i = 0; i < style.syllableSteps.length; i++) {
-    const stepPitch = basePitch * semi(style.syllableSteps[i]);
-    const offset = startOffset + i * style.syllableSpacing;
-    // Slight per-syllable amp falloff so trailing syllables feel softer.
-    const sylAmp = amp * (i === 0 ? 1.0 : 0.85);
-    playSyllable(c, master, stepPitch, style, {
-      startOffset: offset,
-      amp: sylAmp,
-    });
-  }
+  playUtterance(c, master, basePitch, style, { startOffset, amp });
 }
 
-/** Returns the total time (s) one full voice takes for a given style. */
+/** Returns the total time (s) one full utterance takes for a given style. */
 function voiceTotalDur(style: GroupStyle): number {
   const lastStart = (style.syllableSteps.length - 1) * style.syllableSpacing;
   return lastStart + style.syllableDur;
