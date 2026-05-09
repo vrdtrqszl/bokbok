@@ -215,11 +215,11 @@ export default function MainViewport({
           height: 769px` directly in stylesheet rules, which the Canvas's
           ResizeObserver picks up reliably. */}
       <div
-        className={
+        className={`scroll-fade ${
           fullscreen
             ? "absolute inset-0"
             : "absolute left-[18px] top-[10px] h-[769px] w-[945px]"
-        }
+        }`}
       >
         <Canvas
           camera={{
