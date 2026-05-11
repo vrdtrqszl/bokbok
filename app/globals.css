@@ -59,6 +59,20 @@
   -webkit-mask-composite: source-in;
 }
 
+/* Tighter variant — 3 % instead of 6 %. Used by the BokBokpedia grid
+   where the tiles are tall enough that a 6 % fade visibly dims the
+   first and last rows. */
+.scroll-fade-tight {
+  mask-image:
+    linear-gradient(to bottom, transparent 0%, black 3%, black 97%, transparent 100%),
+    linear-gradient(to right,  transparent 0%, black 3%, black 97%, transparent 100%);
+  mask-composite: intersect;
+  -webkit-mask-image:
+    linear-gradient(to bottom, transparent 0%, black 3%, black 97%, transparent 100%),
+    linear-gradient(to right,  transparent 0%, black 3%, black 97%, transparent 100%);
+  -webkit-mask-composite: source-in;
+}
+
 html, body {
   /* Solid #dfd9c9 fallback in case the grain JPG fails to load. The
      grain itself is applied via the .bg-grain utility on each page so
