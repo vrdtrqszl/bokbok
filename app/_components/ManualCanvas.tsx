@@ -887,7 +887,11 @@ export default function ManualCanvas({
                     SVG renders at the wrapper's literal pixel size and
                     vector-effect=non-scaling-stroke pins stroke width to
                     user-space (1 device pixel) — no CSS-transform multiplier. */}
-                {isSelected && (
+                {/* Per-block selection wrapper — only renders when this
+                    block is the SOLE selection. With ≥2 blocks selected
+                    we hide per-block outlines so the group bbox (rendered
+                    below the blocks loop) is the only visible chrome. */}
+                {isSoleSelected && (
                   <div
                     className="absolute"
                     style={{
