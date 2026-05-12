@@ -442,10 +442,13 @@ export default function ManualCanvas({
           the right-click context menu (Figma 2129:214) and keyboard
           shortcuts (Cmd/Ctrl+C/V, Delete). */}
 
-      {/* Canvas */}
+      {/* Canvas — `.scroll-fade` softens all four edges so a block that
+          drifts toward the frame dissolves into it instead of getting
+          hard-clipped at the rectangular overflow boundary. Same shared
+          mask utility as the other framed scroll regions. */}
       <div
         ref={canvasEl}
-        className="absolute inset-0 overflow-hidden"
+        className="scroll-fade absolute inset-0 overflow-hidden"
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDrop}
         // Clear selection only when clicking the bare canvas, NOT when a
