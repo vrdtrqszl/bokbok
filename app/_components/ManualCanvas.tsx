@@ -61,10 +61,32 @@ export default function ManualCanvas({
   const blocksRef = useRef<CanvasBlock[]>([]);
   blocksRef.current = blocks;
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const clipboardRef = useRef<CanvasBlock | null>(null);
+  // Multi-selection. Most actions (delete, move, copy, flip, rotate, etc.)
+  // operate on every id in this array; the per-block rotate/resize handles
+  // only render when EXACTLY one block is selected (a single rotation
+  // around the centroid of N blocks is fine semantics, but a single
+  // resize handle wouldn't know where to anchor with N blocks at
+  // different sizes — keep that to single-select).
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const selectedIdsRef = useRef<string[]>([]);
+  selectedIdsRef.current = selectedIds;
+  const selectedSet = new Set(selectedIds);
+  const selectOne = (id: string) => setSelectedIds([id]);
+  const singleSelectedId =
+    selectedIds.length === 1 ? selectedIds[0] : null;
+
+  const clipboardRef = useRef<CanvasBlock[]>([]);
   const nextZ = useRef(0);
   const dragRef = useRef<DragState | null>(null);
+  // Marquee (rubber-band) selection. Stored in canvas-local design pixels
+  // (same coord space the right-click context menu uses). null when not
+  // dragging; while dragging, currentX/Y track the pointer.
+  const [marquee, setMarquee] = useState<{
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
   // Right-click context menu — null when closed, canvas-local coords when open.
   const [contextMenu, setContextMenu] = useState<{
     x: number;
@@ -95,7 +117,7 @@ export default function ManualCanvas({
             phase: Math.random(),
           },
         ]);
-        setSelectedId(id);
+        selectOne(id);
       },
 
       toCreatureSpec: () => {
@@ -143,7 +165,7 @@ export default function ManualCanvas({
 
       clear: () => {
         setBlocks([]);
-        setSelectedId(null);
+        setSelectedIds([]);
       },
 
       loadCreature: (creatureBlocks) => {
@@ -163,7 +185,7 @@ export default function ManualCanvas({
         }));
         nextZ.current = next.length;
         setBlocks(next);
-        setSelectedId(null);
+        setSelectedIds([]);
       },
     }),
     // stable refs only — no stale-closure risk
@@ -201,7 +223,7 @@ export default function ManualCanvas({
         phase: Math.random(),
       },
     ]);
-    setSelectedId(id);
+    selectOne(id);
   };
 
   // ── block pointer interaction ──────────────────────────────────────────────
@@ -239,8 +261,30 @@ export default function ManualCanvas({
       startAngle,
     };
 
-    setSelectedId(blockId);
-    // Bring to front
+    // Selection update:
+    //   - If the block we're starting from is OUTSIDE the current
+    //     selection, switch to a single-block selection on it.
+    //   - If it's INSIDE a multi-block selection, keep that selection
+    //     so the move drag carries everything along.
+    const inSelection = selectedIdsRef.current.includes(blockId);
+    if (!inSelection) selectOne(blockId);
+
+    // For a "move" drag with multiple blocks selected, capture their
+    // initial positions so we can apply the same (dx, dy) delta to all
+    // of them on each frame.
+    const movingIds =
+      type === "move" && inSelection && selectedIdsRef.current.length > 1
+        ? selectedIdsRef.current
+        : [blockId];
+    const moveSet = new Set(movingIds);
+    const moveStart = new Map<string, { x: number; y: number }>();
+    for (const b of blocksRef.current) {
+      if (moveSet.has(b.id)) moveStart.set(b.id, { x: b.x, y: b.y });
+    }
+
+    // Bring the active drag block to front; for multi-move, leave the
+    // other selected blocks where they are in z-order so nothing
+    // unexpected reorders behind the scenes.
     setBlocks((prev) =>
       prev.map((b) => (b.id === blockId ? { ...b, zIndex: nextZ.current++ } : b)),
     );
@@ -253,10 +297,16 @@ export default function ManualCanvas({
 
       setBlocks((prev) =>
         prev.map((b) => {
-          if (b.id !== ds.blockId) return b;
           if (ds.type === "move") {
-            return { ...b, x: ds.startBlockX + dx, y: ds.startBlockY + dy };
+            // Multi-block move: every block in moveSet gets the same delta.
+            if (!moveSet.has(b.id)) return b;
+            const start = moveStart.get(b.id);
+            if (!start) return b;
+            return { ...b, x: start.x + dx, y: start.y + dy };
           }
+          // Resize / rotate stay single-block (handles only appear on
+          // the sole-selected block, so we only ever get here for one id).
+          if (b.id !== ds.blockId) return b;
           if (ds.type === "resize") {
             const signed = Math.hypot(dx, dy) * Math.sign(dx + dy);
             const newScale = Math.max(0.2, ds.startScale + signed / (BASE_PX * 2));
@@ -291,39 +341,45 @@ export default function ManualCanvas({
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
 
-      const sel = blocksRef.current.find((b) => b.id === selectedId);
+      const ids = selectedIdsRef.current;
+      const idSet = new Set(ids);
+      const selBlocks = blocksRef.current.filter((b) => idSet.has(b.id));
 
       if (e.key === "Delete" || e.key === "Backspace") {
-        if (!selectedId) return;
-        setBlocks((prev) => prev.filter((b) => b.id !== selectedId));
-        setSelectedId(null);
+        if (ids.length === 0) return;
+        setBlocks((prev) => prev.filter((b) => !idSet.has(b.id)));
+        setSelectedIds([]);
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
-        if (sel) clipboardRef.current = { ...sel };
+        if (selBlocks.length) clipboardRef.current = selBlocks.map((b) => ({ ...b }));
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "v") {
         e.preventDefault();
         const clip = clipboardRef.current;
-        if (!clip) return;
-        const id = uid();
-        setBlocks((prev) => [
-          ...prev,
-          { ...clip, id, x: clip.x + 20, y: clip.y + 20, zIndex: nextZ.current++ },
-        ]);
-        setSelectedId(id);
+        if (clip.length === 0) return;
+        const newIds: string[] = [];
+        const stamped: CanvasBlock[] = clip.map((c) => {
+          const id = uid();
+          newIds.push(id);
+          return { ...c, id, x: c.x + 20, y: c.y + 20, zIndex: nextZ.current++ };
+        });
+        setBlocks((prev) => [...prev, ...stamped]);
+        setSelectedIds(newIds);
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
         e.preventDefault();
-        if (!sel) return;
-        const id = uid();
-        setBlocks((prev) => [
-          ...prev,
-          { ...sel, id, x: sel.x + 20, y: sel.y + 20, zIndex: nextZ.current++ },
-        ]);
-        setSelectedId(id);
+        if (selBlocks.length === 0) return;
+        const newIds: string[] = [];
+        const dupes: CanvasBlock[] = selBlocks.map((b) => {
+          const id = uid();
+          newIds.push(id);
+          return { ...b, id, x: b.x + 20, y: b.y + 20, zIndex: nextZ.current++ };
+        });
+        setBlocks((prev) => [...prev, ...dupes]);
+        setSelectedIds(newIds);
       }
       if (e.key === "Escape" && contextMenu) {
         setContextMenu(null);
@@ -331,80 +387,83 @@ export default function ManualCanvas({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [selectedId, contextMenu]);
+  }, [contextMenu]);
 
-  // ── toolbar actions ────────────────────────────────────────────────────────
+  // ── toolbar / context-menu actions (operate on all selected) ───────────────
 
-  const flipH = () =>
-    selectedId &&
-    setBlocks((p) =>
-      p.map((b) => (b.id === selectedId ? { ...b, flipH: !b.flipH } : b)),
-    );
-  const flipV = () =>
-    selectedId &&
-    setBlocks((p) =>
-      p.map((b) => (b.id === selectedId ? { ...b, flipV: !b.flipV } : b)),
-    );
+  // Apply a transformation to every currently-selected block.
+  const mutateSelected = (fn: (b: CanvasBlock) => CanvasBlock) => {
+    const idSet = new Set(selectedIdsRef.current);
+    if (idSet.size === 0) return;
+    setBlocks((p) => p.map((b) => (idSet.has(b.id) ? fn(b) : b)));
+  };
+
+  const flipH = () => mutateSelected((b) => ({ ...b, flipH: !b.flipH }));
+  const flipV = () => mutateSelected((b) => ({ ...b, flipV: !b.flipV }));
   const copy = () => {
-    const b = blocksRef.current.find((b) => b.id === selectedId);
-    if (b) clipboardRef.current = { ...b };
+    const idSet = new Set(selectedIdsRef.current);
+    const sel = blocksRef.current.filter((b) => idSet.has(b.id));
+    if (sel.length) clipboardRef.current = sel.map((b) => ({ ...b }));
   };
   const paste = () => {
     const clip = clipboardRef.current;
-    if (!clip) return;
-    const id = uid();
-    setBlocks((p) => [
-      ...p,
-      { ...clip, id, x: clip.x + 20, y: clip.y + 20, zIndex: nextZ.current++ },
-    ]);
-    setSelectedId(id);
+    if (clip.length === 0) return;
+    const newIds: string[] = [];
+    const stamped: CanvasBlock[] = clip.map((c) => {
+      const id = uid();
+      newIds.push(id);
+      return { ...c, id, x: c.x + 20, y: c.y + 20, zIndex: nextZ.current++ };
+    });
+    setBlocks((p) => [...p, ...stamped]);
+    setSelectedIds(newIds);
   };
   const del = () => {
-    if (!selectedId) return;
-    setBlocks((p) => p.filter((b) => b.id !== selectedId));
-    setSelectedId(null);
+    const idSet = new Set(selectedIdsRef.current);
+    if (idSet.size === 0) return;
+    setBlocks((p) => p.filter((b) => !idSet.has(b.id)));
+    setSelectedIds([]);
   };
-  // Context-menu actions (Figma 2129:214). All operate on the currently-
-  // selected block — handleBlockContextMenu sets selectedId before opening
-  // the menu, so this works for the right-clicked block.
+  // Context-menu actions (Figma 2129:214). Operate on every selected
+  // block — handleBlockContextMenu sets selectedIds before opening the
+  // menu, so a right-click outside the current selection becomes a fresh
+  // single-block selection, while right-clicking inside a multi-block
+  // selection keeps that selection.
   const duplicate = () => {
-    const sel = blocksRef.current.find((b) => b.id === selectedId);
-    if (!sel) return;
-    const id = uid();
-    setBlocks((p) => [
-      ...p,
-      { ...sel, id, x: sel.x + 20, y: sel.y + 20, zIndex: nextZ.current++ },
-    ]);
-    setSelectedId(id);
+    const idSet = new Set(selectedIdsRef.current);
+    const sel = blocksRef.current.filter((b) => idSet.has(b.id));
+    if (sel.length === 0) return;
+    const newIds: string[] = [];
+    const dupes: CanvasBlock[] = sel.map((b) => {
+      const id = uid();
+      newIds.push(id);
+      return { ...b, id, x: b.x + 20, y: b.y + 20, zIndex: nextZ.current++ };
+    });
+    setBlocks((p) => [...p, ...dupes]);
+    setSelectedIds(newIds);
   };
   const rotate = () =>
-    selectedId &&
-    setBlocks((p) =>
-      p.map((b) =>
-        b.id === selectedId ? { ...b, rotation: (b.rotation + 90) % 360 } : b,
-      ),
-    );
+    mutateSelected((b) => ({ ...b, rotation: (b.rotation + 90) % 360 }));
   const bringToFront = () =>
-    selectedId &&
-    setBlocks((p) =>
-      p.map((b) => (b.id === selectedId ? { ...b, zIndex: nextZ.current++ } : b)),
-    );
+    mutateSelected((b) => ({ ...b, zIndex: nextZ.current++ }));
   const bringToBack = () => {
-    if (!selectedId) return;
+    const idSet = new Set(selectedIdsRef.current);
+    if (idSet.size === 0) return;
     const minZ = Math.min(...blocksRef.current.map((b) => b.zIndex));
+    let i = 0;
     setBlocks((p) =>
-      p.map((b) => (b.id === selectedId ? { ...b, zIndex: minZ - 1 } : b)),
+      p.map((b) => (idSet.has(b.id) ? { ...b, zIndex: minZ - 1 - i++ } : b)),
     );
   };
   const originalPosition = () =>
-    selectedId &&
-    setBlocks((p) =>
-      p.map((b) =>
-        b.id === selectedId
-          ? { ...b, x: 0, y: 0, rotation: 0, scale: 1, flipH: false, flipV: false }
-          : b,
-      ),
-    );
+    mutateSelected((b) => ({
+      ...b,
+      x: 0,
+      y: 0,
+      rotation: 0,
+      scale: 1,
+      flipH: false,
+      flipV: false,
+    }));
 
   // Right-click on a block: open context menu at the cursor (in canvas-local
   // design pixels, not actual pixels — the menu is rendered inside the
@@ -415,7 +474,10 @@ export default function ManualCanvas({
   const openContextMenu = (e: React.MouseEvent, blockId: string) => {
     e.preventDefault();
     e.stopPropagation();
-    setSelectedId(blockId);
+    // If the right-clicked block is outside the current selection, treat
+    // this as a fresh single-select on it. Otherwise keep the existing
+    // multi-block selection so menu actions act on all of them.
+    if (!selectedIdsRef.current.includes(blockId)) selectOne(blockId);
     const rect = canvasEl.current?.getBoundingClientRect();
     const offsetW = canvasEl.current?.offsetWidth ?? 1;
     const offsetH = canvasEl.current?.offsetHeight ?? 1;
@@ -432,7 +494,7 @@ export default function ManualCanvas({
     setContextMenu({ x: clampedX, y: clampedY, blockId });
   };
 
-  const hasSelected = !!blocks.find((b) => b.id === selectedId);
+  const hasSelected = selectedIds.length > 0;
 
   // ── render ─────────────────────────────────────────────────────────────────
 
@@ -451,12 +513,67 @@ export default function ManualCanvas({
         className="scroll-fade absolute inset-0 overflow-hidden"
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDrop}
-        // Clear selection only when clicking the bare canvas, NOT when a
-        // block-click bubbles up. (Without this guard, clicking a block
-        // would select it via mousedown, then immediately deselect via the
-        // bubbled click — the build-box flashed for a frame and vanished.)
-        onClick={(e) => {
-          if (e.target === e.currentTarget) setSelectedId(null);
+        // Mouse-down on the bare canvas starts a MARQUEE (rubber-band)
+        // selection. The handler tracks the pointer in canvas-local
+        // design pixels (same coord space as openContextMenu / blocks),
+        // and on mouse-up commits every block whose bbox intersects the
+        // marquee rect as the new selection. If the pointer barely
+        // moved between down and up, we treat it as a plain bare-canvas
+        // click and clear the current selection — same effect as the
+        // old onClick.
+        onMouseDown={(e) => {
+          if (e.target !== e.currentTarget) return; // a block / handle was clicked
+          if (e.button !== 0) return; // ignore right-click etc.
+          const rect = canvasEl.current?.getBoundingClientRect();
+          const offsetW = canvasEl.current?.offsetWidth ?? 1;
+          const offsetH = canvasEl.current?.offsetHeight ?? 1;
+          if (!rect) return;
+          const scale = rect.width / offsetW;
+          const startX = (e.clientX - rect.left) / scale;
+          const startY = (e.clientY - rect.top) / scale;
+          setMarquee({ startX, startY, currentX: startX, currentY: startY });
+
+          const onMove = (ev: MouseEvent) => {
+            const cx = (ev.clientX - rect.left) / scale;
+            const cy = (ev.clientY - rect.top) / scale;
+            setMarquee((m) =>
+              m ? { ...m, currentX: cx, currentY: cy } : m,
+            );
+          };
+          const onUp = () => {
+            window.removeEventListener("mousemove", onMove);
+            window.removeEventListener("mouseup", onUp);
+            setMarquee((curr) => {
+              if (!curr) return null;
+              const dx = Math.abs(curr.currentX - curr.startX);
+              const dy = Math.abs(curr.currentY - curr.startY);
+              if (dx < 4 && dy < 4) {
+                // Negligible drag → plain bare-canvas click. Clear.
+                setSelectedIds([]);
+                return null;
+              }
+              // Commit: select every block whose bbox intersects the
+              // marquee rect. Block coords are centered on canvas
+              // origin, so translate marquee into the same space.
+              const minX = Math.min(curr.startX, curr.currentX) - offsetW / 2;
+              const maxX = Math.max(curr.startX, curr.currentX) - offsetW / 2;
+              const minY = Math.min(curr.startY, curr.currentY) - offsetH / 2;
+              const maxY = Math.max(curr.startY, curr.currentY) - offsetH / 2;
+              const inside = blocksRef.current.filter((b) => {
+                const r = (BASE_PX / 2) * b.scale;
+                return (
+                  b.x + r > minX &&
+                  b.x - r < maxX &&
+                  b.y + r > minY &&
+                  b.y - r < maxY
+                );
+              });
+              setSelectedIds(inside.map((b) => b.id));
+              return null;
+            });
+          };
+          window.addEventListener("mousemove", onMove);
+          window.addEventListener("mouseup", onUp);
         }}
       >
         {blocks.length === 0 && (
@@ -467,10 +584,32 @@ export default function ManualCanvas({
           </div>
         )}
 
+        {/* Marquee (rubber-band) selection rectangle — rendered while the
+            user is drag-selecting on the bare canvas. Faint black/8 fill,
+            black/40 1 px dashed border. pointer-events:none so it never
+            intercepts the drag the canvas is already handling. */}
+        {marquee && (
+          <div
+            className="pointer-events-none absolute border border-dashed border-black/40 bg-black/[0.06]"
+            style={{
+              left: `${Math.min(marquee.startX, marquee.currentX)}px`,
+              top: `${Math.min(marquee.startY, marquee.currentY)}px`,
+              width: `${Math.abs(marquee.currentX - marquee.startX)}px`,
+              height: `${Math.abs(marquee.currentY - marquee.startY)}px`,
+              zIndex: 9999,
+            }}
+          />
+        )}
+
         {[...blocks]
           .sort((a, b) => a.zIndex - b.zIndex)
           .map((block) => {
-            const isSelected = block.id === selectedId;
+            const isSelected = selectedSet.has(block.id);
+            // The rotate/resize handles only make sense around a single
+            // block — anchoring/rotation pivots aren't defined for N
+            // blocks at once. Render them only on the lone selection.
+            const isSoleSelected =
+              isSelected && singleSelectedId === block.id;
             const scX = block.flipH ? -1 : 1;
             const scY = block.flipV ? -1 : 1;
             return (
@@ -526,12 +665,12 @@ export default function ManualCanvas({
                     {/* Hand-drawn selection box (Figma 2129:230). */}
                     <SelectionBox />
 
-                    {/* Rotate handle — fixed-size circle visual + click
-                        area at top-center of wrapper. The visible circle
-                        SVG is 14×14 px regardless of block.scale; the
-                        outer div is 28×28 px so there's plenty of hover
-                        slop. The visible circle is centered inside via
-                        flex. */}
+                    {/* Rotate / resize handles are only rendered on the
+                        SOLE selected block. With multiple blocks selected,
+                        the rotation pivot and resize anchor aren't
+                        well-defined per-block — use the right-click menu
+                        Rotate for multi-block rotations instead. */}
+                    {isSoleSelected && (
                     <div
                       className="cursor-rotate-arc absolute left-1/2 -translate-x-1/2 flex items-center justify-center"
                       style={{
@@ -560,14 +699,9 @@ export default function ManualCanvas({
                         />
                       </svg>
                     </div>
+                    )}
 
-                    {/* Resize handle — fixed-size square visual + click
-                        area centered ON the wrapper's bottom-right CORNER.
-                        right/bottom: -14px shifts the 28×28 hover box so
-                        its center lands exactly at (wrapper_right, wrapper_
-                        bottom); the 14×14 icon is then flex-centered inside,
-                        giving the visual impression of "anchored at the
-                        corner" rather than floating just inside it. */}
+                    {isSoleSelected && (
                     <div
                       className="cursor-scale-arrow absolute flex items-center justify-center"
                       style={{
@@ -597,6 +731,7 @@ export default function ManualCanvas({
                         />
                       </svg>
                     </div>
+                    )}
                   </div>
                 )}
               </Fragment>
