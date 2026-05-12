@@ -59,20 +59,6 @@
   -webkit-mask-composite: source-in;
 }
 
-/* Tighter variant — 1.5 % instead of 6 %. Used by the BokBokpedia grid
-   where the tiles are tall enough that a 6 % fade visibly dims the
-   first and last rows; this version gives just a hint of edge softness
-   (~10 px on the 697 px grid) without eating any tile content. */
-.scroll-fade-tight {
-  mask-image:
-    linear-gradient(to bottom, transparent 0%, black 1.5%, black 98.5%, transparent 100%),
-    linear-gradient(to right,  transparent 0%, black 1.5%, black 98.5%, transparent 100%);
-  mask-composite: intersect;
-  -webkit-mask-image:
-    linear-gradient(to bottom, transparent 0%, black 1.5%, black 98.5%, transparent 100%),
-    linear-gradient(to right,  transparent 0%, black 1.5%, black 98.5%, transparent 100%);
-  -webkit-mask-composite: source-in;
-}
 
 html, body {
   /* Solid #dfd9c9 fallback in case the grain JPG fails to load. The
