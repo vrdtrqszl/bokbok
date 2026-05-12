@@ -194,22 +194,31 @@ export default function BokBokpediaPage() {
                 <div className="pointer-events-none absolute inset-[18px]">
                   <CreatureThumbnail creature={c} blockSize={92} />
                 </div>
-                {/* When this tile is the selected one, surround the name
-                    with a small hand-drawn wavy outline (same SVG used by
-                    the "Uploaded" button on /create — matches the rest of
-                    BokBok's drawn aesthetic). */}
-                {isSelected && (
-                  <img
-                    alt=""
-                    src="/assets/uploaded-box.svg"
-                    className="pointer-events-none absolute left-1/2 bottom-[2px] block h-[30px] w-[168px] -translate-x-1/2"
-                  />
-                )}
-                {/* Name — bottom of the box, Casual Human Regular 20px
-                    per updated Figma 2102:237. */}
-                <span className="pointer-events-none absolute left-1/2 bottom-[8px] flex h-[20px] w-[180px] -translate-x-1/2 items-center justify-center truncate whitespace-nowrap text-center text-[20px] font-normal leading-[normal] text-black font-(family-name:--font-casual)">
-                  {c.name ?? "Creature"}
-                </span>
+                {/* Name + optional text-box outline (Figma 2102:241).
+                    Wrapped in an inline-flex container so the box's width
+                    follows the text — a short "Mimi" gets a small box, a
+                    long "Bouncing Joyfulness" gets a wider one. The
+                    outline (same uploaded-box.svg as the /create
+                    "Uploaded" button) only renders when this tile is the
+                    selected one. Position: bottom-[6px] keeps the visible
+                    text vertical-center close to its old position
+                    (previously bottom-[8px] h-[20px], now bottom-[6px]
+                    h-[28px] = same baseline). max-w-[195px] keeps the
+                    longest names from overflowing the 211 px tile. */}
+                <div
+                  className="pointer-events-none absolute left-1/2 bottom-[6px] inline-flex h-[28px] -translate-x-1/2 items-center justify-center px-[14px] max-w-[195px]"
+                >
+                  {isSelected && (
+                    <img
+                      alt=""
+                      src="/assets/uploaded-box.svg"
+                      className="pointer-events-none absolute inset-0 block size-full"
+                    />
+                  )}
+                  <span className="relative truncate whitespace-nowrap text-center text-[20px] font-normal leading-[normal] text-black font-(family-name:--font-casual)">
+                    {c.name ?? "Creature"}
+                  </span>
+                </div>
               </button>
             );
           })
