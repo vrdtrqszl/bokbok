@@ -409,17 +409,27 @@ export default function ManualCanvas({
   // Right-click on a block: open context menu at the cursor (in canvas-local
   // design pixels, not actual pixels — the menu is rendered inside the
   // ViewportFit-scaled tree, so it gets scaled along with the rest).
+  // The position is clamped to the canvas bounds so the menu never extends
+  // past the edges and gets clipped (previously a right-click near the
+  // bottom of the canvas would chop off the lower menu items).
   const openContextMenu = (e: React.MouseEvent, blockId: string) => {
     e.preventDefault();
     e.stopPropagation();
     setSelectedId(blockId);
     const rect = canvasEl.current?.getBoundingClientRect();
     const offsetW = canvasEl.current?.offsetWidth ?? 1;
+    const offsetH = canvasEl.current?.offsetHeight ?? 1;
     if (!rect) return;
     const scale = rect.width / offsetW; // ViewportFit scale (post-transform / pre)
     const localX = (e.clientX - rect.left) / scale;
     const localY = (e.clientY - rect.top) / scale;
-    setContextMenu({ x: localX, y: localY, blockId });
+    // Menu dimensions in design pixels (must match the JSX h-[220px] w-[124px]).
+    const MENU_W = 124;
+    const MENU_H = 220;
+    const PAD = 4;
+    const clampedX = Math.max(PAD, Math.min(localX, offsetW - MENU_W - PAD));
+    const clampedY = Math.max(PAD, Math.min(localY, offsetH - MENU_H - PAD));
+    setContextMenu({ x: clampedX, y: clampedY, blockId });
   };
 
   const hasSelected = !!blocks.find((b) => b.id === selectedId);
