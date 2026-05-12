@@ -334,6 +334,149 @@ export default function ManualCanvas({
     window.addEventListener("mouseup", onUp);
   };
 
+  // ── group transform (rotate/resize handles on a multi-block bbox) ──────────
+
+  // Returns the axis-aligned bounding box (in design pixels, canvas-
+  // origin-centered coords) of the currently-selected blocks. Returns
+  // null when fewer than 2 are selected — single-block transforms still
+  // use the per-block handles in that case.
+  const groupBBox = () => {
+    const ids = selectedIdsRef.current;
+    if (ids.length < 2) return null;
+    const idSet = new Set(ids);
+    const sel = blocksRef.current.filter((b) => idSet.has(b.id));
+    if (sel.length < 2) return null;
+    let minX = Infinity,
+      maxX = -Infinity,
+      minY = Infinity,
+      maxY = -Infinity;
+    for (const b of sel) {
+      const r = (BASE_PX / 2) * b.scale;
+      if (b.x - r < minX) minX = b.x - r;
+      if (b.x + r > maxX) maxX = b.x + r;
+      if (b.y - r < minY) minY = b.y - r;
+      if (b.y + r > maxY) maxY = b.y + r;
+    }
+    return {
+      cx: (minX + maxX) / 2,
+      cy: (minY + maxY) / 2,
+      width: maxX - minX,
+      height: maxY - minY,
+      sel,
+    };
+  };
+
+  // Rotate every selected block rigidly around the group centroid (each
+  // block's `rotation` accumulates the same delta, and its position is
+  // rotated around the centroid by that same delta — so the whole
+  // selection spins like a rigid body).
+  const startGroupRotate = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const bbox = groupBBox();
+    if (!bbox || !canvasEl.current) return;
+    const { cx, cy, sel } = bbox;
+    const rect = canvasEl.current.getBoundingClientRect();
+    const offsetW = canvasEl.current.offsetWidth;
+    const scaleR = rect.width / offsetW;
+    const centroidScreenX = rect.left + rect.width / 2 + cx * scaleR;
+    const centroidScreenY = rect.top + rect.height / 2 + cy * scaleR;
+    const startAngle = Math.atan2(
+      e.clientY - centroidScreenY,
+      e.clientX - centroidScreenX,
+    );
+    const startMap = new Map<
+      string,
+      { x: number; y: number; rotation: number }
+    >();
+    for (const b of sel) {
+      startMap.set(b.id, { x: b.x, y: b.y, rotation: b.rotation });
+    }
+    const onMove = (ev: MouseEvent) => {
+      const a = Math.atan2(
+        ev.clientY - centroidScreenY,
+        ev.clientX - centroidScreenX,
+      );
+      const delta = a - startAngle;
+      const cos = Math.cos(delta);
+      const sin = Math.sin(delta);
+      const deltaDeg = delta * (180 / Math.PI);
+      setBlocks((prev) =>
+        prev.map((b) => {
+          const s = startMap.get(b.id);
+          if (!s) return b;
+          const dx = s.x - cx;
+          const dy = s.y - cy;
+          return {
+            ...b,
+            x: cx + dx * cos - dy * sin,
+            y: cy + dx * sin + dy * cos,
+            rotation: s.rotation + deltaDeg,
+          };
+        }),
+      );
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  // Scale every selected block uniformly out from the group centroid:
+  // each block's position is scaled relative to the centroid and its own
+  // `scale` multiplies by the same factor — keeps relative spacing intact.
+  const startGroupResize = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const bbox = groupBBox();
+    if (!bbox || !canvasEl.current) return;
+    const { cx, cy, sel } = bbox;
+    const rect = canvasEl.current.getBoundingClientRect();
+    const offsetW = canvasEl.current.offsetWidth;
+    const scaleR = rect.width / offsetW;
+    const centroidScreenX = rect.left + rect.width / 2 + cx * scaleR;
+    const centroidScreenY = rect.top + rect.height / 2 + cy * scaleR;
+    const startDist = Math.hypot(
+      e.clientX - centroidScreenX,
+      e.clientY - centroidScreenY,
+    );
+    if (startDist < 1) return;
+    const startMap = new Map<
+      string,
+      { x: number; y: number; scale: number }
+    >();
+    for (const b of sel) {
+      startMap.set(b.id, { x: b.x, y: b.y, scale: b.scale });
+    }
+    const onMove = (ev: MouseEvent) => {
+      const d = Math.hypot(
+        ev.clientX - centroidScreenX,
+        ev.clientY - centroidScreenY,
+      );
+      const factor = Math.max(0.1, d / startDist);
+      setBlocks((prev) =>
+        prev.map((b) => {
+          const s = startMap.get(b.id);
+          if (!s) return b;
+          return {
+            ...b,
+            x: cx + (s.x - cx) * factor,
+            y: cy + (s.y - cy) * factor,
+            scale: Math.max(0.2, s.scale * factor),
+          };
+        }),
+      );
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
   // ── keyboard shortcuts ─────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -583,6 +726,102 @@ export default function ManualCanvas({
             or click them to add
           </div>
         )}
+
+        {/* Group selection bounding box (multi-select only). Renders ONE
+            wavy SelectionBox outline + a rotate/resize handle pair on the
+            combined bbox of all selected blocks. Single-block selection
+            keeps the per-block handles (rendered inside the blocks map
+            above) — both branches share the same handle visuals. */}
+        {(() => {
+          if (selectedIds.length < 2) return null;
+          const sel = blocks.filter((b) => selectedSet.has(b.id));
+          if (sel.length < 2) return null;
+          let minX = Infinity,
+            maxX = -Infinity,
+            minY = Infinity,
+            maxY = -Infinity;
+          for (const b of sel) {
+            const r = (BASE_PX / 2) * b.scale;
+            if (b.x - r < minX) minX = b.x - r;
+            if (b.x + r > maxX) maxX = b.x + r;
+            if (b.y - r < minY) minY = b.y - r;
+            if (b.y + r > maxY) maxY = b.y + r;
+          }
+          const cx = (minX + maxX) / 2;
+          const cy = (minY + maxY) / 2;
+          const w = maxX - minX;
+          const h = maxY - minY;
+          return (
+            <div
+              className="absolute"
+              style={{
+                left: `calc(50% + ${cx}px)`,
+                top: `calc(50% + ${cy}px)`,
+                width: `${w}px`,
+                height: `${h}px`,
+                transform: "translate(-50%, -50%)",
+                transformOrigin: "center",
+                pointerEvents: "none",
+                zIndex: 9998,
+              }}
+            >
+              <SelectionBox />
+              {/* Rotate handle — top-center of the group bbox. */}
+              <div
+                className="cursor-rotate-arc absolute left-1/2 -translate-x-1/2 flex items-center justify-center"
+                style={{
+                  top: "-22px",
+                  width: "32px",
+                  height: "28px",
+                  pointerEvents: "auto",
+                }}
+                onMouseDown={startGroupRotate}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="95 0 22 22"
+                  style={{ pointerEvents: "none" }}
+                >
+                  <path
+                    d="M106.59 0.500059C103.69 0.543651 102.567 1.09059 100.174 2.50006C98.2168 3.66251 96.6743 6.50006 96.1743 9.00006C96.1743 10.8313 96.5293 12.5205 96.6743 13.0001C96.8628 13.6685 97.0003 13.8607 97.1743 14.5001C97.4063 15.3428 97.7452 16.2076 98.3832 16.9051C98.9777 17.559 100.319 18.8112 101.174 19.0001C101.74 19.1308 102.609 19.4274 103.174 19.5001C104.175 19.6308 106.435 19.3257 107.174 19.5001C112.174 18.5001 114.674 16.5001 115.174 10.8313C115.16 8.39017 114.754 5.61483 113.362 3.60961C111.665 1.16847 109.374 0.543651 106.59 0.500059Z"
+                    fill="#DFD9C9"
+                    stroke="black"
+                    strokeMiterlimit={10}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
+              </div>
+              {/* Resize handle — bottom-right corner of the group bbox. */}
+              <div
+                className="cursor-scale-arrow absolute flex items-center justify-center"
+                style={{
+                  right: "-14px",
+                  bottom: "-14px",
+                  width: "28px",
+                  height: "28px",
+                  pointerEvents: "auto",
+                }}
+                onMouseDown={startGroupResize}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="200 224 18 20"
+                  style={{ pointerEvents: "none" }}
+                >
+                  <path
+                    d="M200.784 224.85C200.774 224.86 200.674 228.89 200.674 231C200.674 233.44 200.674 235.5 200.674 238C200.674 239 200.674 242.5 200.774 243.23C201.862 243.23 204.284 243.23 205.474 243.23H209.674C211.054 243.23 212.434 243.21 213.814 243.23C214.894 243.25 215.174 243.23 216.174 243.23C217.674 243.23 217.964 243.5 217.964 242C217.754 240.656 217.964 238.64 217.964 237.28C217.964 234.97 217.964 232.281 217.964 230C217.964 228 217.964 226.656 217.964 224.85C216.674 224.85 214.304 224.81 213.204 224.87C212.104 224.93 211.034 224.86 209.954 224.86C208.964 224.86 207.974 224.87 206.994 224.86C205.694 224.85 200.784 224.85 200.774 224.86L200.784 224.85Z"
+                    fill="#DFD9C9"
+                    stroke="black"
+                    strokeMiterlimit={10}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Marquee (rubber-band) selection rectangle — rendered while the
             user is drag-selecting on the bare canvas. Faint black/8 fill,
