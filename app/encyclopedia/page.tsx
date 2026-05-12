@@ -172,6 +172,7 @@ export default function BokBokpediaPage() {
           </div>
         ) : (
           filtered.map((c, i) => {
+            const isSelected = selected?.id === c.id;
             return (
               <button
                 key={c.id}
@@ -193,6 +194,17 @@ export default function BokBokpediaPage() {
                 <div className="pointer-events-none absolute inset-[18px]">
                   <CreatureThumbnail creature={c} blockSize={92} />
                 </div>
+                {/* When this tile is the selected one, surround the name
+                    with a small hand-drawn wavy outline (same SVG used by
+                    the "Uploaded" button on /create — matches the rest of
+                    BokBok's drawn aesthetic). */}
+                {isSelected && (
+                  <img
+                    alt=""
+                    src="/assets/uploaded-box.svg"
+                    className="pointer-events-none absolute left-1/2 bottom-[2px] block h-[30px] w-[168px] -translate-x-1/2"
+                  />
+                )}
                 {/* Name — bottom of the box, Casual Human Regular 20px
                     per updated Figma 2102:237. */}
                 <span className="pointer-events-none absolute left-1/2 bottom-[8px] flex h-[20px] w-[180px] -translate-x-1/2 items-center justify-center truncate whitespace-nowrap text-center text-[20px] font-normal leading-[normal] text-black font-(family-name:--font-casual)">
