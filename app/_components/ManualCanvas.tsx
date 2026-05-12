@@ -4,6 +4,7 @@ import { Fragment, useEffect, useImperativeHandle, useRef, useState } from "reac
 import { EMOTIONS, type EmotionKey } from "@/lib/emotions";
 import type { CreatureSpec, CreatureBlock } from "@/lib/creature";
 import SelectionBox from "./SelectionBox";
+import FunctionBoxOutline from "./FunctionBoxOutline";
 
 // ─── types ────────────────────────────────────────────────────────────────────
 
@@ -609,11 +610,12 @@ export default function ManualCanvas({
               style={{ left: contextMenu.x, top: contextMenu.y }}
               onContextMenu={(e) => e.preventDefault()}
             >
-              <img
-                alt=""
-                src="/assets/function-box.svg"
-                className="pointer-events-none absolute inset-0 size-full"
-              />
+              {/* Hand-drawn wavy outline + 8 dividers, inlined so each
+                  stroke can carry vector-effect="non-scaling-stroke".
+                  Without that, ViewportFit's CSS transform: scale() can
+                  squash 1 px strokes to sub-pixel widths and the box
+                  disappears at smaller window sizes. */}
+              <FunctionBoxOutline />
               <ul
                 className="absolute m-0 flex list-none flex-col p-0"
                 style={{ inset: "3.18% 8.06% 2.76% 8.06%" }}
