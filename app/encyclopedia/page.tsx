@@ -257,7 +257,7 @@ export default function BokBokpediaPage() {
           {selected?.dateISO ?? "—"}
         </span>
 
-        <div className="scroll-fade absolute left-[26px] right-[18px] top-[96px] bottom-[58px] flex flex-col items-center overflow-y-auto overflow-x-hidden">
+        <div className="scroll-fade-vertical absolute left-[26px] right-[18px] top-[96px] bottom-[58px] flex flex-col items-center overflow-y-auto overflow-x-hidden">
           <div className="w-full text-[20px] font-bold leading-normal text-black">
             {selected ? (
               selected.journalText ? (

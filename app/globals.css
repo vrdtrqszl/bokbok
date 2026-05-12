@@ -59,6 +59,27 @@
   -webkit-mask-composite: source-in;
 }
 
+/* Vertical-only variant — fades top/bottom only, leaves left/right edges
+   sharp. Used by the right-column info boxes (creature view + journal
+   panel) on every page, where text content is short and the side fade
+   was visibly clipping characters near the left/right margins. */
+.scroll-fade-vertical {
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 6%,
+    black 94%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 6%,
+    black 94%,
+    transparent 100%
+  );
+}
+
 
 html, body {
   /* Solid #dfd9c9 fallback in case the grain JPG fails to load. The

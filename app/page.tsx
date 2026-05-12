@@ -386,7 +386,7 @@ export default function MainPage() {
           src="/assets/creature-view.svg"
           className="absolute inset-0 block size-full"
         />
-        <div className="scroll-fade pointer-events-auto absolute inset-[14px] overflow-y-auto overflow-x-hidden">
+        <div className="scroll-fade-vertical pointer-events-auto absolute inset-[14px] overflow-y-auto overflow-x-hidden">
           {selected ? (
             <div className="grid grid-cols-2 gap-x-[36px] gap-y-[18px] px-[26px] pt-[3px] pb-[10px]">
               {selected.emotions.map(({ key, displayName }) => {
@@ -448,7 +448,7 @@ export default function MainPage() {
         </span>
 
         {/* Diary text — scrollable */}
-        <div className="scroll-fade absolute left-[26px] right-[18px] top-[96px] bottom-[58px] flex flex-col items-center overflow-y-auto overflow-x-hidden">
+        <div className="scroll-fade-vertical absolute left-[26px] right-[18px] top-[96px] bottom-[58px] flex flex-col items-center overflow-y-auto overflow-x-hidden">
           <div className="w-full text-[20px] font-bold leading-normal text-black">
             {selected ? (
               selected.journalText ? (
