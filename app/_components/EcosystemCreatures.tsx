@@ -458,8 +458,23 @@ export default function EcosystemCreatures({
         // rendered list), so the room still sounds inhabited.
         if (selectedId && c.id !== selectedId) return null;
 
-        const angle = (i / visible.length) * Math.PI * 2;
-        const radius = visible.length === 1 ? 0 : 3;
+        // Random initial spawn position — derived from the creature.id so
+        // each creature lands in the same spot every refresh, but the
+        // overall layout is a scattered cloud rather than the old evenly-
+        // spaced ring. Two independent FNV-1a hashes pick angle and
+        // radius; radius uses sqrt() to convert a uniform-[0,1] sample
+        // into a uniform-AREA disk distribution (no center clustering).
+        let ah = 0x811c9dc5;
+        let rh = 0x9dc5811c;
+        for (let k = 0; k < c.id.length; k++) {
+          ah ^= c.id.charCodeAt(k);
+          ah = Math.imul(ah, 0x01000193);
+          rh ^= c.id.charCodeAt(k);
+          rh = Math.imul(rh, 0x85ebca6b);
+        }
+        const angle = ((ah >>> 0) % 10000) / 10000 * Math.PI * 2;
+        const SPAWN_RADIUS_MAX = 4; // matches HOME_SOFT_RADIUS — within the camera frame
+        const radius = Math.sqrt(((rh >>> 0) % 10000) / 10000) * SPAWN_RADIUS_MAX;
         const pos: [number, number, number] = [
           Math.cos(angle) * radius,
           0,
