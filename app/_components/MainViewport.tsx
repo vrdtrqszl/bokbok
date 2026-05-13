@@ -315,13 +315,14 @@ export default function MainViewport({
       )}
 
       {/* Tools — sound on/off, zoom in/out. Hidden in fullscreen mode (the
-          design omits them; double-click a creature to zoom). The sound
-          toggle sits above the zoom buttons in the same right-edge strip
-          so the bottom-right corner reads as one control cluster. */}
+          design omits them; double-click a creature to zoom). Sound toggle
+          sits at the top-left INSIDE the main box (Figma 2238:1390, frame
+          position 21,16 inside the parent "main box" frame). The icon
+          itself is 41.46×43.06; render at the design size. */}
       {!fullscreen && (
         <>
           <SoundToggle
-            className="absolute left-[928px] top-[673px] h-[36px] w-[36px] cursor-pointer"
+            className="absolute left-[21px] top-[16px] h-[43.06px] w-[41.46px] cursor-pointer"
           />
           <button
             type="button"
