@@ -171,10 +171,15 @@ export function generateCreature(scores: EmotionScore[]): CreatureSpec {
         const anchor = blocks[Math.floor(rand() * blocks.length)];
         const angle = rand() * TAU;
         const avgScale = (anchor.scale + scale) / 2;
-        // 0.65 × avg → ~30% overlap; 0.82 × avg → ~18% overlap. Visibly
-        // merged with the anchor (so the body looks like one creature)
-        // without burying it.
-        const dist = (0.65 + rand() * 0.17) * avgScale;
+        // Block PNGs render their visible "blob" in the centre ~55-65 %
+        // of the plane — the outer edges fade to transparent. So
+        // geometric overlap alone doesn't guarantee a visible link.
+        // 0.50 × avg → ~50 % geometric overlap (visible centres
+        // definitely touch); 0.65 × avg → ~35 % overlap. Both keep the
+        // new block firmly attached to the body, while branch mode
+        // still gets to push the candidate AWAY from non-anchor blocks
+        // for silhouette variety.
+        const dist = (0.50 + rand() * 0.15) * avgScale;
         const cx = anchor.x + Math.cos(angle) * dist;
         const cy = anchor.y + Math.sin(angle) * dist;
         // Distance to nearest *non-anchor* block, normalised by avg scale.
