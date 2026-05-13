@@ -501,8 +501,10 @@ function CreateManuallyPageInner() {
           placeholder="Name"
           className="pointer-events-auto absolute left-1/2 top-[8px] z-[5] block h-[40px] w-[300px] -translate-x-1/2 bg-transparent text-center text-[28px] leading-normal text-black outline-none placeholder:text-black/30 font-(family-name:--font-fancy)"
         />
-        {/* Creature canvas — pushed below the name input. */}
-        <div className="absolute left-[20px] right-[20px] top-[52px] bottom-[56px]">
+        {/* Creature canvas — pushed below the name input.
+            pointer-events-auto so the drag-to-rotate gesture on
+            CreatureCanvas works through the (pointer-events-none) frame. */}
+        <div className="pointer-events-auto absolute left-[20px] right-[20px] top-[52px] bottom-[56px]">
           <CreatureCanvas creature={creature} blockSize={140} padding={8} />
         </div>
       </div>

@@ -253,7 +253,10 @@ export default function BokBokpediaPage() {
           src="/assets/creature-view.svg"
           className="absolute inset-0 block size-full"
         />
-        <div className="absolute left-[20px] right-[20px] top-[20px] bottom-[28px]">
+        {/* pointer-events-auto re-enables hit-testing on just the canvas
+            area inside the (pointer-events-none) frame so the drag-to-
+            rotate gesture on CreatureCanvas actually receives events. */}
+        <div className="pointer-events-auto absolute left-[20px] right-[20px] top-[20px] bottom-[28px]">
           {selected ? (
             <CreatureCanvas
               creature={selected}
