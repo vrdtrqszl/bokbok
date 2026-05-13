@@ -251,21 +251,18 @@ export default function MainViewport({
           <directionalLight position={[-3, -2, -4]} intensity={0.2} />
 
           {/* Soft beige fog gives the free camera some depth perception —
-              far creatures fade slightly toward the ground color so the
-              viewport doesn't feel like a flat sticker board. */}
-          <fog attach="fog" args={["#dfd9c9", 18, 60]} />
+              creatures far from the camera fade toward the ground color
+              so the flat plane doesn't read as an infinite sticker board. */}
+          <fog attach="fog" args={["#dfd9c9", 22, 80]} />
 
-          {/* Ground disc — a flat circle in the same beige as the page
-              background, with a fainter inner band hinting at the
-              creatures' "field." Subtle on purpose; the creatures are
-              still the focus. */}
+          {/* Flat ground plane — a large rectangular slab in the same
+              beige family as the page background. Sized big enough that
+              creatures wandering without a bounding radius still appear
+              to be on solid ground, never running off the edge of the
+              world. */}
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]}>
-            <circleGeometry args={[40, 96]} />
+            <planeGeometry args={[200, 200]} />
             <meshBasicMaterial color="#d6cfba" />
-          </mesh>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
-            <ringGeometry args={[5.2, 5.5, 96]} />
-            <meshBasicMaterial color="#c7c0a8" transparent opacity={0.5} />
           </mesh>
 
           <CreaturesErrorBoundary>

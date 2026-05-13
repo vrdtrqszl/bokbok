@@ -18,13 +18,10 @@ const TEXTURE_PATHS = EMOTION_LIST.map((e) => e.imagePath);
 // creature actually IS at any given moment.
 export const creaturePositions = new Map<string, [number, number, number]>();
 
-// Outer bound on the XZ plane — creatures bounce back if they'd jump past it.
-// Tuned so the wandering cluster stays well inside the visible frustum on
-// the default bird's-eye camera AND survives the user rotating the free
-// camera slightly without creatures clipping past the wavy-frame edges.
-// (Previously 5.0; reduced to 3.5 after user reported creatures looking
-// cut off at the canvas corners.)
-const WANDER_MAX_RADIUS = 3.5;
+// No radius boundary — creatures hop freely on the flat ground plane.
+// (Earlier versions bounced them back inside a circular bound at the
+// canvas centre; removed per design feedback so the ecosystem feels like
+// a wide field rather than a fenced ring.)
 // Per-hop step distance — large enough for the creatures to actually
 // traverse the scene (vs. fidgeting in place), small enough that each
 // hop is still a discrete cartoon "boing" rather than a long flight.
@@ -123,14 +120,8 @@ function EnergyCreature({
         const dir = Math.random() * Math.PI * 2;
         const step =
           HOP_MIN_STEP + Math.random() * (HOP_MAX_STEP - HOP_MIN_STEP);
-        let nx = w.pos.x + Math.cos(dir) * step;
-        let nz = w.pos.z + Math.sin(dir) * step;
-        // Bounce back toward origin if the next hop would leave the bounds.
-        if (Math.hypot(nx, nz) > WANDER_MAX_RADIUS) {
-          const back = Math.atan2(-w.pos.z, -w.pos.x);
-          nx = w.pos.x + Math.cos(back) * step;
-          nz = w.pos.z + Math.sin(back) * step;
-        }
+        const nx = w.pos.x + Math.cos(dir) * step;
+        const nz = w.pos.z + Math.sin(dir) * step;
         w.to.set(nx, 0, nz);
         w.progress = 0;
         // Cartoony jumps: snappy (0.30–0.55 s) and bouncy — short steps
