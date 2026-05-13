@@ -140,10 +140,18 @@ function CreateManuallyPageInner() {
   };
 
   const handleDelete = () => {
+    // Full reset of everything the user has in-flight: canvas blocks,
+    // creature preview, name, journal textarea (state + DOM ref in case
+    // the controlled value lagged), upload status, search filter, and
+    // the date back to today.
     canvasHandle.current?.clear();
     setCreature(null);
     setName("");
+    setJournalText("");
+    if (textareaRef.current) textareaRef.current.value = "";
     setUploadStatus("idle");
+    setSearch("");
+    setSelectedDate(new Date());
   };
 
   return (
@@ -357,34 +365,28 @@ function CreateManuallyPageInner() {
         </span>
       </button>
 
-      {/* Left button — "Edit" in new mode (placeholder, no action yet),
-          "Cancel" in edit mode (discards in-flight changes and routes
-          back to the home page without persisting). In edit mode the
-          button widens from 49.41 → 78 so the longer "Cancel" label
-          fits inside the hand-drawn outline; the left edge slides over
-          to keep the right edge flush against the Delete button. */}
-      <button
-        type="button"
-        onClick={() => {
-          if (!editingId) return;
-          // Cancel — leave the store untouched, navigate home.
-          router.push("/");
-        }}
-        className={
-          editingId
-            ? "absolute left-[824px] top-[829px] block h-[30.83px] w-[78px] cursor-pointer overflow-visible bg-transparent p-0"
-            : "absolute left-[853px] top-[829px] block h-[30.83px] w-[49.41px] cursor-pointer overflow-visible bg-transparent p-0"
-        }
-      >
-        <img
-          alt=""
-          src="/assets/edit-vector.svg"
-          className="absolute inset-0 block size-full"
-        />
-        <span className="absolute inset-0 flex items-center justify-center text-[20px] font-bold leading-none text-black">
-          {editingId ? "Cancel" : "Edit"}
-        </span>
-      </button>
+      {/* Cancel button (edit mode only). In NEW mode the left slot is
+          empty — there's nothing to cancel when you're starting fresh.
+          Width 78 fits the 6-letter label inside the hand-drawn outline. */}
+      {editingId && (
+        <button
+          type="button"
+          onClick={() => {
+            // Cancel — leave the store untouched, navigate home.
+            router.push("/");
+          }}
+          className="absolute left-[824px] top-[829px] block h-[30.83px] w-[78px] cursor-pointer overflow-visible bg-transparent p-0"
+        >
+          <img
+            alt=""
+            src="/assets/edit-vector.svg"
+            className="absolute inset-0 block size-full"
+          />
+          <span className="absolute inset-0 flex items-center justify-center text-[20px] font-bold leading-none text-black">
+            Cancel
+          </span>
+        </button>
+      )}
 
       {/* Right button — "Delete" in both modes. In new mode it clears
           the in-progress draft via handleDelete(). In edit mode it
