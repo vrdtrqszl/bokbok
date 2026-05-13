@@ -661,3 +661,90 @@ export function playTypingTick(): void {
   osc.start(now);
   osc.stop(now + 0.22);
 }
+
+// ---- Marimba tick (mouse-move) ---------------------------------------
+// Soft, dreamy marimba note played as the cursor wanders across the
+// page. Triangle wave body + sine octave for sparkle, lowpass that
+// opens at attack and closes through the decay — gives a clearly
+// wooden, struck character. Routed through masterGain so the Sound Off
+// toggle silences it like the rest of the ambient audio. A generous
+// reverb send keeps each note feeling like it's drifting in a small
+// hall, which leans into the "mystical" brief the user asked for.
+//
+// Caller passes an optional pitchIndex 0..9 (mapped from cursor Y by
+// MouseSounds — top of viewport = high, bottom = low). Without an
+// index the note is uniformly random across the same scale.
+
+const MARIMBA_NOTES_HZ: number[] = [
+  // C minor pentatonic (with passing notes), two octaves, low → high.
+  // Order matters — MouseSounds uses the array index to map cursor Y
+  // to pitch (top of viewport reads as the highest note).
+  261.63, 311.13, 349.23, 392.00, 466.16,    // C4, Eb4, F4, G4, Bb4
+  523.25, 622.25, 698.46, 783.99, 932.33,    // C5, Eb5, F5, G5, Bb5
+];
+
+export function playMarimbaTick(pitchIndex?: number): void {
+  const c = ensureCtx();
+  if (!c || !masterGain) return;
+
+  const now = c.currentTime;
+  const idx =
+    typeof pitchIndex === "number"
+      ? Math.max(0, Math.min(MARIMBA_NOTES_HZ.length - 1, Math.floor(pitchIndex)))
+      : Math.floor(Math.random() * MARIMBA_NOTES_HZ.length);
+  const note = MARIMBA_NOTES_HZ[idx];
+  // ±20 cent jitter so wide cursor sweeps don't sound robotic.
+  const pitch = note * Math.pow(2, ((Math.random() - 0.5) * 40) / 1200);
+
+  // Body — slightly-detuned triangle gives the woody marimba bar feel.
+  const oscBody = c.createOscillator();
+  oscBody.type = "triangle";
+  oscBody.frequency.setValueAtTime(pitch * 1.02, now);
+  oscBody.frequency.exponentialRampToValueAtTime(pitch, now + 0.02);
+  const oscOctave = c.createOscillator();
+  oscOctave.type = "sine";
+  oscOctave.frequency.setValueAtTime(pitch * 2, now);
+
+  // Octave mix at ~20% of body for sparkle (any higher and it edges
+  // into "bell" territory and loses the wood).
+  const octaveMix = c.createGain();
+  octaveMix.gain.value = 0.18;
+
+  // Filter envelope opens at the strike, closes through the decay —
+  // that's what gives the struck-wood character.
+  const filt = c.createBiquadFilter();
+  filt.type = "lowpass";
+  filt.frequency.setValueAtTime(pitch * 7, now);
+  filt.frequency.exponentialRampToValueAtTime(pitch * 2.2, now + 0.5);
+  filt.Q.value = 0.4;
+
+  // Soft volume — mouse-move fires up to ~5 ticks/sec. Peak ~0.045
+  // sits quietly underneath any creature audio without disappearing.
+  const peakAmp = 0.04 + Math.random() * 0.015;
+  const env = c.createGain();
+  env.gain.setValueAtTime(0, now);
+  env.gain.linearRampToValueAtTime(peakAmp, now + 0.008);
+  // ~0.55 s decay reads as a clean wooden ping (full marimba is
+  // longer but the tail gets noisy when notes overlap).
+  env.gain.exponentialRampToValueAtTime(0.0008, now + 0.55);
+
+  oscBody.connect(filt);
+  oscOctave.connect(octaveMix);
+  octaveMix.connect(filt);
+  filt.connect(env);
+  env.connect(masterGain);
+
+  // Reverb send — heavier than typing since marimba notes are sparser
+  // and benefit from the spatial tail.
+  if (reverbInput) {
+    const send = c.createGain();
+    send.gain.value = 0.35;
+    env.connect(send);
+    send.connect(reverbInput);
+  }
+
+  oscBody.start(now);
+  oscBody.stop(now + 0.62);
+  oscOctave.start(now);
+  oscOctave.stop(now + 0.62);
+}
