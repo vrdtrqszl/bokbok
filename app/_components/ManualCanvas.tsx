@@ -79,6 +79,41 @@ export default function ManualCanvas({
   const clipboardRef = useRef<CanvasBlock[]>([]);
   const nextZ = useRef(0);
   const dragRef = useRef<DragState | null>(null);
+
+  // Undo / redo history. Each entry is a full snapshot of the blocks
+  // array right BEFORE a discrete user action (drag start, add, delete,
+  // paste, flip, …). Drag gestures only push ONE snapshot (at mousedown)
+  // so per-frame updates inside a drag don't flood the stack. Limited to
+  // HISTORY_LIMIT to bound memory.
+  const HISTORY_LIMIT = 80;
+  const historyRef = useRef<CanvasBlock[][]>([]);
+  const futureRef = useRef<CanvasBlock[][]>([]);
+  const commitHistory = () => {
+    historyRef.current.push(blocksRef.current.map((b) => ({ ...b })));
+    if (historyRef.current.length > HISTORY_LIMIT) historyRef.current.shift();
+    // Any new action invalidates the redo stack — same convention as
+    // most editors: once you branch off, the old "future" is gone.
+    futureRef.current = [];
+  };
+  const undo = () => {
+    const past = historyRef.current.pop();
+    if (!past) return;
+    futureRef.current.push(blocksRef.current.map((b) => ({ ...b })));
+    setBlocks(past);
+    // After an undo, the selection may reference ids that no longer
+    // exist in the restored state (e.g. you undid a paste). Drop any
+    // dangling ids.
+    const restoredIds = new Set(past.map((b) => b.id));
+    setSelectedIds((prev) => prev.filter((id) => restoredIds.has(id)));
+  };
+  const redo = () => {
+    const next = futureRef.current.pop();
+    if (!next) return;
+    historyRef.current.push(blocksRef.current.map((b) => ({ ...b })));
+    setBlocks(next);
+    const restoredIds = new Set(next.map((b) => b.id));
+    setSelectedIds((prev) => prev.filter((id) => restoredIds.has(id)));
+  };
   // Group rotation — accumulated rotation applied to the current
   // multi-block selection. Resets to 0 every time the selection changes,
   // so a fresh marquee always produces an axis-aligned bbox (even if the
@@ -175,6 +210,7 @@ export default function ManualCanvas({
     handleRef,
     () => ({
       addBlock: (emotionKey, imagePath) => {
+        commitHistory();
         const id = uid();
         setBlocks((prev) => [
           ...prev,
@@ -239,11 +275,18 @@ export default function ManualCanvas({
       },
 
       clear: () => {
+        // Snapshot before clearing so the user can Ctrl+Z to recover.
+        // (Skipped when the canvas is already empty — no-op gesture.)
+        if (blocksRef.current.length > 0) commitHistory();
         setBlocks([]);
         setSelectedIds([]);
       },
 
       loadCreature: (creatureBlocks) => {
+        // Treat the edit-mode hydration as a fresh document — wipe
+        // history so the user can't undo into a half-loaded state.
+        historyRef.current = [];
+        futureRef.current = [];
         // Convert CreatureBlock[] (creature-space coords) → CanvasBlock[] (px).
         const next: CanvasBlock[] = creatureBlocks.map((b, i) => ({
           id: uid(),
@@ -281,6 +324,7 @@ export default function ManualCanvas({
     if (!rect) return;
     const x = e.clientX - rect.left - rect.width / 2;
     const y = e.clientY - rect.top - rect.height / 2;
+    commitHistory();
     const id = uid();
     setBlocks((prev) => [
       ...prev,
@@ -313,6 +357,10 @@ export default function ManualCanvas({
 
     const block = blocksRef.current.find((b) => b.id === blockId);
     if (!block || !canvasEl.current) return;
+    // Snapshot ONCE at the start of the gesture so Ctrl+Z reverts the
+    // whole move/rotate/resize as one undo step (not one entry per
+    // animation frame).
+    commitHistory();
 
     const rect = canvasEl.current.getBoundingClientRect();
     const blockScreenCx = rect.left + rect.width / 2 + block.x;
@@ -450,6 +498,8 @@ export default function ManualCanvas({
     e.preventDefault();
     const bbox = groupBBox();
     if (!bbox || !canvasEl.current) return;
+    // One history snapshot per rotate gesture (same rationale as startDrag).
+    commitHistory();
     const { cx, cy, sel } = bbox;
     const rect = canvasEl.current.getBoundingClientRect();
     const offsetW = canvasEl.current.offsetWidth;
@@ -513,6 +563,8 @@ export default function ManualCanvas({
     e.preventDefault();
     const bbox = groupBBox();
     if (!bbox || !canvasEl.current) return;
+    // One history snapshot per resize gesture (same rationale as startDrag).
+    commitHistory();
     const { cx, cy, sel } = bbox;
     const rect = canvasEl.current.getBoundingClientRect();
     const offsetW = canvasEl.current.offsetWidth;
@@ -569,13 +621,30 @@ export default function ManualCanvas({
       const idSet = new Set(ids);
       const selBlocks = blocksRef.current.filter((b) => idSet.has(b.id));
 
+      // Ctrl/Cmd+Z → undo, Ctrl/Cmd+Shift+Z (or Ctrl/Cmd+Y) → redo.
+      // Checked before everything else so the user can always escape
+      // their last action, even after a paste / duplicate / etc.
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        redo();
+        return;
+      }
+
       if (e.key === "Delete" || e.key === "Backspace") {
         if (ids.length === 0) return;
+        commitHistory();
         setBlocks((prev) => prev.filter((b) => !idSet.has(b.id)));
         setSelectedIds([]);
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "c") {
+        // Copy doesn't mutate the document — no history push.
         if (selBlocks.length) clipboardRef.current = selBlocks.map((b) => ({ ...b }));
         return;
       }
@@ -583,6 +652,7 @@ export default function ManualCanvas({
         e.preventDefault();
         const clip = clipboardRef.current;
         if (clip.length === 0) return;
+        commitHistory();
         const newIds: string[] = [];
         const stamped: CanvasBlock[] = clip.map((c) => {
           const id = uid();
@@ -596,6 +666,7 @@ export default function ManualCanvas({
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d") {
         e.preventDefault();
         if (selBlocks.length === 0) return;
+        commitHistory();
         const newIds: string[] = [];
         const dupes: CanvasBlock[] = selBlocks.map((b) => {
           const id = uid();
@@ -615,10 +686,13 @@ export default function ManualCanvas({
 
   // ── toolbar / context-menu actions (operate on all selected) ───────────────
 
-  // Apply a transformation to every currently-selected block.
+  // Apply a transformation to every currently-selected block. All
+  // call sites are discrete user actions (flip, rotate, send-to-back,
+  // …) so commitHistory() is fired here once per call.
   const mutateSelected = (fn: (b: CanvasBlock) => CanvasBlock) => {
     const idSet = new Set(selectedIdsRef.current);
     if (idSet.size === 0) return;
+    commitHistory();
     setBlocks((p) => p.map((b) => (idSet.has(b.id) ? fn(b) : b)));
   };
 
@@ -632,6 +706,7 @@ export default function ManualCanvas({
   const paste = () => {
     const clip = clipboardRef.current;
     if (clip.length === 0) return;
+    commitHistory();
     const newIds: string[] = [];
     const stamped: CanvasBlock[] = clip.map((c) => {
       const id = uid();
@@ -644,6 +719,7 @@ export default function ManualCanvas({
   const del = () => {
     const idSet = new Set(selectedIdsRef.current);
     if (idSet.size === 0) return;
+    commitHistory();
     setBlocks((p) => p.filter((b) => !idSet.has(b.id)));
     setSelectedIds([]);
   };
@@ -656,6 +732,7 @@ export default function ManualCanvas({
     const idSet = new Set(selectedIdsRef.current);
     const sel = blocksRef.current.filter((b) => idSet.has(b.id));
     if (sel.length === 0) return;
+    commitHistory();
     const newIds: string[] = [];
     const dupes: CanvasBlock[] = sel.map((b) => {
       const id = uid();
@@ -672,6 +749,7 @@ export default function ManualCanvas({
   const bringToBack = () => {
     const idSet = new Set(selectedIdsRef.current);
     if (idSet.size === 0) return;
+    commitHistory();
     const minZ = Math.min(...blocksRef.current.map((b) => b.zIndex));
     let i = 0;
     setBlocks((p) =>
