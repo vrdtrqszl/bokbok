@@ -5,7 +5,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { extractEmotions } from "@/lib/emotions";
 import { generateCreature, emotionByKey, randomCreatureName, type CreatureSpec } from "@/lib/creature";
-import { uploadCreature, findCreatureById } from "@/lib/ecosystem";
+import { uploadCreature, findCreatureById, deleteCreatureById } from "@/lib/ecosystem";
 import { playCreatureGiggle } from "@/lib/audio";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import DatePicker from "@/app/_components/DatePicker";
@@ -313,10 +313,24 @@ function CreatePageInner() {
         </span>
       </button>
 
-      {/* Edit button (bottom of main area) */}
+      {/* Left button — "Edit" in new mode (placeholder, no action yet),
+          "Cancel" in edit mode (discards in-flight changes and routes
+          back to the home page without persisting). In edit mode the
+          button widens from 49.41 → 78 so the longer "Cancel" label
+          fits inside the hand-drawn outline; the left edge slides over
+          to keep the right edge flush against the Delete button. */}
       <button
         type="button"
-        className="absolute left-[853px] top-[829px] block h-[30.83px] w-[49.41px] cursor-pointer overflow-visible bg-transparent p-0"
+        onClick={() => {
+          if (!editingId) return;
+          // Cancel — leave the store untouched, navigate home.
+          router.push("/");
+        }}
+        className={
+          editingId
+            ? "absolute left-[824px] top-[829px] block h-[30.83px] w-[78px] cursor-pointer overflow-visible bg-transparent p-0"
+            : "absolute left-[853px] top-[829px] block h-[30.83px] w-[49.41px] cursor-pointer overflow-visible bg-transparent p-0"
+        }
       >
         <img
           alt=""
@@ -324,34 +338,22 @@ function CreatePageInner() {
           className="absolute inset-0 block size-full"
         />
         <span className="absolute inset-0 flex items-center justify-center text-[20px] font-bold leading-none text-black">
-          Edit
+          {editingId ? "Cancel" : "Edit"}
         </span>
       </button>
 
-      {/* Delete (new mode) / Done (edit mode) button. In edit mode "Done"
-          first commits any pending edits (date / journal text changes) to
-          the ecosystem, then routes back to the home page. */}
+      {/* Right button — "Delete" in both modes. In new mode it clears
+          the in-progress draft. In edit mode it removes the creature
+          being edited from the ecosystem and routes back home. */}
       <button
         type="button"
         onClick={() => {
           if (editingId) {
-            // Persist current state (which may include a new date, edited
-            // journal text, or renamed creature) — replaces in place by id.
-            if (creature) {
-              const trimmedName = name.trim();
-              if (!trimmedName) {
-                alert("Please give your creature a name first.");
-                return;
-              }
-              const text = currentJournalText();
-              uploadCreature({
-                ...creature,
-                name: trimmedName,
-                journalText: text,
-                dateISO: toISO(selectedDate),
-                source: creature.source ?? "generate",
-              });
-            }
+            // Edit-mode delete — remove the creature, then leave.
+            // Fire-and-forget: the navigation doesn't depend on the
+            // network round-trip, and the store re-syncs on the next
+            // ecosystem subscription tick.
+            void deleteCreatureById(editingId);
             router.push("/");
             return;
           }
@@ -370,7 +372,7 @@ function CreatePageInner() {
           className="absolute m-0 text-center text-[24px] font-bold leading-[normal] text-black"
           style={{ inset: "12.2% 0 0 0" }}
         >
-          {editingId ? "Done" : "Delete"}
+          Delete
         </p>
       </button>
 
