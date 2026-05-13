@@ -308,7 +308,20 @@ export default function ManualCanvas({
           // the sole-selected block, so we only ever get here for one id).
           if (b.id !== ds.blockId) return b;
           if (ds.type === "resize") {
-            const signed = Math.hypot(dx, dy) * Math.sign(dx + dy);
+            // Map the screen-space drag delta back into BLOCK-LOCAL space
+            // by rotating it by −block.rotation. That way "drag outward
+            // from the block's bottom-right corner" is always represented
+            // as a positive (localDx + localDy), no matter how the block
+            // has been rotated on screen. Without this, a 180°-rotated
+            // block's resize handle (visually at top-left) needed the
+            // user to drag UP-LEFT to shrink and DOWN-RIGHT to enlarge —
+            // the opposite of what the visible cursor implied.
+            const rad = (ds.startRotation * Math.PI) / 180;
+            const cos = Math.cos(rad);
+            const sin = Math.sin(rad);
+            const localDx = dx * cos + dy * sin;
+            const localDy = -dx * sin + dy * cos;
+            const signed = Math.hypot(dx, dy) * Math.sign(localDx + localDy);
             const newScale = Math.max(0.2, ds.startScale + signed / (BASE_PX * 2));
             return { ...b, scale: newScale };
           }
