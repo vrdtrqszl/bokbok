@@ -125,15 +125,33 @@ export default function ManualCanvas({
     return () => window.removeEventListener("mouseup", up);
   }, []);
 
+  // Snap the cursor element to the given client coords. Called from
+  // onMouseEnter / onMouseDown so the cursor appears at the pointer
+  // immediately, before the next mousemove fires. requestAnimationFrame
+  // waits for the cursor element to mount after the state update.
+  const snapCursorTo = (clientX: number, clientY: number) => {
+    requestAnimationFrame(() => {
+      const el = cursorElRef.current;
+      if (!el) return;
+      el.style.left = `${clientX}px`;
+      el.style.top = `${clientY}px`;
+    });
+  };
+
   // Props for any of the rotate/scale handles. Hover shows the rotating
   // cursor, mousedown locks it so a drag-out doesn't lose it, mouseleave
   // hides it (unless still locked from an active drag).
   const cursorHandleProps = (kind: "rotate" | "scale", rotation: number) => ({
-    onMouseEnter: () => setCustomCursor({ kind, rotation }),
+    onMouseEnter: (e: React.MouseEvent) => {
+      setCustomCursor({ kind, rotation });
+      snapCursorTo(e.clientX, e.clientY);
+    },
     onMouseLeave: () =>
       setCustomCursor((c) => (c?.locked ? c : null)),
-    onMouseDownCapture: () =>
-      setCustomCursor({ kind, rotation, locked: true }),
+    onMouseDownCapture: (e: React.MouseEvent) => {
+      setCustomCursor({ kind, rotation, locked: true });
+      snapCursorTo(e.clientX, e.clientY);
+    },
   });
   // Marquee (rubber-band) selection. Stored in canvas-local design pixels
   // (same coord space the right-click context menu uses). null when not
