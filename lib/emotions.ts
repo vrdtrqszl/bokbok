@@ -889,6 +889,22 @@ export const EMOTION_COLOR_GROUP: Record<EmotionKey, EmotionColorGroup> = {
   insight: "mint",
 };
 
+// Representative hex per color group — used for accent fills like the
+// hand-drawn name highlight on BokBokpedia (Figma 2241:1429), where the
+// stroke colour is picked from the creature's own blocks at 40% opacity.
+// Tuned so each colour reads as the group it represents but stays in the
+// same mid-saturation pastel range as the rest of the design.
+export const EMOTION_GROUP_HEX: Record<EmotionColorGroup, string> = {
+  yellow: "#F2C94C",
+  green: "#6FCF97",
+  red: "#EB5757",
+  blue: "#67BDFA",
+  purple: "#9B51E0",
+  orange: "#F2994A",
+  grey: "#828282",
+  mint: "#A0E7D7",
+};
+
 export type EmotionScore = {
   emotion: Emotion;
   score: number;

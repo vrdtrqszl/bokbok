@@ -6,7 +6,39 @@ import { useEffect, useState } from "react";
 import { loadEcosystem, deleteCreatureById, matchesCreatureQuery, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
 import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
+import { EMOTION_COLOR_GROUP, EMOTION_GROUP_HEX } from "@/lib/emotions";
 import type { CreatureSpec } from "@/lib/creature";
+
+// Builds a data URL for the hand-drawn name-highlight stroke with a
+// caller-provided colour baked in (the underlying SVG used a single
+// stroke colour, so we can't recolour via `currentColor` on a regular
+// <img src=> — encode it inline). Opacity stays at 0.4 per the design.
+function nameHighlightDataUrl(strokeHex: string): string {
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none" viewBox="0 0 50.5036 13.8996" fill="none">` +
+    `<path d="M1.18715 5.90339C1.66563 5.99031 4.18405 6.7279 12.8098 7.63263 19.1556 8.29821 29.5306 7.55454 35.1323 7.33536 40.734 7.11619 41.2564 6.97662 42.9102 6.8316 44.5641 6.68657 47.3337 6.54032 50.1872 6.38964" ` +
+    `stroke="${strokeHex}" stroke-opacity="0.4" stroke-width="12"/></svg>`;
+  return `url("data:image/svg+xml;utf8,${encodeURIComponent(svg)}")`;
+}
+
+// Picks one of the creature's blocks deterministically by id-hash and
+// returns the matching group's hex. Stable per-creature so the highlight
+// keeps the same colour across re-renders / refreshes. Falls back to the
+// default blue from the original Figma asset if the creature has no
+// blocks.
+function highlightColorFor(creature: CreatureSpec): string {
+  const blocks = creature.blocks ?? [];
+  if (blocks.length === 0) return "#67BDFA";
+  let h = 0x811c9dc5;
+  for (let i = 0; i < creature.id.length; i++) {
+    h ^= creature.id.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  const idx = (h >>> 0) % blocks.length;
+  const key = blocks[idx].emotionKey;
+  const group = EMOTION_COLOR_GROUP[key];
+  return EMOTION_GROUP_HEX[group] ?? "#67BDFA";
+}
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
 import ViewportZoomControls from "@/app/_components/ViewportZoomControls";
@@ -226,7 +258,9 @@ export default function BokBokpediaPage() {
                       textOverflow: "ellipsis",
                       ...(isSelected
                         ? {
-                            backgroundImage: "url(/assets/name-highlight.svg)",
+                            backgroundImage: nameHighlightDataUrl(
+                              highlightColorFor(c),
+                            ),
                             backgroundRepeat: "no-repeat",
                             backgroundSize: "100% 20px",
                             backgroundPosition: "center",
