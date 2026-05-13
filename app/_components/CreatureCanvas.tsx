@@ -31,6 +31,11 @@ export default function CreatureCanvas({
   const rotatorRef = useRef<HTMLDivElement | null>(null);
   const blockRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [fitScale, setFitScale] = useState(1);
+  // Wheel-driven zoom multiplier — multiplies on top of the page-level
+  // `zoom` prop (used by the +/− buttons) and the auto fit scale. Scroll
+  // up zooms in, scroll down zooms out. Resets to 1 when the displayed
+  // creature changes.
+  const [wheelZoom, setWheelZoom] = useState(1);
 
   // ---- Drag-to-rotate (3D turntable) ----------------------------------
   // Refs (not state) so we can write the CSS transform every pointermove
@@ -57,7 +62,29 @@ export default function CreatureCanvas({
     yawRef.current = 0;
     pitchRef.current = 0;
     applyRotation();
+    // Wheel zoom resets per-creature too so the next subject opens at fit.
+    setWheelZoom(1);
   }, [creature?.id]);
+
+  // Native wheel listener — React's `onWheel` is registered with
+  // passive:true so preventDefault() is a no-op. We need preventDefault
+  // to stop the page from scrolling under the cursor while the user is
+  // zooming the creature, so the listener is attached manually with
+  // passive:false. Exponential scaling per pixel keeps trackpad and
+  // mouse-wheel speeds both feeling natural; the multiplier is clamped
+  // to [0.3, 4] so the creature can't disappear or explode off-screen.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !creature) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      // deltaY > 0 (scroll down) → zoom out; deltaY < 0 → zoom in.
+      const factor = Math.exp(-e.deltaY * 0.0015);
+      setWheelZoom((z) => Math.max(0.3, Math.min(4, z * factor)));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [creature]);
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!creature) return;
@@ -179,9 +206,12 @@ export default function CreatureCanvas({
     );
   }
 
-  // Combined fit-to-container × user-zoom. User zoom > 1 lets the creature
-  // overflow the box (clipped by overflow:hidden); zoom < 1 shrinks below fit.
-  const effectiveBlockSize = blockSize * fitScale * zoom;
+  // Combined fit-to-container × prop-zoom × wheel-zoom. prop-zoom is the
+  // page-level +/- button state; wheel-zoom is this component's own
+  // scroll-driven multiplier. Either > 1 lets the creature overflow the
+  // box (clipped by overflow:hidden + scroll-fade mask on the wrapper),
+  // < 1 shrinks below fit.
+  const effectiveBlockSize = blockSize * fitScale * zoom * wheelZoom;
 
   return (
     <div
