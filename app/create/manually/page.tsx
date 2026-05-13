@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { EMOTION_LIST } from "@/lib/emotions";
-import { uploadCreature, findCreatureById } from "@/lib/ecosystem";
+import { uploadCreature, findCreatureById, deleteCreatureById } from "@/lib/ecosystem";
 import { playCreatureGiggle } from "@/lib/audio";
 import { emotionByKey, randomCreatureName, type CreatureSpec } from "@/lib/creature";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
@@ -357,10 +357,24 @@ function CreateManuallyPageInner() {
         </span>
       </button>
 
-      {/* Edit button */}
+      {/* Left button — "Edit" in new mode (placeholder, no action yet),
+          "Cancel" in edit mode (discards in-flight changes and routes
+          back to the home page without persisting). In edit mode the
+          button widens from 49.41 → 78 so the longer "Cancel" label
+          fits inside the hand-drawn outline; the left edge slides over
+          to keep the right edge flush against the Delete button. */}
       <button
         type="button"
-        className="absolute left-[853px] top-[829px] block h-[30.83px] w-[49.41px] cursor-pointer overflow-visible bg-transparent p-0"
+        onClick={() => {
+          if (!editingId) return;
+          // Cancel — leave the store untouched, navigate home.
+          router.push("/");
+        }}
+        className={
+          editingId
+            ? "absolute left-[824px] top-[829px] block h-[30.83px] w-[78px] cursor-pointer overflow-visible bg-transparent p-0"
+            : "absolute left-[853px] top-[829px] block h-[30.83px] w-[49.41px] cursor-pointer overflow-visible bg-transparent p-0"
+        }
       >
         <img
           alt=""
@@ -368,35 +382,19 @@ function CreateManuallyPageInner() {
           className="absolute inset-0 block size-full"
         />
         <span className="absolute inset-0 flex items-center justify-center text-[20px] font-bold leading-none text-black">
-          Edit
+          {editingId ? "Cancel" : "Edit"}
         </span>
       </button>
 
-      {/* Delete (new mode) / Done (edit mode) button. In edit mode "Done"
-          commits the latest state (date / journal / canvas blocks) to the
-          ecosystem before routing home. */}
+      {/* Right button — "Delete" in both modes. In new mode it clears
+          the in-progress draft via handleDelete(). In edit mode it
+          removes the creature being edited from the ecosystem and
+          routes back home (no save). */}
       <button
         type="button"
         onClick={() => {
           if (editingId) {
-            const trimmedName = name.trim();
-            if (!trimmedName) {
-              alert("Please give your creature a name first.");
-              return;
-            }
-            // Pull latest blocks from the canvas in case the user edited it.
-            const liveSpec = canvasHandle.current?.toCreatureSpec() ?? creature;
-            if (liveSpec) {
-              if (editingId) liveSpec.id = editingId;
-              const text = (textareaRef.current?.value ?? journalText).trim();
-              uploadCreature({
-                ...liveSpec,
-                name: trimmedName,
-                journalText: text,
-                dateISO: toISO(selectedDate),
-                source: "manually",
-              });
-            }
+            void deleteCreatureById(editingId);
             router.push("/");
             return;
           }
@@ -413,7 +411,7 @@ function CreateManuallyPageInner() {
           className="absolute m-0 text-center text-[24px] font-bold leading-[normal] text-black"
           style={{ inset: "12.2% 0 0 0" }}
         >
-          {editingId ? "Done" : "Delete"}
+          Delete
         </p>
       </button>
 
