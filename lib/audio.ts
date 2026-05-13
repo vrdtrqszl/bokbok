@@ -663,21 +663,22 @@ export function playTypingTick(): void {
 }
 
 // ---- Droplet tick (mouse-move) ---------------------------------------
-// Mystical water droplet played as the cursor wanders across the page.
-// Same family as the typing tick (sine + downward pitch glide = water
-// drop) but distinct on every dimension so the two don't read as the
-// same sound when they overlap:
+// Bouncy mystical droplet played as the cursor wanders across the page.
+// The previous version was pure sine with a long reverb tail — that
+// read as "electric piano" rather than the percussive 통통튀는 feel the
+// user wanted. The new recipe:
 //
-//                  Typing tick                Mouse droplet
-//   Output         alwaysOnGain               masterGain (mute-respecting)
-//   Pitch range    D5–C7 (bright)             G4–F6 (mid, deeper)
-//   Glide          ×1.35 → ×1 in 70 ms        ×1.25 → ×1 in 100 ms
-//   Attack         4 ms (snappy)              12 ms (soft)
-//   Decay          ~180 ms                    ~450 ms (long mystical tail)
-//   Filter cutoff  static pitch × 4.5         sweeps pitch × 3.5 → × 1.4
-//   Octave shimmer none                       +18 % sine an octave up
-//   Reverb send    none                       0.5 (heavy — that's the
-//                                              "drifting in space" feel)
+//   • Triangle wave (slightly richer harmonics than sine = tactile bonk)
+//   • Pitch DIPS then REBOUNDS (×1.15 → ×0.95 → ×1.0 over 75 ms) — the
+//     tiny rebound at the end is what makes it sound like a bounce
+//     rather than a single downward drop
+//   • Resonant bandpass (Q ≈ 3) just above target pitch → "boing"
+//   • Snappy 4 ms attack, ~150 ms decay (cut from 450 ms)
+//   • Light reverb send (0.18, was 0.5) — enough air to feel mystical
+//     without burying the bounce in tail
+//
+// Routed through masterGain so the global Sound Off toggle silences
+// it like the rest of the ambient audio.
 //
 // Caller passes an optional pitchIndex 0..9 (mapped from cursor Y by
 // MouseSounds — top of viewport = high, bottom = low). Without an
@@ -705,56 +706,48 @@ export function playDropletTick(pitchIndex?: number): void {
   // ±15 cent jitter — matches the typing tick's organic feel.
   const pitch = note * Math.pow(2, ((Math.random() - 0.5) * 30) / 1200);
 
-  // Body — pure sine with a downward pitch glide. Gentler than the
-  // typing tick's 1.35× start so the drop reads as "soft landing"
-  // rather than "snappy plip".
+  // Triangle wave for body — slightly richer harmonics than sine give
+  // the note a tactile "bonk" rather than the clean-piano sine tone the
+  // previous version had. Pitch follows a dip-and-rebound curve (1.15×
+  // → 0.95× → 1.0× over 75 ms) — the tiny rebound at the end is what
+  // sells the "bouncing" feel rather than a single downward fall.
   const osc = c.createOscillator();
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(pitch * 1.25, now);
-  osc.frequency.exponentialRampToValueAtTime(pitch, now + 0.1);
+  osc.type = "triangle";
+  osc.frequency.setValueAtTime(pitch * 1.15, now);
+  osc.frequency.linearRampToValueAtTime(pitch * 0.95, now + 0.03);
+  osc.frequency.linearRampToValueAtTime(pitch * 1.0, now + 0.075);
 
-  // Octave shimmer — a faint sine an octave up at 18% mix gives the
-  // "mystical halo" feel without breaking the water-drop character.
-  const oscShimmer = c.createOscillator();
-  oscShimmer.type = "sine";
-  oscShimmer.frequency.setValueAtTime(pitch * 2.5, now);
-  oscShimmer.frequency.exponentialRampToValueAtTime(pitch * 2, now + 0.12);
-  const shimmerMix = c.createGain();
-  shimmerMix.gain.value = 0.18;
-
-  // Lowpass that closes through the decay → the brightness fades as
-  // the note settles, like a ripple spreading and dampening.
+  // Resonant bandpass just above target → the "boing" overtone that
+  // makes a bounce sound like a bounce. Q ~ 3 is enough to colour
+  // without ringing into kettle-drum territory.
   const filt = c.createBiquadFilter();
-  filt.type = "lowpass";
-  filt.frequency.setValueAtTime(pitch * 3.5, now);
-  filt.frequency.exponentialRampToValueAtTime(pitch * 1.4, now + 0.4);
-  filt.Q.value = 0.7;
+  filt.type = "bandpass";
+  filt.frequency.setValueAtTime(pitch * 1.7, now);
+  filt.frequency.exponentialRampToValueAtTime(pitch * 1.1, now + 0.12);
+  filt.Q.value = 3.0;
 
-  // Soft attack into a long exponential decay. Peak ~0.045 stays
-  // under the creature audio without disappearing.
-  const peakAmp = 0.04 + Math.random() * 0.018;
+  // Snappy attack into a short exponential decay — total ~150 ms.
+  // The previous 450 ms tail + heavy reverb was what made it feel
+  // sustained-piano-like; cutting both is the main move toward 통통.
+  const peakAmp = 0.055 + Math.random() * 0.02;
   const env = c.createGain();
   env.gain.setValueAtTime(0, now);
-  env.gain.linearRampToValueAtTime(peakAmp, now + 0.012);
-  env.gain.exponentialRampToValueAtTime(0.0008, now + 0.45);
+  env.gain.linearRampToValueAtTime(peakAmp, now + 0.004);
+  env.gain.exponentialRampToValueAtTime(0.0008, now + 0.16);
 
   osc.connect(filt);
-  oscShimmer.connect(shimmerMix);
-  shimmerMix.connect(filt);
   filt.connect(env);
   env.connect(masterGain);
 
-  // Heavy reverb send — this is the "drifting / mystical" tail that
-  // most differentiates the mouse droplet from the bone-dry typing tick.
+  // Light reverb send — just enough air to feel mystical without
+  // burying the bounce in tail.
   if (reverbInput) {
     const send = c.createGain();
-    send.gain.value = 0.5;
+    send.gain.value = 0.18;
     env.connect(send);
     send.connect(reverbInput);
   }
 
   osc.start(now);
-  osc.stop(now + 0.5);
-  oscShimmer.start(now);
-  oscShimmer.stop(now + 0.5);
+  osc.stop(now + 0.2);
 }
