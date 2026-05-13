@@ -19,15 +19,20 @@ const LANGS: ReadonlyArray<{
   key: Lang;
   // Page-absolute X of the text frame (each frame is 33 × 15 in Figma).
   textX: number;
-  // Page-absolute X / width of the highlight stroke for this language.
+  // Per-language highlight stroke. Position + size derived from the
+  // Figma path bbox (hlX / hlW) plus the stroke-width=12 in viewBox
+  // space — the IMG has to be tall enough to render the full thick
+  // stroke (not just the 2-px-tall path bbox). top/height are picked so
+  // the visual centre stays at y=886 to match Figma.
   hlX: number;
   hlW: number;
-  // Asset path under public/.
+  hlTop: number;
+  hlH: number;
   hlSrc: string;
 }> = [
-  { key: "ENG", textX: 41,  hlX: 43,  hlW: 28,    hlSrc: "/assets/lang-highlight-eng.svg" },
-  { key: "ESP", textX: 77,  hlX: 82,  hlW: 23.52, hlSrc: "/assets/lang-highlight-esp.svg" },
-  { key: "KOR", textX: 111, hlX: 115, hlW: 26.03, hlSrc: "/assets/lang-highlight-kor.svg" },
+  { key: "ENG", textX: 41,  hlX: 43,  hlW: 28,    hlTop: 879, hlH: 14, hlSrc: "/assets/lang-highlight-eng.svg" },
+  { key: "ESP", textX: 77,  hlX: 82,  hlW: 23.52, hlTop: 880, hlH: 12, hlSrc: "/assets/lang-highlight-esp.svg" },
+  { key: "KOR", textX: 111, hlX: 115, hlW: 26.03, hlTop: 880, hlH: 12, hlSrc: "/assets/lang-highlight-kor.svg" },
 ];
 
 // Slash separators between adjacent language labels. Each SVG is a
@@ -118,26 +123,24 @@ export default function LanguageButton() {
 
       {/* Per-language highlight stroke — only the active one renders.
           Each SVG has its own default stroke colour baked in (ENG=blue,
-          ESP=yellow, KOR=red), so we just swap the src by selection.
-          A small vertical bbox is fine because the actual stroke
-          inside the SVG renders well beyond the bbox (overflow:visible
-          + non-uniform aspect ratio). */}
-      {LANGS.filter((l) => l.key === lang).map(({ key, hlX, hlW, hlSrc }) => (
+          ESP=yellow, KOR=red). The IMG box must be tall enough for the
+          12-unit-thick viewBox stroke to render — clipping it to the
+          path's 2-px bbox (what the Figma node reports) makes the
+          highlight visually disappear. Width matches the bbox; height
+          is picked to roughly preserve the viewBox aspect; top is set
+          so the stroke's visual centre stays at y≈886 (= 885 + 1 from
+          the Figma bbox). */}
+      {LANGS.filter((l) => l.key === lang).map(({ key, hlX, hlW, hlTop, hlH, hlSrc }) => (
         <img
           key={key}
           alt=""
           src={hlSrc}
-          className="pointer-events-none absolute z-[10] block"
+          className="pointer-events-none absolute z-[10] block max-w-none"
           style={{
             left: `${hlX}px`,
-            top: "885px",
+            top: `${hlTop}px`,
             width: `${hlW}px`,
-            // Stroke is 12 px thick in viewBox space; the wrapper just
-            // needs to be wide enough to stretch the path horizontally,
-            // and tall enough for the stroke to render (overflow:visible
-            // on the SVG itself lets the thick stroke spill outside).
-            height: "2px",
-            overflow: "visible",
+            height: `${hlH}px`,
           }}
           draggable={false}
         />
