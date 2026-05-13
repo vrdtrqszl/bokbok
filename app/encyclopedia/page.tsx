@@ -219,17 +219,25 @@ export default function BokBokpediaPage() {
                   className="pointer-events-none absolute left-1/2 bottom-[6px] inline-flex h-[28px] -translate-x-1/2 items-center justify-center max-w-[195px]"
                 >
                   {isSelected && (
-                    <img
-                      alt=""
-                      src="/assets/name-highlight.svg"
-                      // Extend 4 px past each text edge so the hand-drawn
-                      // stroke looks like a swipe, not a tight crop. Height
-                      // ≈ font-size so the bar covers the lower-middle of
-                      // the glyphs without engulfing them. preserveAspect-
-                      // Ratio="none" inside the SVG handles the horizontal
-                      // stretch as the text width changes.
-                      className="pointer-events-none absolute left-[-4px] right-[-4px] top-1/2 block h-[20px] w-auto -translate-y-1/2 max-w-none"
-                    />
+                    // Positioning wrapper sized to (text + 4 px overhang
+                    // on each side) so the highlight visually extends a
+                    // hair past the glyphs like a hand-drawn marker
+                    // swipe. The <img> inside fills the wrapper exactly
+                    // via size-full, which is reliable across browsers;
+                    // setting both `left`/`right` directly on the img
+                    // with `w-auto` triggered different fallback widths
+                    // (the SVG declares width="100%" with no intrinsic
+                    // px size, so some engines defaulted to the 300 px
+                    // replaced-element width — the highlight bled into
+                    // the next tile).
+                    <div className="pointer-events-none absolute left-[-4px] right-[-4px] top-1/2 h-[20px] -translate-y-1/2">
+                      <img
+                        alt=""
+                        src="/assets/name-highlight.svg"
+                        className="block size-full"
+                        draggable={false}
+                      />
+                    </div>
                   )}
                   <span className="relative truncate whitespace-nowrap text-center text-[20px] font-normal leading-[normal] text-black font-(family-name:--font-casual)">
                     {c.name ?? "Creature"}
