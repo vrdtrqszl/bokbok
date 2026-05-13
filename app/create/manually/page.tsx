@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { EMOTION_LIST } from "@/lib/emotions";
 import { uploadCreature, findCreatureById, deleteCreatureById } from "@/lib/ecosystem";
 import { playCreatureGiggle } from "@/lib/audio";
+import { useT, emotionName, useLanguage } from "@/lib/i18n";
 import { emotionByKey, randomCreatureName, type CreatureSpec } from "@/lib/creature";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import ManualCanvas, { type ManualCanvasHandle } from "@/app/_components/ManualCanvas";
@@ -34,6 +35,8 @@ export default function CreateManuallyPage() {
 
 function CreateManuallyPageInner() {
   const router = useRouter();
+  const t = useT();
+  const lang = useLanguage();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
 
@@ -90,7 +93,7 @@ function CreateManuallyPageInner() {
   const handleGenerate = () => {
     const spec = canvasHandle.current?.toCreatureSpec();
     if (!spec) {
-      alert("Please add at least one block to the canvas first.");
+      alert(t("create.alert_add_block"));
       return;
     }
     // Preserve id when editing so the upload replaces in place.
@@ -103,7 +106,7 @@ function CreateManuallyPageInner() {
   const handleUpload = () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      alert("Please give your creature a name first.");
+      alert(t("create.alert_creature_name"));
       return;
     }
     // One-click flow: if the user hasn't clicked Generate yet, build the
@@ -112,7 +115,7 @@ function CreateManuallyPageInner() {
     if (!toUpload) {
       const spec = canvasHandle.current?.toCreatureSpec();
       if (!spec) {
-        alert("Please add at least one block to the canvas first.");
+        alert(t("create.alert_add_block"));
         return;
       }
       if (editingId) spec.id = editingId;
@@ -178,19 +181,19 @@ function CreateManuallyPageInner() {
         />
       </div>
       <span className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 text-center text-[24px] font-bold text-black">
-        Create
+        {t("nav.create")}
       </span>
       <Link
         href="/calender"
         className="absolute left-[190.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        Calendar
+        {t("nav.calendar")}
       </Link>
       <Link
         href="/encyclopedia"
         className="absolute left-[330.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        BokBokpedia
+        {t("nav.encyclopedia")}
       </Link>
 
       {/* Energy Blocks (Figma 2109:248) — at x=418, y=54, w=151. */}
@@ -198,7 +201,7 @@ function CreateManuallyPageInner() {
         href="/energy-blocks"
         className="absolute left-[493.5px] top-[54px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        Energy Blocks
+        {t("nav.energy_blocks")}
       </Link>
 
       {/* About (Figma 2109:250) — at x=581, y=54, w=76. */}
@@ -206,7 +209,7 @@ function CreateManuallyPageInner() {
         href="/about"
         className="absolute left-[619px] top-[54px] block h-[36px] w-[76px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        About
+        {t("nav.about")}
       </Link>
 
       {/* Sub-nav: Generate | Manually (Manually active) */}
@@ -231,14 +234,14 @@ function CreateManuallyPageInner() {
           className="absolute flex cursor-pointer flex-col justify-center text-center text-[24px] font-bold leading-none text-black"
           style={{ inset: "-2.63% 43.94% 7.89% -7.49%" }}
         >
-          Generate
+          {t("create.generate")}
         </Link>
         <Link
           href="/create/manually"
           className="absolute flex cursor-pointer flex-col justify-center text-center text-[24px] font-bold leading-none text-black"
           style={{ inset: "-2.63% -6.28% 7.89% 42.73%" }}
         >
-          Manually
+          {t("create.manually")}
         </Link>
       </div>
 
@@ -341,7 +344,7 @@ function CreateManuallyPageInner() {
           ref={textareaRef}
           value={journalText}
           onChange={(e) => setJournalText(e.target.value)}
-          placeholder="What happened today? Describe events and feelings…"
+          placeholder={t("create.placeholder_journal")}
           spellCheck={false}
           className="absolute left-[7px] top-[10px] block h-[473px] w-[289px] resize-none overflow-y-auto bg-transparent text-[20px] font-bold leading-normal text-black outline-none placeholder:text-black/40 font-(family-name:--font-casual)"
         />
@@ -361,7 +364,7 @@ function CreateManuallyPageInner() {
           className="absolute inset-0 block size-full"
         />
         <span className="absolute inset-0 flex items-center justify-center text-[24px] font-bold leading-none text-black">
-          Generate
+          {t("create.generate")}
         </span>
       </button>
 
@@ -383,7 +386,7 @@ function CreateManuallyPageInner() {
             className="absolute inset-0 block size-full"
           />
           <span className="absolute inset-0 flex items-center justify-center text-[20px] font-bold leading-none text-black">
-            Cancel
+            {t("create.cancel")}
           </span>
         </button>
       )}
@@ -413,7 +416,7 @@ function CreateManuallyPageInner() {
           className="absolute m-0 text-center text-[24px] font-bold leading-[normal] text-black"
           style={{ inset: "12.2% 0 0 0" }}
         >
-          Delete
+          {t("create.delete")}
         </p>
       </button>
 
@@ -434,7 +437,7 @@ function CreateManuallyPageInner() {
               className="absolute flex items-center justify-center text-center text-[24px] font-bold leading-[normal] text-black"
               style={{ inset: "-3.7% 0.88% -7.41% 0.88%" }}
             >
-              Uploaded
+              {t("create.uploaded")}
             </span>
           </button>
           {/* Go to Ecosystem (Figma 2130:299) — appears once uploaded. Sends
@@ -446,11 +449,11 @@ function CreateManuallyPageInner() {
               if (!creature?.id) return;
               router.push(`/?focus=${encodeURIComponent(creature.id)}`);
             }}
-            title="Go to ecosystem"
+            title={t("create.go_to_ecosystem")}
             className="absolute left-[1277px] top-[436px] block h-[23px] w-[22px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:scale-110 active:scale-95"
           >
             <img
-              alt="Go to ecosystem"
+              alt={t("create.go_to_ecosystem")}
               src="/assets/go-to-ecosystem.svg"
               className="block size-full"
               style={{ transform: "scale(1.045)", transformOrigin: "center" }}
@@ -478,7 +481,7 @@ function CreateManuallyPageInner() {
             className="absolute flex items-center justify-center text-center text-[24px] font-bold leading-[normal] text-black"
             style={{ inset: "-3.7% 0.88% -7.41% 0.88%" }}
           >
-            Upload to Ecosystem
+            {t("create.upload")}
           </span>
         </button>
       )}
@@ -498,7 +501,7 @@ function CreateManuallyPageInner() {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Name"
+          placeholder={t("create.placeholder_name")}
           className="pointer-events-auto absolute left-1/2 top-[8px] z-[5] block h-[40px] w-[300px] -translate-x-1/2 bg-transparent text-center text-[28px] leading-normal text-black outline-none placeholder:text-black/30 font-(family-name:--font-fancy)"
         />
         {/* Creature canvas — pushed below the name input. scroll-fade
@@ -538,7 +541,7 @@ function CreateManuallyPageInner() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search…"
+            placeholder={t("create.placeholder_search_blocks")}
             className="absolute inset-0 bg-transparent pl-[32px] pr-[10px] text-[14px] font-bold text-black outline-none placeholder:text-black/35 font-(family-name:--font-casual)"
           />
         </div>
@@ -582,12 +585,12 @@ function CreateManuallyPageInner() {
                 >
                   <img
                     src={emotion.imagePath}
-                    alt={emotion.displayName}
+                    alt={emotionName(emotion.key, lang)}
                     className="h-[52px] w-[52px] select-none object-contain"
                     draggable={false}
                   />
                   <span className="w-full text-center text-[10px] font-bold leading-tight text-black">
-                    {emotion.displayName}
+                    {emotionName(emotion.key, lang)}
                   </span>
                 </div>
               ))}
@@ -598,7 +601,7 @@ function CreateManuallyPageInner() {
         {/* Creature info — shown below blocks when creature exists */}
         {creature && (
           <div className="absolute inset-x-[10px] bottom-[8px] flex items-center gap-[6px] overflow-x-auto">
-            {creature.emotions.map(({ key, displayName }) => {
+            {creature.emotions.map(({ key }) => {
               const e = emotionByKey(key);
               return (
                 <div key={key} className="flex flex-none flex-col items-center gap-[2px]">
@@ -607,7 +610,7 @@ function CreateManuallyPageInner() {
                     src={e?.imagePath}
                     className="h-[20px] w-[20px] rounded-full object-cover"
                   />
-                  <span className="text-[9px] font-bold text-black/70">{displayName}</span>
+                  <span className="text-[9px] font-bold text-black/70">{emotionName(key, lang)}</span>
                 </div>
               );
             })}

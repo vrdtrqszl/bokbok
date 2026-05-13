@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLanguage, setLang, type Lang } from "@/lib/i18n";
 
 // Language picker (Figma 2242:1455). Three labels — ENG / ESP / KOR —
 // stacked horizontally with a hand-drawn slash between each pair. The
@@ -8,12 +8,9 @@ import { useEffect, useState } from "react";
 // it (each language has its OWN highlight SVG with its OWN default
 // stroke colour: ENG → blue, ESP → yellow, KOR → red).
 //
-// Selection is persisted in localStorage so the choice survives reloads.
-// The actual page-text translation isn't wired yet — this commit just
-// adds the picker UI per the Figma design.
-
-const LANG_STORAGE_KEY = "bokbok:language";
-type Lang = "ENG" | "ESP" | "KOR";
+// Selection is persisted in localStorage (lib/i18n owns the key) and
+// dispatches a global event so every useLanguage()-bound component
+// re-renders with the new dictionary.
 
 const LANGS: ReadonlyArray<{
   key: Lang;
@@ -49,28 +46,8 @@ const SLASHES: ReadonlyArray<{
 ];
 
 export default function LanguageButton() {
-  const [lang, setLang] = useState<Lang>("ENG");
-
-  // Hydrate from localStorage on mount (SSR returns default).
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(LANG_STORAGE_KEY);
-      if (stored === "ENG" || stored === "ESP" || stored === "KOR") {
-        setLang(stored);
-      }
-    } catch {
-      // Storage failures (private mode etc.) — fall back to default ENG.
-    }
-  }, []);
-
-  const pick = (next: Lang) => {
-    setLang(next);
-    try {
-      window.localStorage.setItem(LANG_STORAGE_KEY, next);
-    } catch {
-      // Same — in-memory state still works without persistence.
-    }
-  };
+  const lang = useLanguage();
+  const pick = (next: Lang) => setLang(next);
 
   return (
     <>

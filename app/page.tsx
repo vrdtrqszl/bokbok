@@ -7,6 +7,7 @@ import MainViewport, { type FocusTarget, type ResetTrigger } from "./_components
 import CandyButton from "./_components/CandyButton";
 import LanguageButton from "./_components/LanguageButton";
 import { creaturePositions } from "./_components/EcosystemCreatures";
+import { useT } from "@/lib/i18n";
 import { deleteCreatureById, loadEcosystem, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { creatureFocusBox, emotionByKey, type CreatureSpec } from "@/lib/creature";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
@@ -15,6 +16,7 @@ import { ambientChatter } from "@/lib/ambientChatter";
 
 export default function MainPage() {
   const router = useRouter();
+  const t = useT();
   const [selected, setSelected] = useState<CreatureSpec | null>(null);
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
   const [resetTrigger, setResetTrigger] = useState<ResetTrigger | null>(null);
@@ -261,19 +263,19 @@ export default function MainPage() {
             href="/create"
             className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
           >
-            Create
+            {t("nav.create")}
           </Link>
           <Link
             href="/calender"
             className="absolute left-[190.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
           >
-            Calendar
+            {t("nav.calendar")}
           </Link>
           <Link
             href="/encyclopedia"
             className="absolute left-[330.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
           >
-            BokBokpedia
+            {t("nav.encyclopedia")}
           </Link>
 
           {/* Energy Blocks (Figma 2109:248) — at x=418, y=54, w=151. */}
@@ -281,7 +283,7 @@ export default function MainPage() {
             href="/energy-blocks"
             className="absolute left-[493.5px] top-[54px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
           >
-            Energy Blocks
+            {t("nav.energy_blocks")}
           </Link>
 
           {/* About (Figma 2109:250) — at x=581, y=54, w=76. */}
@@ -289,7 +291,7 @@ export default function MainPage() {
             href="/about"
             className="absolute left-[619px] top-[54px] block h-[36px] w-[76px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
           >
-            About
+            {t("nav.about")}
           </Link>
 
           {/* Enter fullscreen (Figma 2114:258) — child of the main box, so its
@@ -337,7 +339,7 @@ export default function MainPage() {
               className="absolute flex items-center justify-center text-center text-[24px] font-bold leading-[normal] text-black"
               style={{ inset: "40.24% 3.83% 21.04% 5.15%" }}
             >
-              BokBok
+              {t("main.bokbok_button")}
             </span>
           </button>
 
@@ -423,11 +425,9 @@ export default function MainPage() {
             </div>
           ) : (
             <div className="flex h-full w-full items-center justify-center text-center text-[14px] leading-relaxed text-black/40">
-              Click a creature in the
+              {t("panel.click_creature")}
               <br />
-              ecosystem to see its
-              <br />
-              energy blocks
+              {t("panel.bokbokpedia_to_view")}
             </div>
           )}
         </div>
@@ -453,7 +453,7 @@ export default function MainPage() {
         </div>
 
         <h2 className="absolute left-1/2 top-[15px] -translate-x-1/2 whitespace-nowrap text-center text-[36px] text-black font-(family-name:--font-fancy)">
-          {selected?.name ?? "Name"}
+          {selected?.name ?? t("panel.empty_name")}
         </h2>
         <span className="absolute left-1/2 top-[57px] -translate-x-1/2 text-center text-[18px] font-bold text-black">
           {selected?.dateISO ?? "—"}
@@ -471,13 +471,12 @@ export default function MainPage() {
                 ))
               ) : (
                 <p className="text-black/50">
-                  No journal entry — this creature was made in the manual
-                  studio.
+                  {t("panel.no_journal_manual")}
                 </p>
               )
             ) : (
               <p className="text-black/40">
-                Pick a creature from the ecosystem to read its journal entry.
+                {t("panel.pick_from_bokbokpedia")}
               </p>
             )}
           </div>

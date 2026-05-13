@@ -7,6 +7,7 @@ import { extractEmotions } from "@/lib/emotions";
 import { generateCreature, emotionByKey, randomCreatureName, type CreatureSpec } from "@/lib/creature";
 import { uploadCreature, findCreatureById, deleteCreatureById } from "@/lib/ecosystem";
 import { playCreatureGiggle } from "@/lib/audio";
+import { useT } from "@/lib/i18n";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import DatePicker from "@/app/_components/DatePicker";
 
@@ -35,6 +36,7 @@ export default function CreatePage() {
 
 function CreatePageInner() {
   const router = useRouter();
+  const t = useT();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
 
@@ -84,7 +86,7 @@ function CreatePageInner() {
   const handleGenerate = () => {
     const text = currentJournalText();
     if (!text) {
-      alert("Please write your journal entry first.");
+      alert(t("create.alert_write_journal"));
       return;
     }
     const scores = extractEmotions(text, 3);
@@ -102,7 +104,7 @@ function CreatePageInner() {
   const handleUpload = () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      alert("Please give your creature a name first.");
+      alert(t("create.alert_creature_name"));
       return;
     }
     const text = currentJournalText();
@@ -111,7 +113,7 @@ function CreatePageInner() {
     let toUpload = creature;
     if (!toUpload) {
       if (!text) {
-        alert("Please write your journal entry first.");
+        alert(t("create.alert_write_journal"));
         return;
       }
       const scores = extractEmotions(text, 3);
@@ -160,19 +162,19 @@ function CreatePageInner() {
         />
       </div>
       <span className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 text-center text-[24px] font-bold text-black">
-        Create
+        {t("nav.create")}
       </span>
       <Link
         href="/calender"
         className="absolute left-[190.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        Calendar
+        {t("nav.calendar")}
       </Link>
       <Link
         href="/encyclopedia"
         className="absolute left-[330.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        BokBokpedia
+        {t("nav.encyclopedia")}
       </Link>
 
       {/* Energy Blocks (Figma 2109:248) — at x=418, y=54, w=151. */}
@@ -180,7 +182,7 @@ function CreatePageInner() {
         href="/energy-blocks"
         className="absolute left-[493.5px] top-[54px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        Energy Blocks
+        {t("nav.energy_blocks")}
       </Link>
 
       {/* About (Figma 2109:250) — at x=581, y=54, w=76. */}
@@ -188,7 +190,7 @@ function CreatePageInner() {
         href="/about"
         className="absolute left-[619px] top-[54px] block h-[36px] w-[76px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        About
+        {t("nav.about")}
       </Link>
 
       {/* Sub-nav: Generate | Manually */}
@@ -213,14 +215,14 @@ function CreatePageInner() {
           className="absolute flex cursor-pointer flex-col justify-center text-center text-[24px] font-bold leading-none text-black"
           style={{ inset: "-2.63% 43.94% 7.89% -7.49%" }}
         >
-          Generate
+          {t("create.generate")}
         </Link>
         <Link
           href="/create/manually"
           className="absolute flex cursor-pointer flex-col justify-center text-center text-[24px] font-bold leading-none text-black"
           style={{ inset: "-2.63% -6.28% 7.89% 42.73%" }}
         >
-          Manually
+          {t("create.manually")}
         </Link>
       </div>
 
@@ -292,7 +294,7 @@ function CreatePageInner() {
         ref={textareaRef}
         value={journalText}
         onChange={(e) => setJournalText(e.target.value)}
-        placeholder="What happened today? Describe events and feelings…"
+        placeholder={t("create.placeholder_journal")}
         spellCheck={false}
         className="absolute left-[272px] top-[297px] block h-[371px] w-[482px] resize-none overflow-y-auto bg-transparent text-[20px] font-bold leading-normal text-black outline-none placeholder:text-black/40 font-(family-name:--font-casual)"
       />
@@ -309,7 +311,7 @@ function CreatePageInner() {
           className="absolute inset-0 block size-full"
         />
         <span className="absolute inset-0 flex items-center justify-center text-[24px] font-bold leading-none text-black">
-          Generate
+          {t("create.generate")}
         </span>
       </button>
 
@@ -331,7 +333,7 @@ function CreatePageInner() {
             className="absolute inset-0 block size-full"
           />
           <span className="absolute inset-0 flex items-center justify-center text-[20px] font-bold leading-none text-black">
-            Cancel
+            {t("create.cancel")}
           </span>
         </button>
       )}
@@ -376,7 +378,7 @@ function CreatePageInner() {
           className="absolute m-0 text-center text-[24px] font-bold leading-[normal] text-black"
           style={{ inset: "12.2% 0 0 0" }}
         >
-          Delete
+          {t("create.delete")}
         </p>
       </button>
 
@@ -398,7 +400,7 @@ function CreatePageInner() {
               className="absolute flex items-center justify-center text-center text-[24px] font-bold leading-[normal] text-black"
               style={{ inset: "-3.7% 0.88% -7.41% 0.88%" }}
             >
-              Uploaded
+              {t("create.uploaded")}
             </span>
           </button>
           {/* Go to Ecosystem (Figma 2130:299) — appears once uploaded. Sends
@@ -410,11 +412,11 @@ function CreatePageInner() {
               if (!creature?.id) return;
               router.push(`/?focus=${encodeURIComponent(creature.id)}`);
             }}
-            title="Go to ecosystem"
+            title={t("create.go_to_ecosystem")}
             className="absolute left-[1277px] top-[436px] block h-[23px] w-[22px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:scale-110 active:scale-95"
           >
             <img
-              alt="Go to ecosystem"
+              alt={t("create.go_to_ecosystem")}
               src="/assets/go-to-ecosystem.svg"
               className="block size-full"
               style={{ transform: "scale(1.045)", transformOrigin: "center" }}
@@ -442,7 +444,7 @@ function CreatePageInner() {
             className="absolute flex items-center justify-center text-center text-[24px] font-bold leading-[normal] text-black"
             style={{ inset: "-3.7% 0.88% -7.41% 0.88%" }}
           >
-            Upload to Ecosystem
+            {t("create.upload")}
           </span>
         </button>
       )}
@@ -487,7 +489,7 @@ function CreatePageInner() {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Name"
+          placeholder={t("create.placeholder_name")}
           className="absolute left-1/2 top-[15px] block h-[44px] w-[300px] -translate-x-1/2 bg-transparent text-center text-[36px] leading-normal text-black outline-none placeholder:text-black/35 font-(family-name:--font-fancy)"
         />
         <span className="absolute left-1/2 top-[57px] -translate-x-1/2 text-center text-[18px] font-bold text-black">

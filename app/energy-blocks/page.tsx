@@ -21,6 +21,7 @@ import {
 } from "@/lib/emotions";
 import { playEnergyBlock } from "@/lib/audio";
 import { nameHighlightDataUrl } from "@/lib/nameHighlight";
+import { useT, emotionName, useLanguage } from "@/lib/i18n";
 
 // Random shuffle (Fisher–Yates) followed by a greedy pass that swaps tiles
 // around so no two adjacent grid cells (left or directly above) share the
@@ -72,6 +73,8 @@ const PAD_RIGHT = 18;        // 974.69 − (33 + 162×5 + 28×4) ≈ 18
 const PAD_BOTTOM = 30;       // breathing room at the bottom of the scroll
 
 export default function EnergyBlocksPage() {
+  const t = useT();
+  const lang = useLanguage();
   // null = nothing selected yet — both right-hand panels start empty and
   // only populate once the user clicks a tile.
   const [selectedKey, setSelectedKey] = useState<EmotionKey | null>(null);
@@ -105,19 +108,19 @@ export default function EnergyBlocksPage() {
         href="/create"
         className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        Create
+        {t("nav.create")}
       </Link>
       <Link
         href="/calender"
         className="absolute left-[190.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        Calendar
+        {t("nav.calendar")}
       </Link>
       <Link
         href="/encyclopedia"
         className="absolute left-[330.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        BokBokpedia
+        {t("nav.encyclopedia")}
       </Link>
 
       {/* Active tab indicator behind Energy Blocks (Figma 2122:125 → 2129:230
@@ -131,7 +134,7 @@ export default function EnergyBlocksPage() {
         />
       </div>
       <span className="absolute left-[493.5px] top-[54px] block h-[36px] w-[151px] -translate-x-1/2 text-center text-[24px] font-bold text-black">
-        Energy Blocks
+        {t("nav.energy_blocks")}
       </span>
 
       {/* About (Figma 2109:250) — at x=581, y=54, w=76. */}
@@ -139,7 +142,7 @@ export default function EnergyBlocksPage() {
         href="/about"
         className="absolute left-[619px] top-[54px] block h-[36px] w-[76px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        About
+        {t("nav.about")}
       </Link>
 
       {/* Main wavy frame (Figma 2102:185) — same asset as Calendar/BokBokpedia. */}
@@ -191,7 +194,7 @@ export default function EnergyBlocksPage() {
               style={{ width: `${TILE_SIZE}px`, height: `${TILE_HEIGHT}px` }}
             >
               <img
-                alt={emotion.displayName}
+                alt={emotionName(emotion.key, lang)}
                 src={emotion.imagePath}
                 className="pointer-events-none absolute left-0 top-0 block object-contain"
                 style={{ width: `${TILE_SIZE}px`, height: `${TILE_SIZE}px` }}
@@ -220,7 +223,7 @@ export default function EnergyBlocksPage() {
                       : undefined
                   }
                 >
-                  {emotion.displayName}
+                  {emotionName(emotion.key, lang)}
                 </span>
               </span>
             </button>
@@ -242,7 +245,7 @@ export default function EnergyBlocksPage() {
             {/* Selected energy block PNG, sized + centered to roughly match
                 the Figma reference (left 14.13%, right 15.72%). */}
             <img
-              alt={selected.displayName}
+              alt={emotionName(selected.key, lang)}
               src={selected.imagePath}
               className="absolute object-contain"
               style={{
@@ -258,16 +261,16 @@ export default function EnergyBlocksPage() {
               className="absolute left-0 right-0 block text-center text-[24px] font-bold leading-[normal] text-black"
               style={{ top: `${386.37 * 0.8903}px` }}
             >
-              {selected.displayName}
+              {emotionName(selected.key, lang)}
             </span>
           </>
         ) : (
           /* Empty-state hint — same styling as the Calendar / BokBokpedia
              pages so the three viewfinders read as a family. */
           <div className="absolute inset-0 flex items-center justify-center text-center text-[14px] leading-relaxed text-black/40">
-            Click an energy block in the
+            {t("eb.empty_viewfinder_line1")}
             <br />
-            gallery to view it
+            {t("eb.empty_viewfinder_line2")}
           </div>
         )}
       </div>
@@ -300,9 +303,9 @@ export default function EnergyBlocksPage() {
         ) : (
           /* Empty-state hint — pairs with the viewfinder hint above. */
           <div className="absolute inset-0 flex items-center justify-center px-[39px] text-center text-[14px] leading-relaxed text-black/40">
-            Each block holds a feeling.
+            {t("eb.info_intro_line1")}
             <br />
-            Click one to read about it.
+            {t("eb.info_intro_line2")}
           </div>
         )}
       </div>

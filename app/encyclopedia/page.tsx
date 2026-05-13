@@ -7,6 +7,7 @@ import { loadEcosystem, deleteCreatureById, matchesCreatureQuery, subscribeRemot
 import { downloadCreaturePng } from "@/lib/downloadCreature";
 import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
 import { nameHighlightDataUrl, creatureHighlightColor } from "@/lib/nameHighlight";
+import { useT } from "@/lib/i18n";
 import type { CreatureSpec } from "@/lib/creature";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
@@ -14,6 +15,7 @@ import ViewportZoomControls from "@/app/_components/ViewportZoomControls";
 
 export default function BokBokpediaPage() {
   const router = useRouter();
+  const t = useT();
   const [creatures, setCreatures] = useState<CreatureSpec[]>([]);
   const [selected, setSelected] = useState<CreatureSpec | null>(null);
   const [query, setQuery] = useState("");
@@ -85,13 +87,13 @@ export default function BokBokpediaPage() {
         href="/create"
         className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        Create
+        {t("nav.create")}
       </Link>
       <Link
         href="/calender"
         className="absolute left-[190.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        Calendar
+        {t("nav.calendar")}
       </Link>
 
       {/* Active tab indicator behind BokBokpedia — shifted +3px with the label. */}
@@ -103,7 +105,7 @@ export default function BokBokpediaPage() {
         />
       </div>
       <span className="absolute left-[330.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 text-center text-[24px] font-bold text-black">
-        BokBokpedia
+        {t("nav.encyclopedia")}
       </span>
 
       {/* Energy Blocks (Figma 2109:248) — at x=418, y=54, w=151. */}
@@ -111,7 +113,7 @@ export default function BokBokpediaPage() {
         href="/energy-blocks"
         className="absolute left-[493.5px] top-[54px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        Energy Blocks
+        {t("nav.energy_blocks")}
       </Link>
 
       {/* About (Figma 2109:250) — at x=581, y=54, w=76. */}
@@ -119,7 +121,7 @@ export default function BokBokpediaPage() {
         href="/about"
         className="absolute left-[619px] top-[54px] block h-[36px] w-[76px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
-        About
+        {t("nav.about")}
       </Link>
 
       {/* Search box — filters the encyclopedia grid by name or date. */}
@@ -133,7 +135,7 @@ export default function BokBokpediaPage() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Name or date"
+          placeholder={t("enc.search_placeholder")}
           className="absolute left-[33.3px] top-[9.2px] block h-[28.7px] w-[180px] bg-transparent text-[20px] font-bold text-black outline-none placeholder:text-black/35"
         />
       </div>
@@ -163,14 +165,14 @@ export default function BokBokpediaPage() {
       >
         {creatures.length === 0 ? (
           <div className="col-span-4 mt-12 flex flex-col items-center gap-3 text-center text-[18px] font-bold leading-relaxed text-black/40">
-            <span>No creatures yet.</span>
+            <span>{t("enc.empty_no_creatures")}</span>
             <Link href="/create" className="cursor-pointer text-black/70 underline">
-              Create your first one →
+              {t("enc.empty_create_first")}
             </Link>
           </div>
         ) : filtered.length === 0 ? (
           <div className="col-span-4 mt-12 text-center text-[16px] font-bold text-black/40">
-            No matches for &ldquo;{query}&rdquo;.
+            {t("enc.no_matches")} &ldquo;{query}&rdquo;.
           </div>
         ) : (
           filtered.map((c, i) => {
@@ -269,9 +271,9 @@ export default function BokBokpediaPage() {
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center text-center text-[14px] leading-relaxed text-black/40">
-              Click a creature in the
+              {t("panel.click_creature")}
               <br />
-              BokBokpedia to view it
+              {t("panel.bokbokpedia_to_view")}
             </div>
           )}
         </div>
@@ -299,7 +301,7 @@ export default function BokBokpediaPage() {
         </div>
 
         <h2 className="absolute left-1/2 top-[15px] -translate-x-1/2 whitespace-nowrap text-center text-[36px] text-black font-(family-name:--font-fancy)">
-          {selected?.name ?? "Name"}
+          {selected?.name ?? t("panel.empty_name")}
         </h2>
         <span className="absolute left-1/2 top-[57px] -translate-x-1/2 text-center text-[18px] font-bold text-black">
           {selected?.dateISO ?? "—"}
@@ -316,12 +318,12 @@ export default function BokBokpediaPage() {
                 ))
               ) : (
                 <p className="text-black/50">
-                  No journal entry — this creature was made in the manual studio.
+                  {t("panel.no_journal_manual")}
                 </p>
               )
             ) : (
               <p className="text-black/40">
-                Pick a creature from the encyclopedia to read its journal entry.
+                {t("panel.pick_from_bokbokpedia")}
               </p>
             )}
           </div>
@@ -347,7 +349,7 @@ export default function BokBokpediaPage() {
             className="absolute flex items-center justify-center text-center text-[24px] font-bold leading-[normal] text-black"
             style={{ inset: "-3.7% 0.88% -7.41% 0.88%" }}
           >
-            Download
+            {t("action.download")}
           </span>
         </button>
 
@@ -368,7 +370,7 @@ export default function BokBokpediaPage() {
             className="absolute inset-0 block size-full"
           />
           <span className="absolute inset-0 flex items-center justify-center text-[20px] font-bold leading-none text-black">
-            Edit
+            {t("action.edit")}
           </span>
         </button>
 
@@ -392,7 +394,7 @@ export default function BokBokpediaPage() {
             className="absolute m-0 text-center text-[24px] font-bold leading-[normal] text-black"
             style={{ inset: "12.2% 0 0 0" }}
           >
-            Delete
+            {t("action.delete")}
           </p>
         </button>
       </div>

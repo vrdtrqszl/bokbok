@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
+import { useT } from "@/lib/i18n";
 import type { CreatureSpec } from "@/lib/creature";
 
 type Props = {
@@ -32,6 +33,7 @@ export default function CreatureCanvas({
   const rotatorRef = useRef<HTMLDivElement | null>(null);
   const blockRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [fitScale, setFitScale] = useState(1);
+  const t = useT();
   // Wheel-driven zoom multiplier — multiplies on top of the page-level
   // `zoom` prop (used by the +/− buttons) and the auto fit scale. Scroll
   // up zooms in, scroll down zooms out. Resets to 1 when the displayed
@@ -217,7 +219,7 @@ export default function CreatureCanvas({
         ref={containerRef}
         className={`relative flex h-full w-full items-center justify-center overflow-hidden text-[14px] text-black/40 ${className ?? ""}`}
       >
-        Type below and press Generate
+        {t("create.empty_canvas")}
       </div>
     );
   }
