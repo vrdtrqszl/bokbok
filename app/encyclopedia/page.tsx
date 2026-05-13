@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { loadEcosystem, deleteCreatureById, matchesCreatureQuery, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
+import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
 import type { CreatureSpec } from "@/lib/creature";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
@@ -177,7 +178,15 @@ export default function BokBokpediaPage() {
               <button
                 key={c.id}
                 type="button"
-                onClick={() => setSelected(c)}
+                onClick={() => {
+                  // Play the creature's giggle on click — same audio
+                  // signature it gets when first generated on the
+                  // Create page. unlockAudio() handles autoplay-policy
+                  // contexts that haven't had a user gesture yet.
+                  unlockAudio();
+                  playCreatureGiggle(c.blocks);
+                  setSelected(c);
+                }}
                 className="relative h-[213.27px] w-[211.15px] shrink-0 cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:scale-[1.01]"
               >
                 {/* Decorative box outline (cycles through the 24 hand-drawn variants) */}
