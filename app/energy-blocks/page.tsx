@@ -15,10 +15,12 @@ import {
   EMOTION_LIST,
   EMOTION_DESCRIPTION,
   EMOTION_COLOR_GROUP,
+  EMOTION_GROUP_HEX,
   type Emotion,
   type EmotionKey,
 } from "@/lib/emotions";
 import { playEnergyBlock } from "@/lib/audio";
+import { nameHighlightDataUrl } from "@/lib/nameHighlight";
 
 // Random shuffle (Fisher–Yates) followed by a greedy pass that swaps tiles
 // around so no two adjacent grid cells (left or directly above) share the
@@ -194,8 +196,32 @@ export default function EnergyBlocksPage() {
                 className="pointer-events-none absolute left-0 top-0 block object-contain"
                 style={{ width: `${TILE_SIZE}px`, height: `${TILE_SIZE}px` }}
               />
-              <span className="pointer-events-none absolute left-0 right-0 bottom-0 block whitespace-nowrap text-center text-[20px] font-bold leading-[normal] text-black">
-                {emotion.displayName}
+              {/* Tile name with hand-drawn highlight on the active tile.
+                  The label is centred on its own line so the highlight
+                  hugs the text bounding box exactly (background-image
+                  with backgroundSize 100% × 20px). Colour is the
+                  block's own group hex from EMOTION_GROUP_HEX at 40 %
+                  opacity (baked into the SVG via the shared helper). */}
+              <span
+                className="pointer-events-none absolute left-0 right-0 bottom-0 flex justify-center text-[20px] font-bold leading-[normal] text-black"
+              >
+                <span
+                  className="whitespace-nowrap px-[4px]"
+                  style={
+                    isActive
+                      ? {
+                          backgroundImage: nameHighlightDataUrl(
+                            EMOTION_GROUP_HEX[EMOTION_COLOR_GROUP[emotion.key]],
+                          ),
+                          backgroundRepeat: "no-repeat",
+                          backgroundSize: "100% 20px",
+                          backgroundPosition: "center",
+                        }
+                      : undefined
+                  }
+                >
+                  {emotion.displayName}
+                </span>
               </span>
             </button>
           );
