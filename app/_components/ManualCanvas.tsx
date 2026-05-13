@@ -747,19 +747,53 @@ export default function ManualCanvas({
           if (selectedIds.length < 2) return null;
           const sel = blocks.filter((b) => selectedSet.has(b.id));
           if (sel.length < 2) return null;
+
+          // The group is treated as a rigid body that has been rotated by
+          // the average of the selected blocks' rotations. The bbox we
+          // display is the AABB of the UN-ROTATED layout, with a CSS
+          // rotate() applied to the wrapper — that way the visible box
+          // tilts together with the rotated blocks (without it, the
+          // axis-aligned AABB grows/shrinks as blocks orbit the centroid,
+          // which looks like a box that pulses but never tilts).
+          const avgRot =
+            sel.reduce((s, b) => s + b.rotation, 0) / sel.length;
+          // Current AABB center = rigid-rotation pivot (preserved under
+          // rotation around itself).
+          let cMinX = Infinity,
+            cMaxX = -Infinity,
+            cMinY = Infinity,
+            cMaxY = -Infinity;
+          for (const b of sel) {
+            const r = (BASE_PX / 2) * b.scale;
+            if (b.x - r < cMinX) cMinX = b.x - r;
+            if (b.x + r > cMaxX) cMaxX = b.x + r;
+            if (b.y - r < cMinY) cMinY = b.y - r;
+            if (b.y + r > cMaxY) cMaxY = b.y + r;
+          }
+          const cx = (cMinX + cMaxX) / 2;
+          const cy = (cMinY + cMaxY) / 2;
+
+          // Un-rotated AABB — rotate each block's position by −avgRot
+          // around (cx, cy) to recover the un-rotated layout, then take
+          // its width/height. The center stays at (cx, cy).
+          const rad = (-avgRot * Math.PI) / 180;
+          const cosR = Math.cos(rad);
+          const sinR = Math.sin(rad);
           let minX = Infinity,
             maxX = -Infinity,
             minY = Infinity,
             maxY = -Infinity;
           for (const b of sel) {
+            const dx = b.x - cx;
+            const dy = b.y - cy;
+            const lx = cx + dx * cosR - dy * sinR;
+            const ly = cy + dx * sinR + dy * cosR;
             const r = (BASE_PX / 2) * b.scale;
-            if (b.x - r < minX) minX = b.x - r;
-            if (b.x + r > maxX) maxX = b.x + r;
-            if (b.y - r < minY) minY = b.y - r;
-            if (b.y + r > maxY) maxY = b.y + r;
+            if (lx - r < minX) minX = lx - r;
+            if (lx + r > maxX) maxX = lx + r;
+            if (ly - r < minY) minY = ly - r;
+            if (ly + r > maxY) maxY = ly + r;
           }
-          const cx = (minX + maxX) / 2;
-          const cy = (minY + maxY) / 2;
           const w = maxX - minX;
           const h = maxY - minY;
           return (
@@ -770,7 +804,7 @@ export default function ManualCanvas({
                 top: `calc(50% + ${cy}px)`,
                 width: `${w}px`,
                 height: `${h}px`,
-                transform: "translate(-50%, -50%)",
+                transform: `translate(-50%, -50%) rotate(${avgRot}deg)`,
                 transformOrigin: "center",
                 pointerEvents: "none",
                 zIndex: 9998,
