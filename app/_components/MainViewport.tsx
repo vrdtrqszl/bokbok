@@ -131,12 +131,19 @@ function ControlsBridge({
   return (
     <OrbitControls
       ref={controlsRef}
-      // Camera is locked to the bird's-eye angle — only zoom is allowed.
-      enableRotate={false}
-      enablePan={false}
+      // Free camera — rotate / pan / zoom. Constraints keep the view
+      // reasonable: don't flip past horizon (no underground view) and
+      // don't rotate so high overhead that we lose all spatial cues.
+      enableRotate
+      enablePan
       enableZoom
       minDistance={2}
-      maxDistance={30}
+      maxDistance={50}
+      minPolarAngle={Math.PI / 12}
+      maxPolarAngle={Math.PI / 2 - 0.08}
+      rotateSpeed={0.6}
+      panSpeed={0.6}
+      zoomSpeed={0.6}
     />
   );
 }
@@ -242,6 +249,25 @@ export default function MainViewport({
           <ambientLight intensity={0.8} />
           <directionalLight position={[5, 5, 5]} intensity={0.6} />
           <directionalLight position={[-3, -2, -4]} intensity={0.2} />
+
+          {/* Soft beige fog gives the free camera some depth perception —
+              far creatures fade slightly toward the ground color so the
+              viewport doesn't feel like a flat sticker board. */}
+          <fog attach="fog" args={["#dfd9c9", 18, 60]} />
+
+          {/* Ground disc — a flat circle in the same beige as the page
+              background, with a fainter inner band hinting at the
+              creatures' "field." Subtle on purpose; the creatures are
+              still the focus. */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]}>
+            <circleGeometry args={[40, 96]} />
+            <meshBasicMaterial color="#d6cfba" />
+          </mesh>
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]}>
+            <ringGeometry args={[5.2, 5.5, 96]} />
+            <meshBasicMaterial color="#c7c0a8" transparent opacity={0.5} />
+          </mesh>
+
           <CreaturesErrorBoundary>
             <Suspense fallback={null}>
               <EcosystemCreatures
