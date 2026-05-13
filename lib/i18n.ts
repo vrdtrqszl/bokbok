@@ -27,14 +27,18 @@ export const LANGUAGE_STORAGE_KEY = "bokbok:language";
 export const LANGUAGE_CHANGED_EVENT = "bokbok:language-changed";
 
 export function getLang(): Lang {
-  if (typeof window === "undefined") return "ENG";
-  try {
-    const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    if (stored === "ESP" || stored === "KOR") return stored;
-  } catch {
-    // ignore
-  }
+  // Language picker is currently hidden — the codebase keeps the i18n
+  // infrastructure intact (so we can re-enable when needed) but force-
+  // resolves every lookup to ENG. This also masks any stale localStorage
+  // value from before the picker was removed.
   return "ENG";
+  // Original behaviour (kept here for an easy revert):
+  //   if (typeof window === "undefined") return "ENG";
+  //   try {
+  //     const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  //     if (stored === "ESP" || stored === "KOR") return stored;
+  //   } catch {}
+  //   return "ENG";
 }
 
 export function setLang(next: Lang): void {

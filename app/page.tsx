@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import MainViewport, { type FocusTarget, type ResetTrigger } from "./_components/MainViewport";
 import CandyButton from "./_components/CandyButton";
-import LanguageButton from "./_components/LanguageButton";
 import { creaturePositions } from "./_components/EcosystemCreatures";
 import { useT } from "@/lib/i18n";
 import { deleteCreatureById, loadEcosystem, subscribeRemoteEcosystem } from "@/lib/ecosystem";
@@ -347,11 +346,6 @@ export default function MainPage() {
               Click to "call" wandering creatures back toward the centre of
               the scene; their next hops are biased at origin for ~5 s. */}
           <CandyButton />
-
-          {/* Language picker (Figma 2242:1455) — ENG / ESP / KOR with
-              a per-language hand-drawn highlight under the selected one.
-              Persists the choice in localStorage. */}
-          <LanguageButton />
         </>
       )}
 
