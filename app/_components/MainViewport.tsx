@@ -316,14 +316,12 @@ export default function MainViewport({
 
       {/* Tools — sound on/off, zoom in/out. Hidden in fullscreen mode (the
           design omits them; double-click a creature to zoom). Sound toggle
-          sits at the top-left INSIDE the main box (Figma 2238:1390, frame
-          position 21,16 inside the parent "main box" frame). The icon
-          itself is 41.46×43.06; render at the design size. */}
+          self-positions at the Figma frame coords (2238:1390 / 2238:1396);
+          on/off icons have different bbox sizes so the component swaps
+          its own left/top/width/height when state flips. */}
       {!fullscreen && (
         <>
-          <SoundToggle
-            className="absolute left-[21px] top-[16px] h-[43.06px] w-[41.46px] cursor-pointer"
-          />
+          <SoundToggle />
           <button
             type="button"
             onClick={() => apiRef.current?.zoomIn()}
