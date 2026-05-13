@@ -596,3 +596,71 @@ export function playCreatureGiggle(
     if (i === 0) cursor = Math.max(cursor, 0.06);
   });
 }
+
+// ---- Typing tick ------------------------------------------------------
+// Water-drop / mystical "plip" played on each keystroke inside a text
+// field (journal, name, search). Not the usual mechanical typing sound:
+// the recipe is a pure sine with a fast downward pitch glide, a snappy
+// attack, an exponential decay, and a generous reverb send so each
+// tap reads as a droplet falling into a still pool.
+//
+// Pentatonic-biased so successive keystrokes form a soft, randomised
+// little melody instead of pitched chaos. Goes through `masterGain`,
+// so the Sound Off toggle silences it like everything else.
+
+// G minor pentatonic, two octaves clustered around the bell register.
+// A random note picked per keystroke keeps it musical without sounding
+// patterned.
+const TYPING_NOTES_HZ: number[] = [
+  587.33, 698.46, 783.99, 880.00, 1046.50,   // D5, F5, G5, A5, C6
+  1174.66, 1396.91, 1567.98, 1760.00, 2093.00, // D6, F6, G6, A6, C7
+];
+
+export function playTypingTick(): void {
+  const c = ensureCtx();
+  if (!c || !masterGain) return;
+
+  const now = c.currentTime;
+  const note = TYPING_NOTES_HZ[Math.floor(Math.random() * TYPING_NOTES_HZ.length)];
+  // ±15 cent jitter so two consecutive identical notes still feel
+  // organically off-grid.
+  const pitch = note * Math.pow(2, ((Math.random() - 0.5) * 30) / 1200);
+
+  const osc = c.createOscillator();
+  osc.type = "sine";
+  // Pitch glides DOWN from start*1.35 → start over ~70 ms, giving the
+  // signature "plip" of a droplet hitting water.
+  osc.frequency.setValueAtTime(pitch * 1.35, now);
+  osc.frequency.exponentialRampToValueAtTime(pitch, now + 0.07);
+
+  // Gentle lowpass keeps the high partials from feeling harsh; the
+  // cutoff tracks pitch so high notes still sparkle.
+  const filt = c.createBiquadFilter();
+  filt.type = "lowpass";
+  filt.frequency.value = Math.min(8000, pitch * 4.5);
+  filt.Q.value = 0.6;
+
+  // Snappy attack, exponential decay. Peak amp is intentionally tiny
+  // (~0.06) because typing fires many ticks per second.
+  const peakAmp = 0.055 + Math.random() * 0.025;
+  const env = c.createGain();
+  env.gain.setValueAtTime(0, now);
+  env.gain.linearRampToValueAtTime(peakAmp, now + 0.004);
+  // Exponential ramp to a tiny floor → smooth tail without a click.
+  env.gain.exponentialRampToValueAtTime(0.0008, now + 0.18);
+
+  osc.connect(filt);
+  filt.connect(env);
+  env.connect(masterGain);
+
+  // Generous reverb send for the "drop into a pool" atmosphere.
+  if (reverbInput) {
+    const send = c.createGain();
+    send.gain.value = 0.45;
+    env.connect(send);
+    send.connect(reverbInput);
+  }
+
+  osc.start(now);
+  osc.stop(now + 0.22);
+}

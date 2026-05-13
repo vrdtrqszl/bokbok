@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import ViewportFit from "./_components/ViewportFit";
 import SeedBootstrap from "./_components/SeedBootstrap";
+import TypingSounds from "./_components/TypingSounds";
 
 export const metadata: Metadata = {
   title: "BokBok",
@@ -23,6 +24,7 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <SeedBootstrap />
+        <TypingSounds />
         <ViewportFit>{children}</ViewportFit>
       </body>
     </html>
