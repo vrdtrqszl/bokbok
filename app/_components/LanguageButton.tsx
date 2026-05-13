@@ -30,11 +30,17 @@ const LANGS: ReadonlyArray<{
   { key: "KOR", textX: 111, hlX: 115, hlW: 26.03, hlSrc: "/assets/lang-highlight-kor.svg" },
 ];
 
-// Slash separators (vertical hand-drawn squiggles between adjacent
-// language labels). Position + size verbatim from Figma metadata.
-const SLASHES: ReadonlyArray<{ x: number; y: number; w: number; h: number; src: string }> = [
-  { x: 76.7, y: 879, w: 4.66, h: 11.72, src: "/assets/lang-slash-1.svg" },
-  { x: 112,  y: 879, w: 3,    h: 11.57, src: "/assets/lang-slash-2.svg" },
+// Slash separators between adjacent language labels. Each SVG is a
+// near-VERTICAL hand-drawn curve (path mostly along y); Figma rotates
+// the asset 17.99° / 14.54° to turn it into a "/". The metadata's bbox
+// X (e.g. 76.7) is the bbox of the rotated curve and overlaps the
+// next label, so we use the Figma Dev Mode wrapper positions (73 / 109)
+// which centre the slash in the gap between labels.
+const SLASHES: ReadonlyArray<{
+  x: number; y: number; w: number; h: number; rot: number; src: string;
+}> = [
+  { x: 73,  y: 879, w: 4.66, h: 11.72, rot: 17.99, src: "/assets/lang-slash-1.svg" },
+  { x: 109, y: 879, w: 3,    h: 11.57, rot: 14.54, src: "/assets/lang-slash-2.svg" },
 ];
 
 export default function LanguageButton() {
@@ -79,22 +85,35 @@ export default function LanguageButton() {
         </button>
       ))}
 
-      {/* Slashes between adjacent labels. Pointer-events-none so they
-          never steal clicks meant for a button beside them. */}
+      {/* Slashes between adjacent labels. Each wrapper is the rotated
+          slash's bbox; the inner <img> is the native-orientation curve
+          (~2×12) rotated to make the "/" angle, centred via flex.
+          pointer-events-none so the slash never steals a label click. */}
       {SLASHES.map((s, i) => (
-        <img
+        <div
           key={i}
-          alt=""
-          src={s.src}
-          className="pointer-events-none absolute z-[15] block"
+          className="pointer-events-none absolute z-[15] flex items-center justify-center"
           style={{
             left: `${s.x}px`,
             top: `${s.y}px`,
             width: `${s.w}px`,
             height: `${s.h}px`,
           }}
-          draggable={false}
-        />
+        >
+          <img
+            alt=""
+            src={s.src}
+            style={{
+              width: "2px",
+              height: "12px",
+              transform: `rotate(${s.rot}deg)`,
+              transformOrigin: "center",
+              maxWidth: "none",
+              display: "block",
+            }}
+            draggable={false}
+          />
+        </div>
       ))}
 
       {/* Per-language highlight stroke — only the active one renders.
