@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { playMarimbaTick, unlockAudio } from "@/lib/audio";
+import { playBubbleTick, unlockAudio } from "@/lib/audio";
 
 /**
- * Fires a soft marimba note (lib/audio playMarimbaTick) as the cursor
- * wanders the page, giving the whole site a quiet drifting soundtrack.
+ * Fires a soft underwater bubble note (lib/audio playBubbleTick) as
+ * the cursor wanders the page, giving the whole site a quiet drifting
+ * soundtrack.
  *
  * Throttled by BOTH a minimum travel distance AND a minimum time gap
  * between notes so even fast cursor sweeps cap at ~5 notes / second —
@@ -32,7 +33,7 @@ export default function MouseSounds() {
     // continuous fast cursor movement, sparser when slow.
     const MIN_DIST = 60;
     const MIN_MS = 180;
-    const NOTE_COUNT = 10; // matches lib/audio MARIMBA_NOTES_HZ.length
+    const NOTE_COUNT = 10; // matches lib/audio BUBBLE_NOTES_HZ.length
 
     const onMove = (e: MouseEvent) => {
       const now = performance.now();
@@ -52,7 +53,7 @@ export default function MouseSounds() {
 
       unlockAudio();
       try {
-        playMarimbaTick(idx);
+        playBubbleTick(idx);
       } catch {
         // Synth failures degrade silently.
       }

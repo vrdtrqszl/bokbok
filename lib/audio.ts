@@ -662,89 +662,96 @@ export function playTypingTick(): void {
   osc.stop(now + 0.22);
 }
 
-// ---- Marimba tick (mouse-move) ---------------------------------------
-// Soft, dreamy marimba note played as the cursor wanders across the
-// page. Triangle wave body + sine octave for sparkle, lowpass that
-// opens at attack and closes through the decay — gives a clearly
-// wooden, struck character. Routed through masterGain so the Sound Off
-// toggle silences it like the rest of the ambient audio. A generous
-// reverb send keeps each note feeling like it's drifting in a small
-// hall, which leans into the "mystical" brief the user asked for.
+// ---- Bubble tick (mouse-move) ----------------------------------------
+// Mystical underwater "bloop" played as the cursor wanders across the
+// page. Two slightly-detuned sine oscillators (chorus shimmer) with a
+// quick upward pitch glide — the signature of an air bubble rising
+// and surfacing. A resonant bandpass filter centred just above the
+// target pitch gives the watery character; a heavy reverb send sells
+// the underwater space.
+//
+// Routed through masterGain so the Sound Off toggle silences it like
+// the rest of the ambient audio.
 //
 // Caller passes an optional pitchIndex 0..9 (mapped from cursor Y by
 // MouseSounds — top of viewport = high, bottom = low). Without an
 // index the note is uniformly random across the same scale.
 
-const MARIMBA_NOTES_HZ: number[] = [
-  // C minor pentatonic (with passing notes), two octaves, low → high.
+const BUBBLE_NOTES_HZ: number[] = [
+  // C minor pentatonic, mid-to-upper range. Sits in the watery /
+  // "small bubbles" register without going so high it feels cartoonish.
   // Order matters — MouseSounds uses the array index to map cursor Y
   // to pitch (top of viewport reads as the highest note).
-  261.63, 311.13, 349.23, 392.00, 466.16,    // C4, Eb4, F4, G4, Bb4
-  523.25, 622.25, 698.46, 783.99, 932.33,    // C5, Eb5, F5, G5, Bb5
+  349.23, 415.30, 466.16, 523.25, 622.25,    // F4, G#4, Bb4, C5, Eb5
+  698.46, 830.61, 932.33, 1046.50, 1244.51,  // F5, G#5, Bb5, C6, Eb6
 ];
 
-export function playMarimbaTick(pitchIndex?: number): void {
+export function playBubbleTick(pitchIndex?: number): void {
   const c = ensureCtx();
   if (!c || !masterGain) return;
 
   const now = c.currentTime;
   const idx =
     typeof pitchIndex === "number"
-      ? Math.max(0, Math.min(MARIMBA_NOTES_HZ.length - 1, Math.floor(pitchIndex)))
-      : Math.floor(Math.random() * MARIMBA_NOTES_HZ.length);
-  const note = MARIMBA_NOTES_HZ[idx];
-  // ±20 cent jitter so wide cursor sweeps don't sound robotic.
-  const pitch = note * Math.pow(2, ((Math.random() - 0.5) * 40) / 1200);
+      ? Math.max(0, Math.min(BUBBLE_NOTES_HZ.length - 1, Math.floor(pitchIndex)))
+      : Math.floor(Math.random() * BUBBLE_NOTES_HZ.length);
+  const note = BUBBLE_NOTES_HZ[idx];
+  // ±25 cent jitter so wide cursor sweeps don't sound robotic.
+  const pitch = note * Math.pow(2, ((Math.random() - 0.5) * 50) / 1200);
 
-  // Body — slightly-detuned triangle gives the woody marimba bar feel.
-  const oscBody = c.createOscillator();
-  oscBody.type = "triangle";
-  oscBody.frequency.setValueAtTime(pitch * 1.02, now);
-  oscBody.frequency.exponentialRampToValueAtTime(pitch, now + 0.02);
-  const oscOctave = c.createOscillator();
-  oscOctave.type = "sine";
-  oscOctave.frequency.setValueAtTime(pitch * 2, now);
+  // Two near-unison sines: the slight detune gives the "shimmery"
+  // chorus that makes a bubble feel underwater rather than dry.
+  const oscA = c.createOscillator();
+  oscA.type = "sine";
+  const oscB = c.createOscillator();
+  oscB.type = "sine";
+  // Both share the upward pitch glide: starts a fifth below target,
+  // rises to target over ~90 ms — the signature "boop" of a bubble
+  // surfacing.
+  oscA.frequency.setValueAtTime(pitch * 0.55, now);
+  oscA.frequency.exponentialRampToValueAtTime(pitch, now + 0.09);
+  // oscB detuned +7 cents so the two sines slowly beat against each
+  // other → watery shimmer through the decay.
+  const detune = Math.pow(2, 7 / 1200);
+  oscB.frequency.setValueAtTime(pitch * 0.55 * detune, now);
+  oscB.frequency.exponentialRampToValueAtTime(pitch * detune, now + 0.09);
 
-  // Octave mix at ~20% of body for sparkle (any higher and it edges
-  // into "bell" territory and loses the wood).
-  const octaveMix = c.createGain();
-  octaveMix.gain.value = 0.18;
+  const oscBMix = c.createGain();
+  oscBMix.gain.value = 0.85;
 
-  // Filter envelope opens at the strike, closes through the decay —
-  // that's what gives the struck-wood character.
+  // Resonant bandpass slightly above the target pitch — the resonance
+  // is what gives the rounded, hollow "bubble" quality. Q ~ 2 is just
+  // enough to colour without ringing into whistle territory.
   const filt = c.createBiquadFilter();
-  filt.type = "lowpass";
-  filt.frequency.setValueAtTime(pitch * 7, now);
-  filt.frequency.exponentialRampToValueAtTime(pitch * 2.2, now + 0.5);
-  filt.Q.value = 0.4;
+  filt.type = "bandpass";
+  filt.frequency.setValueAtTime(pitch * 1.5, now);
+  filt.frequency.exponentialRampToValueAtTime(pitch * 1.2, now + 0.4);
+  filt.Q.value = 2.0;
 
-  // Soft volume — mouse-move fires up to ~5 ticks/sec. Peak ~0.045
-  // sits quietly underneath any creature audio without disappearing.
-  const peakAmp = 0.04 + Math.random() * 0.015;
+  // Soft attack into a smooth exponential decay. Peak ~0.05 sits
+  // quietly under any creature audio without disappearing.
+  const peakAmp = 0.045 + Math.random() * 0.018;
   const env = c.createGain();
   env.gain.setValueAtTime(0, now);
-  env.gain.linearRampToValueAtTime(peakAmp, now + 0.008);
-  // ~0.55 s decay reads as a clean wooden ping (full marimba is
-  // longer but the tail gets noisy when notes overlap).
+  env.gain.linearRampToValueAtTime(peakAmp, now + 0.025);
   env.gain.exponentialRampToValueAtTime(0.0008, now + 0.55);
 
-  oscBody.connect(filt);
-  oscOctave.connect(octaveMix);
-  octaveMix.connect(filt);
+  oscA.connect(filt);
+  oscB.connect(oscBMix);
+  oscBMix.connect(filt);
   filt.connect(env);
   env.connect(masterGain);
 
-  // Reverb send — heavier than typing since marimba notes are sparser
-  // and benefit from the spatial tail.
+  // Heavy reverb send — bubbles want to feel suspended in fluid.
   if (reverbInput) {
     const send = c.createGain();
-    send.gain.value = 0.35;
+    send.gain.value = 0.55;
     env.connect(send);
     send.connect(reverbInput);
   }
 
-  oscBody.start(now);
-  oscBody.stop(now + 0.62);
-  oscOctave.start(now);
-  oscOctave.stop(now + 0.62);
+  oscA.start(now);
+  oscA.stop(now + 0.62);
+  oscB.start(now);
+  oscB.stop(now + 0.62);
 }
