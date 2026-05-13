@@ -6,6 +6,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { Vector3 } from "three";
 import EcosystemCreatures from "./EcosystemCreatures";
 import CreaturesErrorBoundary from "./CreaturesErrorBoundary";
+import SoundToggle from "./SoundToggle";
 import type { CreatureSpec } from "@/lib/creature";
 
 // Match ViewportFit's design canvas. Used to compute the fullscreen
@@ -313,11 +314,15 @@ export default function MainViewport({
         </button>
       )}
 
-      {/* Tools — zoom in/out. Hidden in fullscreen mode (the design omits
-          them; double-click a creature to zoom). Camera angle is locked to
-          the bird's-eye view, so axis-snap and pan are gone. */}
+      {/* Tools — sound on/off, zoom in/out. Hidden in fullscreen mode (the
+          design omits them; double-click a creature to zoom). The sound
+          toggle sits above the zoom buttons in the same right-edge strip
+          so the bottom-right corner reads as one control cluster. */}
       {!fullscreen && (
         <>
+          <SoundToggle
+            className="absolute left-[928px] top-[673px] h-[36px] w-[36px] cursor-pointer"
+          />
           <button
             type="button"
             onClick={() => apiRef.current?.zoomIn()}

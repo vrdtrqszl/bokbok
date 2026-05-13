@@ -45,6 +45,76 @@ let masterGain: GainNode | null = null;
 // Reverb chain — created once and reused.
 let reverbInput: DelayNode | null = null;
 
+// ---- Global mute state ------------------------------------------------
+// The Sound On/Off toggle (top-right of the main viewport) flips this.
+// We persist it in localStorage so the preference survives reloads, and
+// drive masterGain.gain on toggle to mute everything (one-shot block
+// voices, ambient chatter, creature giggle) with a tiny ramp to avoid
+// clicks. Subscribers receive the new state synchronously after a flip.
+const MUTE_STORAGE_KEY = "bokbok:audio-muted";
+const UNMUTED_GAIN = 0.50;
+let muted = false;
+const muteListeners = new Set<(m: boolean) => void>();
+
+function readStoredMute(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(MUTE_STORAGE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+function writeStoredMute(m: boolean): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(MUTE_STORAGE_KEY, m ? "1" : "0");
+  } catch {
+    // Ignore storage errors (private mode etc.) — in-memory state still works.
+  }
+}
+// Hydrate from localStorage at module load so the very first ensureCtx()
+// already creates masterGain at the correct volume.
+if (typeof window !== "undefined") {
+  muted = readStoredMute();
+}
+
+export function getAudioMuted(): boolean {
+  return muted;
+}
+
+export function setAudioMuted(next: boolean): void {
+  if (muted === next) return;
+  muted = next;
+  writeStoredMute(next);
+  if (masterGain && ctx) {
+    // Short ramp to the target gain to avoid a "click" on instant cut.
+    const t = ctx.currentTime;
+    const g = masterGain.gain;
+    try {
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(g.value, t);
+      g.linearRampToValueAtTime(next ? 0 : UNMUTED_GAIN, t + 0.05);
+    } catch {
+      g.value = next ? 0 : UNMUTED_GAIN;
+    }
+  }
+  muteListeners.forEach((fn) => {
+    try {
+      fn(next);
+    } catch {
+      // Listener failures don't propagate.
+    }
+  });
+}
+
+/** Subscribe to mute-state changes. Returns an unsubscribe function. */
+export function subscribeAudioMuted(cb: (muted: boolean) => void): () => void {
+  muteListeners.add(cb);
+  return () => {
+    muteListeners.delete(cb);
+  };
+}
+
 function ensureCtx(): AudioContext | null {
   if (typeof window === "undefined") return null;
   if (ctx) {
@@ -65,7 +135,10 @@ function ensureCtx(): AudioContext | null {
   ctx = next;
 
   masterGain = next.createGain();
-  masterGain.gain.value = 0.50;
+  // Honor any pre-existing mute preference at context creation. If the
+  // user toggled "sound off" before unlocking audio (or refreshed with
+  // mute saved), the very first voice should still respect it.
+  masterGain.gain.value = muted ? 0 : UNMUTED_GAIN;
   masterGain.connect(next.destination);
 
   // Tight "small room" reverb — feedback delay with a tone control.
