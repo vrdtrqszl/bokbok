@@ -601,12 +601,17 @@ export function playCreatureGiggle(
 // Water-drop / mystical "plip" played on each keystroke inside a text
 // field (journal, name, search). Not the usual mechanical typing sound:
 // the recipe is a pure sine with a fast downward pitch glide, a snappy
-// attack, an exponential decay, and a generous reverb send so each
-// tap reads as a droplet falling into a still pool.
+// attack, and an exponential decay.
+//
+// Routed through the always-on output (NOT masterGain) so the Sound Off
+// toggle has no effect on typing — per the user's spec, keystroke
+// feedback should always play, even when ambient chatter is silenced.
+// We skip the reverb send specifically because the reverb chain's wet
+// path feeds masterGain (it would be cut by mute); a dry water-drop
+// still reads as mystical thanks to the pitch glide + lowpass.
 //
 // Pentatonic-biased so successive keystrokes form a soft, randomised
-// little melody instead of pitched chaos. Goes through `masterGain`,
-// so the Sound Off toggle silences it like everything else.
+// little melody instead of pitched chaos.
 
 // G minor pentatonic, two octaves clustered around the bell register.
 // A random note picked per keystroke keeps it musical without sounding
@@ -618,7 +623,7 @@ const TYPING_NOTES_HZ: number[] = [
 
 export function playTypingTick(): void {
   const c = ensureCtx();
-  if (!c || !masterGain) return;
+  if (!c || !alwaysOnGain) return;
 
   const now = c.currentTime;
   const note = TYPING_NOTES_HZ[Math.floor(Math.random() * TYPING_NOTES_HZ.length)];
@@ -651,15 +656,7 @@ export function playTypingTick(): void {
 
   osc.connect(filt);
   filt.connect(env);
-  env.connect(masterGain);
-
-  // Generous reverb send for the "drop into a pool" atmosphere.
-  if (reverbInput) {
-    const send = c.createGain();
-    send.gain.value = 0.45;
-    env.connect(send);
-    send.connect(reverbInput);
-  }
+  env.connect(alwaysOnGain);
 
   osc.start(now);
   osc.stop(now + 0.22);
