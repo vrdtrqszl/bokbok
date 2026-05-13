@@ -24,9 +24,23 @@
   font-display: swap;
 }
 
+/* Korean hand-drawn fallback. The Latin fonts (Casual Human, Orange)
+   don't ship any Korean glyphs, so every Hangul character in the
+   document automatically falls through to this face — no JS swap
+   needed. On the calendar's year+month label this is exactly the
+   behaviour the design wants: the number ("2026 1") renders in Orange,
+   while just the "월" ending picks up SD Unicef from the fallback. */
+@font-face {
+  font-family: "SD Unicef Hae";
+  src: url("/fonts/SD유니세프해맑음체.otf") format("opentype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
-  --font-casual: "Casual Human", cursive;
-  --font-fancy: "Orange", cursive;
+  --font-casual: "Casual Human", "SD Unicef Hae", cursive;
+  --font-fancy: "Orange", "SD Unicef Hae", cursive;
 }
 
 /* Page background — beige grain texture from the design comp (1920×1080
