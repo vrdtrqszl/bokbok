@@ -181,10 +181,12 @@ export default function BokBokpediaPage() {
                 onClick={() => {
                   // Play the creature's giggle on click — same audio
                   // signature it gets when first generated on the
-                  // Create page. unlockAudio() handles autoplay-policy
-                  // contexts that haven't had a user gesture yet.
+                  // Create page. `force: true` routes through the
+                  // always-on output so this fires even when the
+                  // global Sound Off toggle is on; pressing a creature
+                  // here means you want to hear it.
                   unlockAudio();
-                  playCreatureGiggle(c.blocks);
+                  playCreatureGiggle(c.blocks, { force: true });
                   setSelected(c);
                 }}
                 className="relative h-[213.27px] w-[211.15px] shrink-0 cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:scale-[1.01]"

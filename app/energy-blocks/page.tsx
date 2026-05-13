@@ -178,7 +178,9 @@ export default function EnergyBlocksPage() {
                 // Play the block's voice on every tap — even tapping the
                 // same tile again replays the sound, since each click is a
                 // user gesture so the AudioContext stays unlocked.
-                playEnergyBlock(emotion.key);
+                // `force: true` bypasses the global Sound Off toggle —
+                // pressing a tile here always plays, regardless of mute.
+                playEnergyBlock(emotion.key, undefined, { force: true });
               }}
               aria-pressed={isActive}
               className={`relative block cursor-pointer bg-transparent p-0 transition-transform hover:scale-[1.04] active:scale-95 ${

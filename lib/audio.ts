@@ -42,6 +42,13 @@ type WindowWithAudio = Window & {
 
 let ctx: AudioContext | null = null;
 let masterGain: GainNode | null = null;
+// Always-on secondary output that bypasses the mute. Used by per-page
+// click handlers that should fire regardless of the global Sound Off
+// state (e.g. clicking an energy block tile or a BokBokpedia creature
+// — "you pressed it, you should hear it"). Voices routed here connect
+// straight to destination through alwaysOnGain, which is held at
+// UNMUTED_GAIN forever and never ramped by setAudioMuted().
+let alwaysOnGain: GainNode | null = null;
 // Reverb chain — created once and reused.
 let reverbInput: DelayNode | null = null;
 
@@ -140,6 +147,11 @@ function ensureCtx(): AudioContext | null {
   // mute saved), the very first voice should still respect it.
   masterGain.gain.value = muted ? 0 : UNMUTED_GAIN;
   masterGain.connect(next.destination);
+
+  // Always-on output path — same headline volume, never muted.
+  alwaysOnGain = next.createGain();
+  alwaysOnGain.gain.value = UNMUTED_GAIN;
+  alwaysOnGain.connect(next.destination);
 
   // Tight "small room" reverb — feedback delay with a tone control.
   // Per-voice reverb send levels live in the group style table.
@@ -508,11 +520,21 @@ function voiceTotalDur(style: GroupStyle): number {
  * Wired to /energy-blocks tile clicks AND the main-page ambient chatter
  * (which calls this with a small amp for distant creatures and a loud
  * amp for the focused one).
+ *
+ * Pass `force: true` to bypass the global mute (Sound Off toggle).
+ * Used by per-page click handlers — pressing an energy block or a
+ * BokBokpedia creature box should always play, even when ambient
+ * chatter is silenced.
  */
-export function playEnergyBlock(key: EmotionKey, amp = 0.36): void {
+export function playEnergyBlock(
+  key: EmotionKey,
+  amp = 0.36,
+  opts: { force?: boolean } = {},
+): void {
   const c = ensureCtx();
-  if (!c || !masterGain) return;
-  playVoice(c, masterGain, pitchFor(key), styleFor(key), { amp });
+  const out = opts.force ? alwaysOnGain : masterGain;
+  if (!c || !out) return;
+  playVoice(c, out, pitchFor(key), styleFor(key), { amp });
 }
 
 /**
@@ -529,10 +551,18 @@ export function unlockAudio(): boolean {
 /**
  * The full "creature giggle" — every block's voice cascading in.
  * Synchronous so the user-gesture window stays valid for autoplay policy.
+ *
+ * Pass `force: true` to bypass the global mute. Used by per-page
+ * click handlers (BokBokpedia / Calendar tile clicks) — pressing a
+ * creature should always play it, even when ambient chatter is off.
  */
-export function playCreatureGiggle(blocks: CreatureBlock[]): void {
+export function playCreatureGiggle(
+  blocks: CreatureBlock[],
+  opts: { force?: boolean } = {},
+): void {
   const c = ensureCtx();
-  if (!c || !masterGain) return;
+  const out = opts.force ? alwaysOnGain : masterGain;
+  if (!c || !out) return;
   if (blocks.length === 0) return;
 
   // Cap voices so a 12-block creature doesn't turn into a wall of noise.
@@ -555,7 +585,7 @@ export function playCreatureGiggle(blocks: CreatureBlock[]): void {
     const style = styleFor(b.emotionKey);
     const offset = cursor + Math.random() * 0.025;
     const amp = 0.26 + Math.random() * 0.10;
-    playVoice(c, masterGain!, pitchFor(b.emotionKey), style, {
+    playVoice(c, out, pitchFor(b.emotionKey), style, {
       startOffset: offset,
       amp,
     });

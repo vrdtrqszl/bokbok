@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { loadEcosystem, deleteCreatureById, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
+import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
 import type { CreatureSpec } from "@/lib/creature";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
@@ -347,7 +348,15 @@ export default function CalendarPage() {
               year={year}
               monthIndex={monthIdx}
               creaturesByDate={creaturesByDate}
-              onSelect={setSelected}
+              onSelect={(c) => {
+                // Play the creature's giggle on every selection — same
+                // signature as on BokBokpedia. `force: true` bypasses the
+                // global Sound Off toggle so pressing a calendar cell
+                // always plays.
+                unlockAudio();
+                playCreatureGiggle(c.blocks, { force: true });
+                setSelected(c);
+              }}
               selectedId={selected?.id ?? null}
               cycleTick={cycleTick}
             />
