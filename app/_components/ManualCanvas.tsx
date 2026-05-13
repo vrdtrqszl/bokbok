@@ -78,6 +78,18 @@ export default function ManualCanvas({
   const clipboardRef = useRef<CanvasBlock[]>([]);
   const nextZ = useRef(0);
   const dragRef = useRef<DragState | null>(null);
+  // Group rotation — accumulated rotation applied to the current
+  // multi-block selection. Resets to 0 every time the selection changes,
+  // so a fresh marquee always produces an axis-aligned bbox (even if the
+  // newly-selected blocks each have their own non-zero block.rotation).
+  // A ref shadows it so the rotate-drag closure can capture the fresh
+  // value at drag start.
+  const [groupRotation, setGroupRotation] = useState(0);
+  const groupRotationRef = useRef(0);
+  groupRotationRef.current = groupRotation;
+  useEffect(() => {
+    setGroupRotation(0);
+  }, [selectedIds]);
   // Marquee (rubber-band) selection. Stored in canvas-local design pixels
   // (same coord space the right-click context menu uses). null when not
   // dragging; while dragging, currentX/Y track the pointer.
@@ -403,6 +415,11 @@ export default function ManualCanvas({
     for (const b of sel) {
       startMap.set(b.id, { x: b.x, y: b.y, rotation: b.rotation });
     }
+    // Capture the group's rotation at drag start so each frame can set
+    // groupRotation = startGroupRot + deltaDeg (consistent accumulation
+    // across the drag, plus state from any previous group rotations on
+    // the same selection).
+    const startGroupRot = groupRotationRef.current;
     const onMove = (ev: MouseEvent) => {
       const a = Math.atan2(
         ev.clientY - centroidScreenY,
@@ -426,6 +443,7 @@ export default function ManualCanvas({
           };
         }),
       );
+      setGroupRotation(startGroupRot + deltaDeg);
     };
     const onUp = () => {
       window.removeEventListener("mousemove", onMove);
@@ -748,15 +766,14 @@ export default function ManualCanvas({
           const sel = blocks.filter((b) => selectedSet.has(b.id));
           if (sel.length < 2) return null;
 
-          // The group is treated as a rigid body that has been rotated by
-          // the average of the selected blocks' rotations. The bbox we
-          // display is the AABB of the UN-ROTATED layout, with a CSS
-          // rotate() applied to the wrapper — that way the visible box
-          // tilts together with the rotated blocks (without it, the
-          // axis-aligned AABB grows/shrinks as blocks orbit the centroid,
-          // which looks like a box that pulses but never tilts).
-          const avgRot =
-            sel.reduce((s, b) => s + b.rotation, 0) / sel.length;
+          // The group's rotation comes from the dedicated `groupRotation`
+          // state — NOT from averaging the selected blocks' own rotations.
+          // This way a fresh marquee always starts with an axis-aligned
+          // bbox (groupRotation = 0) even if the selected blocks were
+          // already rotated individually beforehand. Once the user drags
+          // the group rotate handle, groupRotation accumulates and the
+          // bbox tilts with it.
+          const gRot = groupRotation;
           // Current AABB center = rigid-rotation pivot (preserved under
           // rotation around itself).
           let cMinX = Infinity,
@@ -773,10 +790,10 @@ export default function ManualCanvas({
           const cx = (cMinX + cMaxX) / 2;
           const cy = (cMinY + cMaxY) / 2;
 
-          // Un-rotated AABB — rotate each block's position by −avgRot
+          // Un-rotated AABB — rotate each block's position by −gRot
           // around (cx, cy) to recover the un-rotated layout, then take
           // its width/height. The center stays at (cx, cy).
-          const rad = (-avgRot * Math.PI) / 180;
+          const rad = (-gRot * Math.PI) / 180;
           const cosR = Math.cos(rad);
           const sinR = Math.sin(rad);
           let minX = Infinity,
@@ -804,7 +821,7 @@ export default function ManualCanvas({
                 top: `calc(50% + ${cy}px)`,
                 width: `${w}px`,
                 height: `${h}px`,
-                transform: `translate(-50%, -50%) rotate(${avgRot}deg)`,
+                transform: `translate(-50%, -50%) rotate(${gRot}deg)`,
                 transformOrigin: "center",
                 pointerEvents: "none",
                 zIndex: 9998,
@@ -841,9 +858,7 @@ export default function ManualCanvas({
                   Cursor flips horizontally when the selection's mean
                   rotation puts it on the visually-mirrored side. */}
               <div
-                className={`${scaleCursorClass(
-                  sel.reduce((s, b) => s + b.rotation, 0) / sel.length,
-                )} absolute flex items-center justify-center`}
+                className={`${scaleCursorClass(gRot)} absolute flex items-center justify-center`}
                 style={{
                   right: "-14px",
                   bottom: "-14px",
