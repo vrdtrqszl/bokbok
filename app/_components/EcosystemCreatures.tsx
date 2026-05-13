@@ -107,6 +107,26 @@ function EnergyCreature({
     return ((h >>> 0) % 1000) / 1000;
   }, [creature.id]);
 
+  // Personal "gather spot" — when the candy button fires gather mode, this
+  // is the XZ point each creature aims for (instead of literally 0,0).
+  // Spreading targets around an annulus prevents the whole flock from
+  // piling into one stack at origin. Angle is the seedPhase * 2π (stable
+  // per-creature), and radius is a separate hash so two creatures with
+  // similar seedPhases don't end up at the same distance from origin too.
+  const gatherSpot = useMemo(() => {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < creature.id.length; i++) {
+      h ^= creature.id.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    const radiusJitter = ((h >>> 0) % 1000) / 1000; // 0..1
+    const angle = seedPhase * Math.PI * 2;
+    // Spread the flock over a 0.9–2.4-unit annulus so the cluster reads
+    // as a "group" but creatures aren't stacked on top of each other.
+    const radius = 0.9 + radiusJitter * 1.5;
+    return { x: Math.cos(angle) * radius, z: Math.sin(angle) * radius };
+  }, [creature.id, seedPhase]);
+
   // Vertical offset that lifts the creature so its bbox BOTTOM sits on the
   // ground plane (y = 0) instead of its centroid being on the ground.
   // Without this, every creature has roughly half its blocks at negative
@@ -160,25 +180,28 @@ function EnergyCreature({
         let step: number;
 
         // Candy-button gather override — while the gather window is
-        // open, EVERY new hop aims at origin (with tiny jitter so the
-        // flock doesn't perfectly funnel into a single line). Step
-        // size scales with current distance so far-away creatures
-        // close the gap quickly while ones already near origin take
-        // little idle hops in place.
+        // open, each creature aims at its OWN personal gather spot
+        // (precomputed per-creature, distributed around an annulus
+        // near origin) so the flock forms a soft cluster rather than
+        // stacking on a single point. Step size scales with remaining
+        // distance to that spot.
         const gathering = performance.now() < gatherUntilMs;
         if (gathering) {
-          if (dist < 0.45) {
-            // Already piled near origin — small random hops to keep
-            // the cluster fidgeting instead of frozen.
+          const dxToSpot = gatherSpot.x - w.pos.x;
+          const dzToSpot = gatherSpot.z - w.pos.z;
+          const distToSpot = Math.hypot(dxToSpot, dzToSpot);
+          if (distToSpot < 0.3) {
+            // Already at the personal spot — tiny random hops in place
+            // so the creature still feels alive without drifting out.
             dir = Math.random() * Math.PI * 2;
-            step = 0.10 + Math.random() * 0.20;
+            step = 0.08 + Math.random() * 0.15;
           } else {
             dir =
-              Math.atan2(-w.pos.z, -w.pos.x) +
+              Math.atan2(dzToSpot, dxToSpot) +
               (Math.random() - 0.5) * Math.PI * 0.18;
-            // Cover most of the remaining distance in one hop, bounded
-            // so a 7-unit creature doesn't teleport across the scene.
-            step = Math.min(dist * 0.6 + 0.2, HOP_MAX_STEP * 1.8);
+            // Cover most of the remaining distance per hop, bounded so
+            // a far creature doesn't teleport across the scene.
+            step = Math.min(distToSpot * 0.6 + 0.2, HOP_MAX_STEP * 1.8);
           }
         } else {
           // Soft homing: past HOME_SOFT_RADIUS, increasing probability that
