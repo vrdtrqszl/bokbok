@@ -7,7 +7,7 @@ import { EMOTION_LIST } from "@/lib/emotions";
 import { uploadCreature, findCreatureById, deleteCreatureById } from "@/lib/ecosystem";
 import { playCreatureGiggle } from "@/lib/audio";
 import { useT, emotionName, useLanguage } from "@/lib/i18n";
-import { emotionByKey, randomCreatureName, type CreatureSpec } from "@/lib/creature";
+import { type CreatureSpec } from "@/lib/creature";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import ManualCanvas, { type ManualCanvasHandle } from "@/app/_components/ManualCanvas";
 import DatePicker from "@/app/_components/DatePicker";
@@ -597,25 +597,6 @@ function CreateManuallyPageInner() {
             </div>
           )}
         </div>
-
-        {/* Creature info — shown below blocks when creature exists */}
-        {creature && (
-          <div className="absolute inset-x-[10px] bottom-[8px] flex items-center gap-[6px] overflow-x-auto">
-            {creature.emotions.map(({ key }) => {
-              const e = emotionByKey(key);
-              return (
-                <div key={key} className="flex flex-none flex-col items-center gap-[2px]">
-                  <img
-                    alt=""
-                    src={e?.imagePath}
-                    className="h-[20px] w-[20px] rounded-full object-cover"
-                  />
-                  <span className="text-[9px] font-bold text-black/70">{emotionName(key, lang)}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
     </div>
   );
