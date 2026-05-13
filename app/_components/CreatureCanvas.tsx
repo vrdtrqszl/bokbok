@@ -28,8 +28,73 @@ export default function CreatureCanvas({
   className,
 }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const rotatorRef = useRef<HTMLDivElement | null>(null);
   const blockRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [fitScale, setFitScale] = useState(1);
+
+  // ---- Drag-to-rotate (3D turntable) ----------------------------------
+  // Refs (not state) so we can write the CSS transform every pointermove
+  // without re-rendering and tearing the per-frame "alive body" animation.
+  // yaw  = rotation around Y axis  (horizontal drag spins like a turntable)
+  // pitch = rotation around X axis (vertical drag tilts forward / back)
+  const yawRef = useRef(0);
+  const pitchRef = useRef(0);
+  const dragRef = useRef<{
+    sx: number; sy: number; yaw0: number; pitch0: number; pid: number;
+  } | null>(null);
+
+  const applyRotation = () => {
+    const el = rotatorRef.current;
+    if (!el) return;
+    // rotateX FIRST then rotateY so vertical drag stays intuitive when the
+    // creature has been spun (otherwise the X axis follows the rotated Y).
+    el.style.transform = `rotateX(${pitchRef.current}deg) rotateY(${yawRef.current}deg)`;
+  };
+
+  // Reset rotation when the displayed creature changes — a fresh subject
+  // should always show its "front" view first.
+  useEffect(() => {
+    yawRef.current = 0;
+    pitchRef.current = 0;
+    applyRotation();
+  }, [creature?.id]);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!creature) return;
+    dragRef.current = {
+      sx: e.clientX,
+      sy: e.clientY,
+      yaw0: yawRef.current,
+      pitch0: pitchRef.current,
+      pid: e.pointerId,
+    };
+    // Capture so the drag keeps tracking even if the cursor leaves the box.
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const s = dragRef.current;
+    if (!s) return;
+    // 0.5 deg per CSS pixel — a 200-px drag = full 100° sweep, a 720-px
+    // drag = full 360°. Comfortable on both desktop and the design canvas.
+    const SENS = 0.5;
+    const dx = e.clientX - s.sx;
+    const dy = e.clientY - s.sy;
+    yawRef.current = s.yaw0 + dx * SENS;
+    // Invert so "drag up" looks "up" (CSS rotateX positive tilts the top
+    // away from camera, which feels reversed when reading as a turntable).
+    pitchRef.current = s.pitch0 - dy * SENS;
+    applyRotation();
+  };
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragRef.current) return;
+    try {
+      e.currentTarget.releasePointerCapture(dragRef.current.pid);
+    } catch {
+      // releasePointerCapture throws if the capture was already lost;
+      // safe to ignore — the drag is ending either way.
+    }
+    dragRef.current = null;
+  };
 
   blockRefs.current = blockRefs.current.slice(0, creature?.blocks.length ?? 0);
 
@@ -121,39 +186,63 @@ export default function CreatureCanvas({
   return (
     <div
       ref={containerRef}
-      className={`relative h-full w-full overflow-hidden ${className ?? ""}`}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      className={`relative h-full w-full overflow-hidden select-none ${className ?? ""}`}
+      style={{
+        // 3D perspective for the rotator child — bigger = subtler 3D
+        // foreshortening. 1200 px feels natural at the design's box size.
+        perspective: "1200px",
+        // Cursor hints at the new drag interaction. `touch-action: none`
+        // disables touchscreen scrolling while the user is dragging the
+        // creature so the rotation feels like grabbing the object.
+        cursor: dragRef.current ? "grabbing" : "grab",
+        touchAction: "none",
+      }}
     >
-      {creature.blocks.map((b, i) => {
-        const left = `calc(50% + ${b.x * effectiveBlockSize}px)`;
-        const top = `calc(50% + ${b.y * effectiveBlockSize}px)`;
-        return (
-          <div
-            key={i}
-            ref={(el) => {
-              blockRefs.current[i] = el;
-            }}
-            className="pointer-events-none absolute"
-            style={{
-              left,
-              top,
-              width: `${effectiveBlockSize}px`,
-              height: `${effectiveBlockSize}px`,
-              zIndex: b.zIndex,
-              transform: `translate(-50%, -50%) rotate(${b.rotation}deg) scale(${b.scale})`,
-              transformOrigin: "center",
-              willChange: "transform",
-            }}
-          >
-            <img
-              alt=""
-              src={b.imagePath}
-              className="block h-full w-full select-none"
-              style={{ objectFit: "contain" }}
-              draggable={false}
-            />
-          </div>
-        );
-      })}
+      {/* 3D rotator — yaw/pitch are written to its transform every
+          pointermove (via applyRotation). The blocks live inside so the
+          whole creature spins as one rigid body; their per-frame "alive"
+          animation runs on top in local space. */}
+      <div
+        ref={rotatorRef}
+        className="absolute inset-0"
+        style={{ transformStyle: "preserve-3d", willChange: "transform" }}
+      >
+        {creature.blocks.map((b, i) => {
+          const left = `calc(50% + ${b.x * effectiveBlockSize}px)`;
+          const top = `calc(50% + ${b.y * effectiveBlockSize}px)`;
+          return (
+            <div
+              key={i}
+              ref={(el) => {
+                blockRefs.current[i] = el;
+              }}
+              className="pointer-events-none absolute"
+              style={{
+                left,
+                top,
+                width: `${effectiveBlockSize}px`,
+                height: `${effectiveBlockSize}px`,
+                zIndex: b.zIndex,
+                transform: `translate(-50%, -50%) rotate(${b.rotation}deg) scale(${b.scale})`,
+                transformOrigin: "center",
+                willChange: "transform",
+              }}
+            >
+              <img
+                alt=""
+                src={b.imagePath}
+                className="block h-full w-full select-none"
+                style={{ objectFit: "contain" }}
+                draggable={false}
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
