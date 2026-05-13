@@ -51,13 +51,13 @@ export function triggerEcosystemGather(): void {
 // the random direction has an increasing probability of being replaced
 // by a toward-origin direction with small jitter; by HOME_HARD_RADIUS
 // every hop heads back. Feels like wandering, not a fenced ring.
-const HOME_SOFT_RADIUS = 4;
-const HOME_HARD_RADIUS = 7;
+const HOME_SOFT_RADIUS = 7;
+const HOME_HARD_RADIUS = 11;
 // Per-hop step distance — large enough for the creatures to actually
 // traverse the scene (vs. fidgeting in place), small enough that each
 // hop is still a discrete cartoon "boing" rather than a long flight.
-const HOP_MIN_STEP = 0.30;
-const HOP_MAX_STEP = 0.85;
+const HOP_MIN_STEP = 0.35;
+const HOP_MAX_STEP = 1.10;
 // Global render scale for ecosystem creatures. The wandering view in the
 // main scene reads as a populated landscape rather than a few large
 // creatures, so we shrink each group uniformly. Camera/focus math in the
@@ -473,7 +473,7 @@ export default function EcosystemCreatures({
           rh = Math.imul(rh, 0x85ebca6b);
         }
         const angle = ((ah >>> 0) % 10000) / 10000 * Math.PI * 2;
-        const SPAWN_RADIUS_MAX = 4; // matches HOME_SOFT_RADIUS — within the camera frame
+        const SPAWN_RADIUS_MAX = 7; // matches HOME_SOFT_RADIUS — within the camera frame
         const radius = Math.sqrt(((rh >>> 0) % 10000) / 10000) * SPAWN_RADIUS_MAX;
         const pos: [number, number, number] = [
           Math.cos(angle) * radius,
