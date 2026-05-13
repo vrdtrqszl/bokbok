@@ -3,7 +3,6 @@ import "./globals.css";
 import ViewportFit from "./_components/ViewportFit";
 import SeedBootstrap from "./_components/SeedBootstrap";
 import TypingSounds from "./_components/TypingSounds";
-import MouseSounds from "./_components/MouseSounds";
 
 export const metadata: Metadata = {
   title: "BokBok",
@@ -26,7 +25,6 @@ export default function RootLayout({
       <body>
         <SeedBootstrap />
         <TypingSounds />
-        <MouseSounds />
         <ViewportFit>{children}</ViewportFit>
       </body>
     </html>
