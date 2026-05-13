@@ -9,6 +9,11 @@ import { creaturePositions } from "./_components/EcosystemCreatures";
 import { useT } from "@/lib/i18n";
 import { deleteCreatureById, loadEcosystem, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { creatureFocusBox, emotionByKey, type CreatureSpec } from "@/lib/creature";
+import {
+  creatureHighlightColor,
+  hoverNameHighlightUrl,
+  hoverDateHighlightUrl,
+} from "@/lib/nameHighlight";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
 import { unlockAudio } from "@/lib/audio";
 import { ambientChatter } from "@/lib/ambientChatter";
@@ -371,17 +376,40 @@ export default function MainPage() {
           cursor's bottom edge) and left to x+14 (just right of the cursor
           shaft) so the two never overlap. z-[200] keeps it above the
           right-side panels and the wavy main-box overlay. */}
-      {hoveredCreature && !petMode && (
-        <div
-          className="pointer-events-none absolute z-[200] whitespace-nowrap text-center text-[16px] font-bold leading-normal text-black font-(family-name:--font-casual)"
-          style={{ left: hoverPos.x + 14, top: hoverPos.y + 32 }}
-        >
-          <p className="m-0">{hoveredCreature.name ?? "Creature"}</p>
-          <p className="m-0">
-            {hoveredCreature.dateISO?.replace(/-/g, "") ?? ""}
-          </p>
-        </div>
-      )}
+      {hoveredCreature && !petMode && (() => {
+        // Per-creature accent for both highlight strokes — same id-hash
+        // pick the BokBokpedia / Calendar selections use, so a creature
+        // keeps the same accent everywhere. Opacity is baked into the
+        // hover SVGs (0.3, the design's published value).
+        const hoverColor = creatureHighlightColor(hoveredCreature);
+        const bg = (url: string) => ({
+          backgroundImage: url,
+          backgroundRepeat: "no-repeat" as const,
+          backgroundSize: "100% 11px",
+          backgroundPosition: "center",
+        });
+        return (
+          <div
+            className="pointer-events-none absolute z-[200] whitespace-nowrap text-center text-[16px] font-bold leading-normal text-black font-(family-name:--font-casual)"
+            style={{ left: hoverPos.x + 14, top: hoverPos.y + 32 }}
+          >
+            <p className="m-0">
+              {/* inline-block so the background-image hugs the text bbox
+                  instead of spanning the wider <p>. px-1 gives a small
+                  overhang so the marker stroke reads as a swipe past the
+                  glyphs, matching the BokBokpedia / Calendar treatments. */}
+              <span className="inline-block px-1" style={bg(hoverNameHighlightUrl(hoverColor))}>
+                {hoveredCreature.name ?? "Creature"}
+              </span>
+            </p>
+            <p className="m-0">
+              <span className="inline-block px-1" style={bg(hoverDateHighlightUrl(hoverColor))}>
+                {hoveredCreature.dateISO?.replace(/-/g, "") ?? ""}
+              </span>
+            </p>
+          </div>
+        );
+      })()}
 
       {/* Right-side panels — hidden in fullscreen mode. */}
       {!isFullscreen && (
