@@ -6,28 +6,8 @@ import { useEffect, useState } from "react";
 import { loadEcosystem, deleteCreatureById, matchesCreatureQuery, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
 import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
-import { EMOTION_COLOR_GROUP, EMOTION_GROUP_HEX } from "@/lib/emotions";
-import { nameHighlightDataUrl } from "@/lib/nameHighlight";
+import { nameHighlightDataUrl, creatureHighlightColor } from "@/lib/nameHighlight";
 import type { CreatureSpec } from "@/lib/creature";
-
-// Picks one of the creature's blocks deterministically by id-hash and
-// returns the matching group's hex. Stable per-creature so the highlight
-// keeps the same colour across re-renders / refreshes. Falls back to the
-// default blue from the original Figma asset if the creature has no
-// blocks.
-function highlightColorFor(creature: CreatureSpec): string {
-  const blocks = creature.blocks ?? [];
-  if (blocks.length === 0) return "#67BDFA";
-  let h = 0x811c9dc5;
-  for (let i = 0; i < creature.id.length; i++) {
-    h ^= creature.id.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  const idx = (h >>> 0) % blocks.length;
-  const key = blocks[idx].emotionKey;
-  const group = EMOTION_COLOR_GROUP[key];
-  return EMOTION_GROUP_HEX[group] ?? "#67BDFA";
-}
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
 import ViewportZoomControls from "@/app/_components/ViewportZoomControls";
@@ -248,7 +228,7 @@ export default function BokBokpediaPage() {
                       ...(isSelected
                         ? {
                             backgroundImage: nameHighlightDataUrl(
-                              highlightColorFor(c),
+                              creatureHighlightColor(c),
                             ),
                             backgroundRepeat: "no-repeat",
                             backgroundSize: "100% 20px",

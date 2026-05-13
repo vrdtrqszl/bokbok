@@ -6,6 +6,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { loadEcosystem, deleteCreatureById, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
 import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
+import { nameHighlightDataUrl, creatureHighlightColor } from "@/lib/nameHighlight";
 import type { CreatureSpec } from "@/lib/creature";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
@@ -110,6 +111,15 @@ function MonthGrid({
         const showCreature = cellCreatures && cellCreatures.length > 0
           ? cellCreatures[cycleTick % cellCreatures.length]
           : null;
+        // When the currently-selected creature lives in this cell, the
+        // date number gets the same hand-drawn highlight used elsewhere
+        // (BokBokpedia, Energy Blocks). Colour is picked from one of the
+        // creature's own blocks by id-hash so it's stable across renders.
+        const isHighlighted =
+          !!showCreature && !!selectedId && showCreature.id === selectedId;
+        const highlightHex = isHighlighted
+          ? creatureHighlightColor(showCreature)
+          : null;
         return (
           <Fragment key={date}>
             <p
@@ -121,7 +131,23 @@ function MonthGrid({
                 height: CELL_HEIGHT,
               }}
             >
-              {date}
+              {/* Inline span so the highlight background hugs the date
+                  number's text box (not the full CELL_WIDTH cell). */}
+              <span
+                style={
+                  highlightHex
+                    ? {
+                        backgroundImage: nameHighlightDataUrl(highlightHex),
+                        backgroundRepeat: "no-repeat",
+                        backgroundSize: "100% 18px",
+                        backgroundPosition: "center",
+                        padding: "0 4px",
+                      }
+                    : undefined
+                }
+              >
+                {date}
+              </span>
             </p>
             {showCreature && (
               <button
