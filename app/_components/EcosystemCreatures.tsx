@@ -5,7 +5,7 @@ import { useFrame, useLoader } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { TextureLoader, Vector3, type Group } from "three";
 import { loadEcosystem, matchesCreatureQuery, subscribeRemoteEcosystem } from "@/lib/ecosystem";
-import type { CreatureBlock, CreatureSpec } from "@/lib/creature";
+import { creatureFocusBox, type CreatureBlock, type CreatureSpec } from "@/lib/creature";
 import { EMOTION_LIST } from "@/lib/emotions";
 
 // Load all 31 energy block textures up front. They're modest (~few hundred KB
@@ -88,6 +88,21 @@ function EnergyCreature({
     for (let i = 0; i < creature.id.length; i++) h = (h * 31 + creature.id.charCodeAt(i)) | 0;
     return ((h >>> 0) % 1000) / 1000;
   }, [creature.id]);
+
+  // Vertical offset that lifts the creature so its bbox BOTTOM sits on the
+  // ground plane (y = 0) instead of its centroid being on the ground.
+  // Without this, every creature has roughly half its blocks at negative
+  // local Y — once the ground plane is opaque, those blocks get occluded
+  // and the creature reads as "cut in half" from the camera's angle.
+  //
+  // Math: the local Y of a block render position is -b.y (see EnergyBlock).
+  // The most-negative local Y is `centerY - halfHeight` from focusBox. We
+  // shift the group up by `-(centerY - halfHeight)` (in local units), then
+  // scale by ECOSYSTEM_SCALE to convert to world units.
+  const baseGroundOffset = useMemo(() => {
+    const box = creatureFocusBox(creature);
+    return -(box.centerY - box.halfHeight) * ECOSYSTEM_SCALE;
+  }, [creature]);
 
   // Wander state — the creature jumps from `from` to `to` over `jumpDuration`
   // seconds, lifts on a parabolic arc, then rests until `nextJumpAt`.
@@ -175,11 +190,16 @@ function EnergyCreature({
     }
 
     g.position.copy(w.pos);
+    // Lift the creature so its bbox bottom sits on the ground plane —
+    // wander.pos.y of 0 means "grounded", >0 means mid-jump, but the
+    // group's local origin is the creature's centroid, so we need an
+    // extra +baseGroundOffset to put the FEET on y=0 (not the centroid).
+    g.position.y = w.pos.y + baseGroundOffset;
     // Make this creature's current position queryable by the page (search
     // focus, click handler, etc.). We register the BASE wander position
     // before adding the shake offset, so other code (like camera focus)
     // doesn't chase the rapid jitter.
-    creaturePositions.set(creature.id, [w.pos.x, w.pos.y, w.pos.z]);
+    creaturePositions.set(creature.id, [w.pos.x, w.pos.y + baseGroundOffset, w.pos.z]);
 
     // Pet shake — overlay a fast random jitter on position+rotation while
     // the creature is being petted. Decays toward the end of the shake
