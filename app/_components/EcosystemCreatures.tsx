@@ -19,21 +19,29 @@ const TEXTURE_PATHS = EMOTION_LIST.map((e) => e.imagePath);
 export const creaturePositions = new Map<string, [number, number, number]>();
 
 // ---- Ecosystem-level "gather" command --------------------------------
-// When the candy button on the main page is pressed, every wandering
-// creature should re-route its next hops toward (0, 0, 0) so the flock
-// piles up near the camera target. We model this as a global timestamp
-// window: each creature's wander loop checks `gatherUntilMs` when it's
-// about to pick a new hop target and, while inside the window, aims at
-// origin instead of taking a random/soft-homing direction.
+// When the candy button on the main page is pressed, the flock cycles
+// through three phases:
+//   1. Gather phase   — every creature aims at its personal gather spot
+//                       (annulus near origin). Lasts long enough that
+//                       even the furthest creature reaches its spot
+//                       AND has a beat of idle hops to "settle".
+//   2. Pause          — the tail of the gather window where creatures
+//                       are already at their spots; small idle hops.
+//   3. Scatter phase  — kicks in once gather ends. Every creature picks
+//                       a random direction with a generous step, soft
+//                       homing is bypassed, so the cluster actively
+//                       explodes outward. Normal wandering resumes
+//                       after the scatter window closes.
 //
-// The window is duration-based (not per-creature-hop-count) so creatures
-// at different distances all hop home for the same wall-clock duration.
-// Default GATHER_DURATION is long enough for even the furthest creature
-// (HOME_HARD_RADIUS ≈ 7) to reach origin at the gather step rate.
-const GATHER_DURATION_SEC = 5;
+// Phases 1+2 share `gatherUntilMs`; phase 3 has its own `scatterUntilMs`.
+const GATHER_DURATION_SEC = 6; // ~3 s travel + ~3 s settle at the cluster
+const SCATTER_DURATION_SEC = 3; // ~3 s active spread back outward
 let gatherUntilMs = 0;
-export function triggerEcosystemGather(durationSec = GATHER_DURATION_SEC): void {
-  gatherUntilMs = performance.now() + durationSec * 1000;
+let scatterUntilMs = 0;
+export function triggerEcosystemGather(): void {
+  const now = performance.now();
+  gatherUntilMs = now + GATHER_DURATION_SEC * 1000;
+  scatterUntilMs = gatherUntilMs + SCATTER_DURATION_SEC * 1000;
 }
 
 // No hard radius wall — creatures hop freely on the flat ground plane.
@@ -179,13 +187,17 @@ function EnergyCreature({
         let dir: number;
         let step: number;
 
-        // Candy-button gather override — while the gather window is
-        // open, each creature aims at its OWN personal gather spot
-        // (precomputed per-creature, distributed around an annulus
-        // near origin) so the flock forms a soft cluster rather than
-        // stacking on a single point. Step size scales with remaining
-        // distance to that spot.
-        const gathering = performance.now() < gatherUntilMs;
+        // Candy-button gather/scatter override.
+        //   • While `gatherUntilMs` is in the future → aim at the
+        //     creature's personal cluster spot (annulus near origin).
+        //   • Otherwise, if `scatterUntilMs` is still in the future →
+        //     the gather window just ended and we're in the explode-out
+        //     phase: random direction, bigger step, no soft-homing.
+        // After both windows close, fall through to the normal wander
+        // pick below.
+        const now = performance.now();
+        const gathering = now < gatherUntilMs;
+        const scattering = !gathering && now < scatterUntilMs;
         if (gathering) {
           const dxToSpot = gatherSpot.x - w.pos.x;
           const dzToSpot = gatherSpot.z - w.pos.z;
@@ -203,6 +215,13 @@ function EnergyCreature({
             // a far creature doesn't teleport across the scene.
             step = Math.min(distToSpot * 0.6 + 0.2, HOP_MAX_STEP * 1.8);
           }
+        } else if (scattering) {
+          // Scatter: random direction, generous step. Soft-homing is
+          // bypassed (we skip the normal-wander branch entirely) so
+          // the cluster actually explodes apart rather than getting
+          // pulled back by the homing bias near origin.
+          dir = Math.random() * Math.PI * 2;
+          step = 0.9 + Math.random() * 1.0;
         } else {
           // Soft homing: past HOME_SOFT_RADIUS, increasing probability that
           // the random direction is replaced by a toward-origin one (with
