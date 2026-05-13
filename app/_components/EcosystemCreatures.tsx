@@ -34,7 +34,7 @@ export const creaturePositions = new Map<string, [number, number, number]>();
 //                       after the scatter window closes.
 //
 // Phases 1+2 share `gatherUntilMs`; phase 3 has its own `scatterUntilMs`.
-const GATHER_DURATION_SEC = 6; // ~3 s travel + ~3 s settle at the cluster
+const GATHER_DURATION_SEC = 4.7; // ~3 s travel + ~1.7 s settle at the cluster
 const SCATTER_DURATION_SEC = 3; // ~3 s active spread back outward
 let gatherUntilMs = 0;
 let scatterUntilMs = 0;
