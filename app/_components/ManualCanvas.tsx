@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { EMOTIONS, type EmotionKey } from "@/lib/emotions";
 import type { CreatureSpec, CreatureBlock } from "@/lib/creature";
 import SelectionBox from "./SelectionBox";
@@ -90,6 +91,50 @@ export default function ManualCanvas({
   useEffect(() => {
     setGroupRotation(0);
   }, [selectedIds]);
+
+  // Custom cursor — replaces the static .cursor-rotate-arc / .cursor-scale-
+  // arrow CSS cursors so the cursor visual can rotate together with the
+  // selection box. The cursor is rendered as a fixed-position DOM element
+  // portalled to document.body (escaping ViewportFit's scale and the
+  // canvas mask). Position is tracked via direct DOM mutation in a window
+  // mousemove listener so we don't re-render on every pixel of mouse
+  // motion. `locked` keeps the cursor visible during a drag even after the
+  // pointer leaves the handle's hit area.
+  const [customCursor, setCustomCursor] = useState<{
+    kind: "rotate" | "scale";
+    rotation: number;
+    locked?: boolean;
+  } | null>(null);
+  const cursorElRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!customCursor) return;
+    const move = (e: MouseEvent) => {
+      const el = cursorElRef.current;
+      if (!el) return;
+      el.style.left = `${e.clientX}px`;
+      el.style.top = `${e.clientY}px`;
+    };
+    window.addEventListener("mousemove", move, { passive: true });
+    return () => window.removeEventListener("mousemove", move);
+  }, [Boolean(customCursor)]);
+  // Global mouseup ends drag-mode: anything that locked the cursor (e.g.
+  // mousedown on a rotate/scale handle) is now done — clear the cursor.
+  useEffect(() => {
+    const up = () => setCustomCursor((c) => (c?.locked ? null : c));
+    window.addEventListener("mouseup", up);
+    return () => window.removeEventListener("mouseup", up);
+  }, []);
+
+  // Props for any of the rotate/scale handles. Hover shows the rotating
+  // cursor, mousedown locks it so a drag-out doesn't lose it, mouseleave
+  // hides it (unless still locked from an active drag).
+  const cursorHandleProps = (kind: "rotate" | "scale", rotation: number) => ({
+    onMouseEnter: () => setCustomCursor({ kind, rotation }),
+    onMouseLeave: () =>
+      setCustomCursor((c) => (c?.locked ? c : null)),
+    onMouseDownCapture: () =>
+      setCustomCursor({ kind, rotation, locked: true }),
+  });
   // Marquee (rubber-band) selection. Stored in canvas-local design pixels
   // (same coord space the right-click context menu uses). null when not
   // dragging; while dragging, currentX/Y track the pointer.
@@ -344,17 +389,6 @@ export default function ManualCanvas({
     };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
-  };
-
-  // Returns the CSS class for the resize cursor. When the handle's visual
-  // orientation lands on the LEFT (because the block / group is rotated
-  // ~90–270°), use the mirrored cursor so the arrow still points
-  // "inward toward the body" instead of "outward into empty space."
-  const scaleCursorClass = (rotationDeg: number): string => {
-    const norm = ((rotationDeg % 360) + 360) % 360;
-    return norm > 90 && norm < 270
-      ? "cursor-scale-arrow-flipped"
-      : "cursor-scale-arrow";
   };
 
   // ── group transform (rotate/resize handles on a multi-block bbox) ──────────
@@ -830,12 +864,14 @@ export default function ManualCanvas({
               <SelectionBox />
               {/* Rotate handle — top-center of the group bbox. */}
               <div
-                className="cursor-rotate-arc absolute left-1/2 -translate-x-1/2 flex items-center justify-center"
+                {...cursorHandleProps("rotate", gRot)}
+                className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center"
                 style={{
                   top: "-22px",
                   width: "32px",
                   height: "28px",
                   pointerEvents: "auto",
+                  cursor: "none",
                 }}
                 onMouseDown={startGroupRotate}
               >
@@ -855,11 +891,13 @@ export default function ManualCanvas({
                 </svg>
               </div>
               {/* Resize handle — bottom-right corner of the group bbox.
-                  Cursor flips horizontally when the selection's mean
-                  rotation puts it on the visually-mirrored side. */}
+                  The custom cursor rotates with `gRot`, so no flipped
+                  variant is needed any more. */}
               <div
-                className={`${scaleCursorClass(gRot)} absolute flex items-center justify-center`}
+                {...cursorHandleProps("scale", gRot)}
+                className="absolute flex items-center justify-center"
                 style={{
+                  cursor: "none",
                   right: "-14px",
                   bottom: "-14px",
                   width: "28px",
@@ -979,12 +1017,14 @@ export default function ManualCanvas({
                         Rotate for multi-block rotations instead. */}
                     {isSoleSelected && (
                     <div
-                      className="cursor-rotate-arc absolute left-1/2 -translate-x-1/2 flex items-center justify-center"
+                      {...cursorHandleProps("rotate", block.rotation)}
+                      className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center"
                       style={{
                         top: "-22px",
                         width: "32px",
                         height: "28px",
                         pointerEvents: "auto",
+                        cursor: "none",
                       }}
                       onMouseDown={(e) => {
                         e.stopPropagation();
@@ -1010,8 +1050,10 @@ export default function ManualCanvas({
 
                     {isSoleSelected && (
                     <div
-                      className={`${scaleCursorClass(block.rotation)} absolute flex items-center justify-center`}
+                      {...cursorHandleProps("scale", block.rotation)}
+                      className="absolute flex items-center justify-center"
                       style={{
+                        cursor: "none",
                         right: "-14px",
                         bottom: "-14px",
                         width: "28px",
@@ -1103,6 +1145,63 @@ export default function ManualCanvas({
           </>
         )}
       </div>
+      {/* Custom rotating cursor — portalled to document.body so it
+          escapes ViewportFit's CSS transform: scale() (which would
+          otherwise shrink the cursor along with the rest of the page)
+          and the canvas's mask-image clipping. Position is updated via
+          direct DOM mutation in a window mousemove listener, so the
+          cursor follows the pointer without re-rendering the canvas. */}
+      {customCursor &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={cursorElRef}
+            style={{
+              position: "fixed",
+              left: 0,
+              top: 0,
+              pointerEvents: "none",
+              zIndex: 99999,
+              // The element's top-left lands at the mouse position;
+              // rotating around (0, 0) means the cursor SVG rotates
+              // around its hotspot (which we offset to the same origin
+              // via negative margins below).
+              transform: `rotate(${customCursor.rotation}deg)`,
+              transformOrigin: "0 0",
+            }}
+          >
+            {customCursor.kind === "rotate" ? (
+              <img
+                alt=""
+                src="/assets/cursor-rotate.svg"
+                style={{
+                  position: "absolute",
+                  // Hotspot (11, 6) on a 23×12 cursor.
+                  left: "-11px",
+                  top: "-6px",
+                  width: "23px",
+                  height: "12px",
+                  pointerEvents: "none",
+                }}
+              />
+            ) : (
+              <img
+                alt=""
+                src="/assets/cursor-scale.svg"
+                style={{
+                  position: "absolute",
+                  // Hotspot (6, 8) on a ~12×16 cursor.
+                  left: "-6px",
+                  top: "-8px",
+                  width: "12px",
+                  height: "16px",
+                  pointerEvents: "none",
+                }}
+              />
+            )}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
