@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
 import type { CreatureSpec } from "@/lib/creature";
 
 type Props = {
@@ -86,6 +87,11 @@ export default function CreatureCanvas({
     return () => el.removeEventListener("wheel", onWheel);
   }, [creature]);
 
+  // Tap-vs-drag threshold. If the pointer never moves more than this from
+  // its down position before pointerup, treat the gesture as a click and
+  // play the creature's giggle. Bigger movement = drag, no sound.
+  const TAP_PIXEL_THRESHOLD = 5;
+
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!creature) return;
     dragRef.current = {
@@ -113,9 +119,19 @@ export default function CreatureCanvas({
     applyRotation();
   };
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!dragRef.current) return;
+    const s = dragRef.current;
+    if (!s) return;
+    // Tap detection: if the pointer never travelled more than the
+    // threshold, play the creature's giggle. `force: true` bypasses the
+    // global Sound Off toggle — pressing the creature in the panel
+    // always plays, matching the BokBokpedia / Calendar tile clicks.
+    const moved = Math.hypot(e.clientX - s.sx, e.clientY - s.sy);
+    if (creature && moved < TAP_PIXEL_THRESHOLD) {
+      unlockAudio();
+      playCreatureGiggle(creature.blocks, { force: true });
+    }
     try {
-      e.currentTarget.releasePointerCapture(dragRef.current.pid);
+      e.currentTarget.releasePointerCapture(s.pid);
     } catch {
       // releasePointerCapture throws if the capture was already lost;
       // safe to ignore — the drag is ending either way.
