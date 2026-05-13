@@ -334,6 +334,17 @@ export default function ManualCanvas({
     window.addEventListener("mouseup", onUp);
   };
 
+  // Returns the CSS class for the resize cursor. When the handle's visual
+  // orientation lands on the LEFT (because the block / group is rotated
+  // ~90–270°), use the mirrored cursor so the arrow still points
+  // "inward toward the body" instead of "outward into empty space."
+  const scaleCursorClass = (rotationDeg: number): string => {
+    const norm = ((rotationDeg % 360) + 360) % 360;
+    return norm > 90 && norm < 270
+      ? "cursor-scale-arrow-flipped"
+      : "cursor-scale-arrow";
+  };
+
   // ── group transform (rotate/resize handles on a multi-block bbox) ──────────
 
   // Returns the axis-aligned bounding box (in design pixels, canvas-
@@ -792,9 +803,13 @@ export default function ManualCanvas({
                   />
                 </svg>
               </div>
-              {/* Resize handle — bottom-right corner of the group bbox. */}
+              {/* Resize handle — bottom-right corner of the group bbox.
+                  Cursor flips horizontally when the selection's mean
+                  rotation puts it on the visually-mirrored side. */}
               <div
-                className="cursor-scale-arrow absolute flex items-center justify-center"
+                className={`${scaleCursorClass(
+                  sel.reduce((s, b) => s + b.rotation, 0) / sel.length,
+                )} absolute flex items-center justify-center`}
                 style={{
                   right: "-14px",
                   bottom: "-14px",
@@ -946,7 +961,7 @@ export default function ManualCanvas({
 
                     {isSoleSelected && (
                     <div
-                      className="cursor-scale-arrow absolute flex items-center justify-center"
+                      className={`${scaleCursorClass(block.rotation)} absolute flex items-center justify-center`}
                       style={{
                         right: "-14px",
                         bottom: "-14px",

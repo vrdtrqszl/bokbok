@@ -143,6 +143,16 @@ textarea,
   cursor: url('/assets/cursor-scale.svg') 6 8, se-resize !important;
 }
 
+/* Horizontally-mirrored variant — applied when the block is rotated such
+   that the resize handle ends up on the visual LEFT side of the block, so
+   the arrow still points "inward toward the block center" instead of
+   "outward into empty space." The flipped SVG file uses an SVG transform
+   to mirror the same paths; hotspot stays at 6 8 because the mirror is
+   symmetric around the cursor's middle. */
+.cursor-scale-arrow-flipped {
+  cursor: url('/assets/cursor-scale-flipped.svg') 6 8, sw-resize !important;
+}
+
 /* Hide all scrollbars site-wide while keeping scroll functionality. */
 * {
   scrollbar-width: none; /* Firefox */
