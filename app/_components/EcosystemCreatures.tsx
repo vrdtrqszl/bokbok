@@ -18,10 +18,15 @@ const TEXTURE_PATHS = EMOTION_LIST.map((e) => e.imagePath);
 // creature actually IS at any given moment.
 export const creaturePositions = new Map<string, [number, number, number]>();
 
-// No radius boundary — creatures hop freely on the flat ground plane.
-// (Earlier versions bounced them back inside a circular bound at the
-// canvas centre; removed per design feedback so the ecosystem feels like
-// a wide field rather than a fenced ring.)
+// No hard radius wall — creatures hop freely on the flat ground plane.
+// We still want them to stay roughly inside the camera frustum though
+// (otherwise random-walk variance pulls the whole flock off-screen over
+// a few minutes). A soft "homing" bias kicks in past HOME_SOFT_RADIUS:
+// the random direction has an increasing probability of being replaced
+// by a toward-origin direction with small jitter; by HOME_HARD_RADIUS
+// every hop heads back. Feels like wandering, not a fenced ring.
+const HOME_SOFT_RADIUS = 4;
+const HOME_HARD_RADIUS = 7;
 // Per-hop step distance — large enough for the creatures to actually
 // traverse the scene (vs. fidgeting in place), small enough that each
 // hop is still a discrete cartoon "boing" rather than a long flight.
@@ -117,7 +122,27 @@ function EnergyCreature({
       // so the creature looks like it's hopping in place, drifting slowly.
       if (t >= w.nextJumpAt) {
         w.from.copy(w.pos);
-        const dir = Math.random() * Math.PI * 2;
+        // Soft homing: past HOME_SOFT_RADIUS, increasing probability that
+        // the random direction is replaced by a toward-origin one (with
+        // ±36° spread so it doesn't look perfectly radial). At and past
+        // HOME_HARD_RADIUS every hop is biased back.
+        const dist = Math.hypot(w.pos.x, w.pos.z);
+        let dir: number;
+        const homingT =
+          dist <= HOME_SOFT_RADIUS
+            ? 0
+            : Math.min(
+                1,
+                (dist - HOME_SOFT_RADIUS) /
+                  (HOME_HARD_RADIUS - HOME_SOFT_RADIUS),
+              );
+        if (homingT > 0 && Math.random() < homingT) {
+          dir =
+            Math.atan2(-w.pos.z, -w.pos.x) +
+            (Math.random() - 0.5) * Math.PI * 0.4;
+        } else {
+          dir = Math.random() * Math.PI * 2;
+        }
         const step =
           HOP_MIN_STEP + Math.random() * (HOP_MAX_STEP - HOP_MIN_STEP);
         const nx = w.pos.x + Math.cos(dir) * step;
