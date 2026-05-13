@@ -21,6 +21,11 @@ export type CreatureBlock = {
   zIndex: number;
   // Animation phase offset (0..1) so each block breathes out of sync.
   phase: number;
+  // Optional horizontal / vertical mirror flags, set from the
+  // ManualCanvas context menu. Renderers apply them via scale(-1).
+  // Default false / undefined when not set (most creatures).
+  flipH?: boolean;
+  flipV?: boolean;
 };
 
 /**

@@ -70,7 +70,11 @@ export async function downloadCreaturePng(creature: CreatureSpec): Promise<void>
     ctx.save();
     ctx.translate(cx + block.x * BLOCK_PX, cy + block.y * BLOCK_PX);
     ctx.rotate((block.rotation * Math.PI) / 180);
-    ctx.scale(block.scale, block.scale);
+    // Honour the per-block mirror flags from the manual canvas via
+    // negative scale on the matching axis.
+    const sx = (block.flipH ? -1 : 1) * block.scale;
+    const sy = (block.flipV ? -1 : 1) * block.scale;
+    ctx.scale(sx, sy);
     ctx.drawImage(img, -BLOCK_PX / 2, -BLOCK_PX / 2, BLOCK_PX, BLOCK_PX);
     ctx.restore();
   }

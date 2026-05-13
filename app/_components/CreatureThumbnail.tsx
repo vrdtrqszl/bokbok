@@ -79,7 +79,9 @@ export default function CreatureThumbnail({
             top: `calc(50% + ${b.y * effectiveBlockSize}px)`,
             width: `${effectiveBlockSize}px`,
             height: `${effectiveBlockSize}px`,
-            transform: `translate(-50%, -50%) rotate(${b.rotation}deg) scale(${b.scale})`,
+            // Mirror flags honoured via scale(-1) on the matching axis,
+            // so thumbnails match the canvas exactly.
+            transform: `translate(-50%, -50%) rotate(${b.rotation}deg) scale(${(b.flipH ? -1 : 1) * b.scale}, ${(b.flipV ? -1 : 1) * b.scale})`,
             transformOrigin: "center",
             zIndex: b.zIndex,
           }}

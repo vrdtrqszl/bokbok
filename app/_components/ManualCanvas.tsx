@@ -243,6 +243,11 @@ export default function ManualCanvas({
           scale: b.scale,
           zIndex: b.zIndex,
           phase: b.phase,
+          // Only emit the flip flags when actually flipped — saves a
+          // few bytes per block in the store and keeps existing
+          // (un-flipped) creatures' JSON unchanged.
+          ...(b.flipH ? { flipH: true } : {}),
+          ...(b.flipV ? { flipV: true } : {}),
         }));
         // Center the cluster
         const cx = creatureBlocks.reduce((s, b) => s + b.x, 0) / creatureBlocks.length;
@@ -296,8 +301,10 @@ export default function ManualCanvas({
           y: b.y * BASE_PX,
           rotation: b.rotation,
           scale: b.scale,
-          flipH: false,
-          flipV: false,
+          // Restore the flip flags on edit so the canvas re-opens
+          // exactly the way the creature was saved.
+          flipH: b.flipH === true,
+          flipV: b.flipV === true,
           zIndex: i,
           phase: b.phase,
         }));

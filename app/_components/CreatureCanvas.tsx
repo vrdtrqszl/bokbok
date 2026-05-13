@@ -205,7 +205,12 @@ export default function CreatureCanvas({
         // rigid — like a faint ripple of muscle. Amplitude is small enough
         // that the body still reads as one connected mass.
         const wave = Math.sin(t * 2.2 + b.phase * Math.PI * 2) * 0.6;
-        el.style.transform = `translate(calc(-50% + ${swayX + wave}px), calc(-50% + ${swayY}px)) rotate(${b.rotation + tilt}deg) scale(${b.scale * breath})`;
+        // Honour the per-block mirror flags from the manual canvas
+        // (CreatureBlock.flipH / flipV). Applied as scale(-1) on the
+        // appropriate axis on top of the breathing scale.
+        const sx = (b.flipH ? -1 : 1) * b.scale * breath;
+        const sy = (b.flipV ? -1 : 1) * b.scale * breath;
+        el.style.transform = `translate(calc(-50% + ${swayX + wave}px), calc(-50% + ${swayY}px)) rotate(${b.rotation + tilt}deg) scale(${sx}, ${sy})`;
       }
       raf = requestAnimationFrame(tick);
     };
@@ -275,7 +280,10 @@ export default function CreatureCanvas({
                 width: `${effectiveBlockSize}px`,
                 height: `${effectiveBlockSize}px`,
                 zIndex: b.zIndex,
-                transform: `translate(-50%, -50%) rotate(${b.rotation}deg) scale(${b.scale})`,
+                // Initial transform before the alive-body animation
+                // takes over on the first frame. Includes the mirror
+                // flags so the first paint already reflects them.
+                transform: `translate(-50%, -50%) rotate(${b.rotation}deg) scale(${(b.flipH ? -1 : 1) * b.scale}, ${(b.flipV ? -1 : 1) * b.scale})`,
                 transformOrigin: "center",
                 willChange: "transform",
               }}

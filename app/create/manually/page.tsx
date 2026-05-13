@@ -109,25 +109,25 @@ function CreateManuallyPageInner() {
       alert(t("create.alert_creature_name"));
       return;
     }
-    // One-click flow: if the user hasn't clicked Generate yet, build the
-    // creature from whatever's currently on the canvas.
-    let toUpload = creature;
-    if (!toUpload) {
-      const spec = canvasHandle.current?.toCreatureSpec();
-      if (!spec) {
-        alert(t("create.alert_add_block"));
-        return;
-      }
-      if (editingId) spec.id = editingId;
-      toUpload = spec;
-      setCreature(spec);
+    // ALWAYS re-read the canvas at upload time — the previous version
+    // reused the snapshot stored by handleGenerate, which meant any
+    // move / rotate / resize the user made AFTER clicking Generate was
+    // silently dropped on upload. The saved `creature` state is only
+    // used for the right-side preview viewfinder.
+    const liveSpec = canvasHandle.current?.toCreatureSpec();
+    if (!liveSpec) {
+      alert(t("create.alert_add_block"));
+      return;
     }
+    if (editingId) liveSpec.id = editingId;
+    // Keep the preview in sync with what was just uploaded.
+    setCreature(liveSpec);
 
     // Read the latest journal text from DOM to bypass state-sync timing issues
     const currentText = (textareaRef.current?.value ?? journalText).trim();
 
     const enriched: CreatureSpec = {
-      ...toUpload,
+      ...liveSpec,
       name: trimmedName,
       journalText: currentText,
       dateISO: toISO(selectedDate),

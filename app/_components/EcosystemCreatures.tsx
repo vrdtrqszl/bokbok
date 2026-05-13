@@ -71,10 +71,15 @@ function EnergyBlock({ block }: { block: CreatureBlock }) {
   // Static placement — the BLOCK itself doesn't animate. The whole creature
   // group breathes and sways together (see EnergyCreature) so the body stays
   // connected like an animal, not a cluster of drifting orbs.
+  // Honour the per-block mirror flags from the manual canvas (CreatureBlock
+  // .flipH / .flipV). Negative scale on an axis flips the plane on that axis;
+  // we leave the Z scale at +1 so the texture still faces the camera.
+  const sx = (block.flipH ? -1 : 1) * block.scale;
+  const sy = (block.flipV ? -1 : 1) * block.scale;
   return (
     <mesh
       position={[block.x, -block.y, block.zIndex * 0.001]}
-      scale={block.scale}
+      scale={[sx, sy, block.scale]}
       rotation={[0, 0, (block.rotation * Math.PI) / 180]}
       renderOrder={block.zIndex}
     >
