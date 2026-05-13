@@ -19,10 +19,12 @@ const TEXTURE_PATHS = EMOTION_LIST.map((e) => e.imagePath);
 export const creaturePositions = new Map<string, [number, number, number]>();
 
 // Outer bound on the XZ plane — creatures bounce back if they'd jump past it.
-// Matches the original layout. At camera (0, 14, 6) FOV 45° aspect ~1.234,
-// the visible y=0 region is x ±7.83, z ∈ [-8.34, 5.83]; radius 5.0 lets
-// the (now smaller) creatures range farther across the scene.
-const WANDER_MAX_RADIUS = 5.0;
+// Tuned so the wandering cluster stays well inside the visible frustum on
+// the default bird's-eye camera AND survives the user rotating the free
+// camera slightly without creatures clipping past the wavy-frame edges.
+// (Previously 5.0; reduced to 3.5 after user reported creatures looking
+// cut off at the canvas corners.)
+const WANDER_MAX_RADIUS = 3.5;
 // Per-hop step distance — large enough for the creatures to actually
 // traverse the scene (vs. fidgeting in place), small enough that each
 // hop is still a discrete cartoon "boing" rather than a long flight.
@@ -336,7 +338,7 @@ export default function EcosystemCreatures({
         if (selectedId && c.id !== selectedId) return null;
 
         const angle = (i / visible.length) * Math.PI * 2;
-        const radius = visible.length === 1 ? 0 : 4;
+        const radius = visible.length === 1 ? 0 : 3;
         const pos: [number, number, number] = [
           Math.cos(angle) * radius,
           0,
