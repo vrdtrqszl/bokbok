@@ -456,10 +456,13 @@ function CreatePageInner() {
           src="/assets/creature-view.svg"
           className="absolute inset-0 block size-full"
         />
-        {/* pointer-events-auto re-enables hit-testing on just the canvas
-            area inside the (pointer-events-none) frame so the drag-to-
-            rotate gesture on CreatureCanvas actually receives events. */}
-        <div className="pointer-events-auto absolute left-[20px] right-[20px] top-[20px] bottom-[56px]">
+        {/* Inner canvas area — pushed tighter into the hand-drawn frame
+            so the creature has more room to breathe (especially when
+            zoomed). scroll-fade softens the visible edges into the wavy
+            outline. pointer-events-auto re-enables hit-testing for
+            drag-to-rotate on CreatureCanvas. Bottom keeps extra clearance
+            for the Upload button that lives in this frame's bbox. */}
+        <div className="scroll-fade pointer-events-auto absolute left-[8px] right-[8px] top-[10px] bottom-[48px]">
           <CreatureCanvas creature={creature} blockSize={140} padding={8} />
         </div>
       </div>

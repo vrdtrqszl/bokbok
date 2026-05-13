@@ -501,10 +501,13 @@ function CreateManuallyPageInner() {
           placeholder="Name"
           className="pointer-events-auto absolute left-1/2 top-[8px] z-[5] block h-[40px] w-[300px] -translate-x-1/2 bg-transparent text-center text-[28px] leading-normal text-black outline-none placeholder:text-black/30 font-(family-name:--font-fancy)"
         />
-        {/* Creature canvas — pushed below the name input.
-            pointer-events-auto so the drag-to-rotate gesture on
-            CreatureCanvas works through the (pointer-events-none) frame. */}
-        <div className="pointer-events-auto absolute left-[20px] right-[20px] top-[52px] bottom-[56px]">
+        {/* Creature canvas — pushed below the name input. scroll-fade
+            softens the visible edges into the wavy outline; the canvas
+            extends a few px closer to the frame so zoomed creatures
+            have more room to breathe. pointer-events-auto so drag-to-
+            rotate works through the (pointer-events-none) frame. Bottom
+            keeps extra clearance for the Upload button below. */}
+        <div className="scroll-fade pointer-events-auto absolute left-[8px] right-[8px] top-[50px] bottom-[48px]">
           <CreatureCanvas creature={creature} blockSize={140} padding={8} />
         </div>
       </div>

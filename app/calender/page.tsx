@@ -398,10 +398,13 @@ export default function CalendarPage() {
           src="/assets/creature-view.svg"
           className="absolute inset-0 block size-full"
         />
-        {/* pointer-events-auto re-enables hit-testing on just the canvas
-            area inside the (pointer-events-none) frame so the drag-to-
-            rotate gesture on CreatureCanvas actually receives events. */}
-        <div className="pointer-events-auto absolute left-[20px] right-[20px] top-[20px] bottom-[28px]">
+        {/* Inner canvas area — pushed tighter into the hand-drawn frame
+            so the creature has more room to breathe (especially when
+            zoomed). scroll-fade adds a soft 4-side mask so the visible
+            content dissolves into the wavy outline instead of clipping
+            against a hard rectangular edge. pointer-events-auto re-
+            enables hit-testing for drag-to-rotate on CreatureCanvas. */}
+        <div className="scroll-fade pointer-events-auto absolute left-[8px] right-[8px] top-[10px] bottom-[16px]">
           {selected ? (
             <CreatureCanvas
               creature={selected}
