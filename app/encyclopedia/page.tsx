@@ -206,40 +206,34 @@ export default function BokBokpediaPage() {
                   <CreatureThumbnail creature={c} blockSize={92} />
                 </div>
                 {/* Name + optional hand-drawn highlight (Figma 2241:1429).
-                    Inline-flex sizes the wrapper to the text — short
-                    "Mimi" gets a short highlight, long "Bouncing
-                    Joyfulness" gets a long one. The highlight SVG
-                    (preserveAspectRatio="none") stretches horizontally
-                    to the wrapper width and sits BEHIND the text at the
-                    vertical mid-line so it reads as a marker swipe.
-                    Only renders when this tile is the selected one.
-                    max-w-[195px] keeps the longest names from
-                    overflowing the 211 px tile. */}
+                    The highlight is rendered as a background-image on the
+                    text span itself — this intrinsically ties the bar
+                    width to the rendered text bounding box, so short
+                    "POPO" gets a short bar and long "Bouncing Joyfulness"
+                    gets a long one with no extra trailing space. Vertical
+                    centering uses `center` (Y axis), horizontal stretch
+                    uses 100% so preserveAspectRatio="none" inside the SVG
+                    does the rest. Padding-x of 4 px extends the bar a
+                    hair past the glyphs for the hand-drawn marker feel. */}
                 <div
-                  className="pointer-events-none absolute left-1/2 bottom-[6px] inline-flex h-[28px] -translate-x-1/2 items-center justify-center max-w-[195px]"
+                  className="pointer-events-none absolute left-1/2 bottom-[6px] flex h-[28px] -translate-x-1/2 items-center justify-center"
                 >
-                  {isSelected && (
-                    // Positioning wrapper sized to (text + 4 px overhang
-                    // on each side) so the highlight visually extends a
-                    // hair past the glyphs like a hand-drawn marker
-                    // swipe. The <img> inside fills the wrapper exactly
-                    // via size-full, which is reliable across browsers;
-                    // setting both `left`/`right` directly on the img
-                    // with `w-auto` triggered different fallback widths
-                    // (the SVG declares width="100%" with no intrinsic
-                    // px size, so some engines defaulted to the 300 px
-                    // replaced-element width — the highlight bled into
-                    // the next tile).
-                    <div className="pointer-events-none absolute left-[-4px] right-[-4px] top-1/2 h-[20px] -translate-y-1/2">
-                      <img
-                        alt=""
-                        src="/assets/name-highlight.svg"
-                        className="block size-full"
-                        draggable={false}
-                      />
-                    </div>
-                  )}
-                  <span className="relative truncate whitespace-nowrap text-center text-[20px] font-normal leading-[normal] text-black font-(family-name:--font-casual)">
+                  <span
+                    className="whitespace-nowrap px-[4px] text-center text-[20px] font-normal leading-[normal] text-black font-(family-name:--font-casual)"
+                    style={{
+                      maxWidth: "195px",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      ...(isSelected
+                        ? {
+                            backgroundImage: "url(/assets/name-highlight.svg)",
+                            backgroundRepeat: "no-repeat",
+                            backgroundSize: "100% 20px",
+                            backgroundPosition: "center",
+                          }
+                        : null),
+                    }}
+                  >
                     {c.name ?? "Creature"}
                   </span>
                 </div>
