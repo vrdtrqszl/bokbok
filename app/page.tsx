@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import MainViewport, { type FocusTarget, type ResetTrigger } from "./_components/MainViewport";
+import CandyButton from "./_components/CandyButton";
 import { creaturePositions } from "./_components/EcosystemCreatures";
 import { deleteCreatureById, loadEcosystem, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { creatureFocusBox, emotionByKey, type CreatureSpec } from "@/lib/creature";
@@ -338,6 +339,11 @@ export default function MainPage() {
               BokBok
             </span>
           </button>
+
+          {/* Candy button (Figma 2239:1401) — bottom-left of the main page.
+              Click to "call" wandering creatures back toward the centre of
+              the scene; their next hops are biased at origin for ~5 s. */}
+          <CandyButton />
         </>
       )}
 

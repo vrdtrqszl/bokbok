@@ -18,6 +18,24 @@ const TEXTURE_PATHS = EMOTION_LIST.map((e) => e.imagePath);
 // creature actually IS at any given moment.
 export const creaturePositions = new Map<string, [number, number, number]>();
 
+// ---- Ecosystem-level "gather" command --------------------------------
+// When the candy button on the main page is pressed, every wandering
+// creature should re-route its next hops toward (0, 0, 0) so the flock
+// piles up near the camera target. We model this as a global timestamp
+// window: each creature's wander loop checks `gatherUntilMs` when it's
+// about to pick a new hop target and, while inside the window, aims at
+// origin instead of taking a random/soft-homing direction.
+//
+// The window is duration-based (not per-creature-hop-count) so creatures
+// at different distances all hop home for the same wall-clock duration.
+// Default GATHER_DURATION is long enough for even the furthest creature
+// (HOME_HARD_RADIUS ≈ 7) to reach origin at the gather step rate.
+const GATHER_DURATION_SEC = 5;
+let gatherUntilMs = 0;
+export function triggerEcosystemGather(durationSec = GATHER_DURATION_SEC): void {
+  gatherUntilMs = performance.now() + durationSec * 1000;
+}
+
 // No hard radius wall — creatures hop freely on the flat ground plane.
 // We still want them to stay roughly inside the camera frustum though
 // (otherwise random-walk variance pulls the whole flock off-screen over
@@ -137,29 +155,54 @@ function EnergyCreature({
       // so the creature looks like it's hopping in place, drifting slowly.
       if (t >= w.nextJumpAt) {
         w.from.copy(w.pos);
-        // Soft homing: past HOME_SOFT_RADIUS, increasing probability that
-        // the random direction is replaced by a toward-origin one (with
-        // ±36° spread so it doesn't look perfectly radial). At and past
-        // HOME_HARD_RADIUS every hop is biased back.
         const dist = Math.hypot(w.pos.x, w.pos.z);
         let dir: number;
-        const homingT =
-          dist <= HOME_SOFT_RADIUS
-            ? 0
-            : Math.min(
-                1,
-                (dist - HOME_SOFT_RADIUS) /
-                  (HOME_HARD_RADIUS - HOME_SOFT_RADIUS),
-              );
-        if (homingT > 0 && Math.random() < homingT) {
-          dir =
-            Math.atan2(-w.pos.z, -w.pos.x) +
-            (Math.random() - 0.5) * Math.PI * 0.4;
+        let step: number;
+
+        // Candy-button gather override — while the gather window is
+        // open, EVERY new hop aims at origin (with tiny jitter so the
+        // flock doesn't perfectly funnel into a single line). Step
+        // size scales with current distance so far-away creatures
+        // close the gap quickly while ones already near origin take
+        // little idle hops in place.
+        const gathering = performance.now() < gatherUntilMs;
+        if (gathering) {
+          if (dist < 0.45) {
+            // Already piled near origin — small random hops to keep
+            // the cluster fidgeting instead of frozen.
+            dir = Math.random() * Math.PI * 2;
+            step = 0.10 + Math.random() * 0.20;
+          } else {
+            dir =
+              Math.atan2(-w.pos.z, -w.pos.x) +
+              (Math.random() - 0.5) * Math.PI * 0.18;
+            // Cover most of the remaining distance in one hop, bounded
+            // so a 7-unit creature doesn't teleport across the scene.
+            step = Math.min(dist * 0.6 + 0.2, HOP_MAX_STEP * 1.8);
+          }
         } else {
-          dir = Math.random() * Math.PI * 2;
+          // Soft homing: past HOME_SOFT_RADIUS, increasing probability that
+          // the random direction is replaced by a toward-origin one (with
+          // ±36° spread so it doesn't look perfectly radial). At and past
+          // HOME_HARD_RADIUS every hop is biased back.
+          const homingT =
+            dist <= HOME_SOFT_RADIUS
+              ? 0
+              : Math.min(
+                  1,
+                  (dist - HOME_SOFT_RADIUS) /
+                    (HOME_HARD_RADIUS - HOME_SOFT_RADIUS),
+                );
+          if (homingT > 0 && Math.random() < homingT) {
+            dir =
+              Math.atan2(-w.pos.z, -w.pos.x) +
+              (Math.random() - 0.5) * Math.PI * 0.4;
+          } else {
+            dir = Math.random() * Math.PI * 2;
+          }
+          step =
+            HOP_MIN_STEP + Math.random() * (HOP_MAX_STEP - HOP_MIN_STEP);
         }
-        const step =
-          HOP_MIN_STEP + Math.random() * (HOP_MAX_STEP - HOP_MIN_STEP);
         const nx = w.pos.x + Math.cos(dir) * step;
         const nz = w.pos.z + Math.sin(dir) * step;
         w.to.set(nx, 0, nz);
