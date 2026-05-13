@@ -205,25 +205,30 @@ export default function BokBokpediaPage() {
                 <div className="pointer-events-none absolute inset-[18px]">
                   <CreatureThumbnail creature={c} blockSize={92} />
                 </div>
-                {/* Name + optional text-box outline (Figma 2102:241).
-                    Wrapped in an inline-flex container so the box's width
-                    follows the text — a short "Mimi" gets a small box, a
-                    long "Bouncing Joyfulness" gets a wider one. The
-                    outline (same uploaded-box.svg as the /create
-                    "Uploaded" button) only renders when this tile is the
-                    selected one. Position: bottom-[6px] keeps the visible
-                    text vertical-center close to its old position
-                    (previously bottom-[8px] h-[20px], now bottom-[6px]
-                    h-[28px] = same baseline). max-w-[195px] keeps the
-                    longest names from overflowing the 211 px tile. */}
+                {/* Name + optional hand-drawn highlight (Figma 2241:1429).
+                    Inline-flex sizes the wrapper to the text — short
+                    "Mimi" gets a short highlight, long "Bouncing
+                    Joyfulness" gets a long one. The highlight SVG
+                    (preserveAspectRatio="none") stretches horizontally
+                    to the wrapper width and sits BEHIND the text at the
+                    vertical mid-line so it reads as a marker swipe.
+                    Only renders when this tile is the selected one.
+                    max-w-[195px] keeps the longest names from
+                    overflowing the 211 px tile. */}
                 <div
-                  className="pointer-events-none absolute left-1/2 bottom-[6px] inline-flex h-[28px] -translate-x-1/2 items-center justify-center px-[14px] max-w-[195px]"
+                  className="pointer-events-none absolute left-1/2 bottom-[6px] inline-flex h-[28px] -translate-x-1/2 items-center justify-center max-w-[195px]"
                 >
                   {isSelected && (
                     <img
                       alt=""
-                      src="/assets/uploaded-box.svg"
-                      className="pointer-events-none absolute inset-0 block size-full"
+                      src="/assets/name-highlight.svg"
+                      // Extend 4 px past each text edge so the hand-drawn
+                      // stroke looks like a swipe, not a tight crop. Height
+                      // ≈ font-size so the bar covers the lower-middle of
+                      // the glyphs without engulfing them. preserveAspect-
+                      // Ratio="none" inside the SVG handles the horizontal
+                      // stretch as the text width changes.
+                      className="pointer-events-none absolute left-[-4px] right-[-4px] top-1/2 block h-[20px] w-auto -translate-y-1/2 max-w-none"
                     />
                   )}
                   <span className="relative truncate whitespace-nowrap text-center text-[20px] font-normal leading-[normal] text-black font-(family-name:--font-casual)">
