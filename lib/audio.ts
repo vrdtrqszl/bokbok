@@ -662,96 +662,99 @@ export function playTypingTick(): void {
   osc.stop(now + 0.22);
 }
 
-// ---- Bubble tick (mouse-move) ----------------------------------------
-// Mystical underwater "bloop" played as the cursor wanders across the
-// page. Two slightly-detuned sine oscillators (chorus shimmer) with a
-// quick upward pitch glide — the signature of an air bubble rising
-// and surfacing. A resonant bandpass filter centred just above the
-// target pitch gives the watery character; a heavy reverb send sells
-// the underwater space.
+// ---- Droplet tick (mouse-move) ---------------------------------------
+// Mystical water droplet played as the cursor wanders across the page.
+// Same family as the typing tick (sine + downward pitch glide = water
+// drop) but distinct on every dimension so the two don't read as the
+// same sound when they overlap:
 //
-// Routed through masterGain so the Sound Off toggle silences it like
-// the rest of the ambient audio.
+//                  Typing tick                Mouse droplet
+//   Output         alwaysOnGain               masterGain (mute-respecting)
+//   Pitch range    D5–C7 (bright)             G4–F6 (mid, deeper)
+//   Glide          ×1.35 → ×1 in 70 ms        ×1.25 → ×1 in 100 ms
+//   Attack         4 ms (snappy)              12 ms (soft)
+//   Decay          ~180 ms                    ~450 ms (long mystical tail)
+//   Filter cutoff  static pitch × 4.5         sweeps pitch × 3.5 → × 1.4
+//   Octave shimmer none                       +18 % sine an octave up
+//   Reverb send    none                       0.5 (heavy — that's the
+//                                              "drifting in space" feel)
 //
 // Caller passes an optional pitchIndex 0..9 (mapped from cursor Y by
 // MouseSounds — top of viewport = high, bottom = low). Without an
 // index the note is uniformly random across the same scale.
 
-const BUBBLE_NOTES_HZ: number[] = [
-  // C minor pentatonic, mid-to-upper range. Sits in the watery /
-  // "small bubbles" register without going so high it feels cartoonish.
+const DROPLET_NOTES_HZ: number[] = [
+  // G minor pentatonic, mid range. Sits an octave below the typing
+  // tick's register so the two voices read as siblings, not identical.
   // Order matters — MouseSounds uses the array index to map cursor Y
   // to pitch (top of viewport reads as the highest note).
-  349.23, 415.30, 466.16, 523.25, 622.25,    // F4, G#4, Bb4, C5, Eb5
-  698.46, 830.61, 932.33, 1046.50, 1244.51,  // F5, G#5, Bb5, C6, Eb6
+  392.00, 466.16, 523.25, 587.33, 698.46,    // G4, Bb4, C5, D5, F5
+  783.99, 932.33, 1046.50, 1174.66, 1396.91, // G5, Bb5, C6, D6, F6
 ];
 
-export function playBubbleTick(pitchIndex?: number): void {
+export function playDropletTick(pitchIndex?: number): void {
   const c = ensureCtx();
   if (!c || !masterGain) return;
 
   const now = c.currentTime;
   const idx =
     typeof pitchIndex === "number"
-      ? Math.max(0, Math.min(BUBBLE_NOTES_HZ.length - 1, Math.floor(pitchIndex)))
-      : Math.floor(Math.random() * BUBBLE_NOTES_HZ.length);
-  const note = BUBBLE_NOTES_HZ[idx];
-  // ±25 cent jitter so wide cursor sweeps don't sound robotic.
-  const pitch = note * Math.pow(2, ((Math.random() - 0.5) * 50) / 1200);
+      ? Math.max(0, Math.min(DROPLET_NOTES_HZ.length - 1, Math.floor(pitchIndex)))
+      : Math.floor(Math.random() * DROPLET_NOTES_HZ.length);
+  const note = DROPLET_NOTES_HZ[idx];
+  // ±15 cent jitter — matches the typing tick's organic feel.
+  const pitch = note * Math.pow(2, ((Math.random() - 0.5) * 30) / 1200);
 
-  // Two near-unison sines: the slight detune gives the "shimmery"
-  // chorus that makes a bubble feel underwater rather than dry.
-  const oscA = c.createOscillator();
-  oscA.type = "sine";
-  const oscB = c.createOscillator();
-  oscB.type = "sine";
-  // Both share the upward pitch glide: starts a fifth below target,
-  // rises to target over ~90 ms — the signature "boop" of a bubble
-  // surfacing.
-  oscA.frequency.setValueAtTime(pitch * 0.55, now);
-  oscA.frequency.exponentialRampToValueAtTime(pitch, now + 0.09);
-  // oscB detuned +7 cents so the two sines slowly beat against each
-  // other → watery shimmer through the decay.
-  const detune = Math.pow(2, 7 / 1200);
-  oscB.frequency.setValueAtTime(pitch * 0.55 * detune, now);
-  oscB.frequency.exponentialRampToValueAtTime(pitch * detune, now + 0.09);
+  // Body — pure sine with a downward pitch glide. Gentler than the
+  // typing tick's 1.35× start so the drop reads as "soft landing"
+  // rather than "snappy plip".
+  const osc = c.createOscillator();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(pitch * 1.25, now);
+  osc.frequency.exponentialRampToValueAtTime(pitch, now + 0.1);
 
-  const oscBMix = c.createGain();
-  oscBMix.gain.value = 0.85;
+  // Octave shimmer — a faint sine an octave up at 18% mix gives the
+  // "mystical halo" feel without breaking the water-drop character.
+  const oscShimmer = c.createOscillator();
+  oscShimmer.type = "sine";
+  oscShimmer.frequency.setValueAtTime(pitch * 2.5, now);
+  oscShimmer.frequency.exponentialRampToValueAtTime(pitch * 2, now + 0.12);
+  const shimmerMix = c.createGain();
+  shimmerMix.gain.value = 0.18;
 
-  // Resonant bandpass slightly above the target pitch — the resonance
-  // is what gives the rounded, hollow "bubble" quality. Q ~ 2 is just
-  // enough to colour without ringing into whistle territory.
+  // Lowpass that closes through the decay → the brightness fades as
+  // the note settles, like a ripple spreading and dampening.
   const filt = c.createBiquadFilter();
-  filt.type = "bandpass";
-  filt.frequency.setValueAtTime(pitch * 1.5, now);
-  filt.frequency.exponentialRampToValueAtTime(pitch * 1.2, now + 0.4);
-  filt.Q.value = 2.0;
+  filt.type = "lowpass";
+  filt.frequency.setValueAtTime(pitch * 3.5, now);
+  filt.frequency.exponentialRampToValueAtTime(pitch * 1.4, now + 0.4);
+  filt.Q.value = 0.7;
 
-  // Soft attack into a smooth exponential decay. Peak ~0.05 sits
-  // quietly under any creature audio without disappearing.
-  const peakAmp = 0.045 + Math.random() * 0.018;
+  // Soft attack into a long exponential decay. Peak ~0.045 stays
+  // under the creature audio without disappearing.
+  const peakAmp = 0.04 + Math.random() * 0.018;
   const env = c.createGain();
   env.gain.setValueAtTime(0, now);
-  env.gain.linearRampToValueAtTime(peakAmp, now + 0.025);
-  env.gain.exponentialRampToValueAtTime(0.0008, now + 0.55);
+  env.gain.linearRampToValueAtTime(peakAmp, now + 0.012);
+  env.gain.exponentialRampToValueAtTime(0.0008, now + 0.45);
 
-  oscA.connect(filt);
-  oscB.connect(oscBMix);
-  oscBMix.connect(filt);
+  osc.connect(filt);
+  oscShimmer.connect(shimmerMix);
+  shimmerMix.connect(filt);
   filt.connect(env);
   env.connect(masterGain);
 
-  // Heavy reverb send — bubbles want to feel suspended in fluid.
+  // Heavy reverb send — this is the "drifting / mystical" tail that
+  // most differentiates the mouse droplet from the bone-dry typing tick.
   if (reverbInput) {
     const send = c.createGain();
-    send.gain.value = 0.55;
+    send.gain.value = 0.5;
     env.connect(send);
     send.connect(reverbInput);
   }
 
-  oscA.start(now);
-  oscA.stop(now + 0.62);
-  oscB.start(now);
-  oscB.stop(now + 0.62);
+  osc.start(now);
+  osc.stop(now + 0.5);
+  oscShimmer.start(now);
+  oscShimmer.stop(now + 0.5);
 }

@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
-import { playBubbleTick, unlockAudio } from "@/lib/audio";
+import { playDropletTick, unlockAudio } from "@/lib/audio";
 
 /**
- * Fires a soft underwater bubble note (lib/audio playBubbleTick) as
+ * Fires a mystical water-droplet note (lib/audio playDropletTick) as
  * the cursor wanders the page, giving the whole site a quiet drifting
- * soundtrack.
+ * soundtrack. Same water-drop family as the typing tick but mid-range,
+ * soft attack, with a long reverb tail and an octave shimmer so the
+ * two voices read as siblings rather than identical sounds.
  *
  * Throttled by BOTH a minimum travel distance AND a minimum time gap
  * between notes so even fast cursor sweeps cap at ~5 notes / second —
@@ -33,7 +35,7 @@ export default function MouseSounds() {
     // continuous fast cursor movement, sparser when slow.
     const MIN_DIST = 60;
     const MIN_MS = 180;
-    const NOTE_COUNT = 10; // matches lib/audio BUBBLE_NOTES_HZ.length
+    const NOTE_COUNT = 10; // matches lib/audio DROPLET_NOTES_HZ.length
 
     const onMove = (e: MouseEvent) => {
       const now = performance.now();
@@ -53,7 +55,7 @@ export default function MouseSounds() {
 
       unlockAudio();
       try {
-        playBubbleTick(idx);
+        playDropletTick(idx);
       } catch {
         // Synth failures degrade silently.
       }
