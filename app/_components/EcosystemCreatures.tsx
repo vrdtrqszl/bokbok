@@ -76,11 +76,19 @@ function EnergyBlock({ block }: { block: CreatureBlock }) {
   // we leave the Z scale at +1 so the texture still faces the camera.
   const sx = (block.flipH ? -1 : 1) * block.scale;
   const sy = (block.flipV ? -1 : 1) * block.scale;
+  // Rotation direction needs to be NEGATED relative to the canvas's stored
+  // value. The canvas uses CSS conventions: +Y down, positive rotation =
+  // clockwise. The 3D scene uses Three.js conventions: +Y up, positive
+  // rotation around Z = counter-clockwise (right-hand rule from camera).
+  // Since we already flip the Y position (`-block.y`) to translate "down in
+  // canvas" into "down in 3D", we have to flip the rotation too — otherwise
+  // every tilted block ends up tilted in the OPPOSITE direction in the
+  // ecosystem vs. how the user placed it in the manual canvas.
   return (
     <mesh
       position={[block.x, -block.y, block.zIndex * 0.001]}
       scale={[sx, sy, block.scale]}
-      rotation={[0, 0, (block.rotation * Math.PI) / 180]}
+      rotation={[0, 0, -(block.rotation * Math.PI) / 180]}
       renderOrder={block.zIndex}
     >
       <planeGeometry args={[1, 1]} />
