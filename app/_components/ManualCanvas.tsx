@@ -1080,7 +1080,11 @@ export default function ManualCanvas({
                     src={block.imagePath}
                     alt={block.emotionKey}
                     className="block size-full"
-                    style={{ objectFit: "contain" }}
+                    // Tiny CSS blur on each block softens the alpha falloff
+                    // at its edges; where two blocks overlap, their already-
+                    // soft halos blend into one continuous boundary instead
+                    // of stacking as two distinct gradients.
+                    style={{ objectFit: "contain", filter: "blur(0.8px)" }}
                     draggable={false}
                   />
                 </div>

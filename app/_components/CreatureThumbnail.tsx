@@ -90,7 +90,10 @@ export default function CreatureThumbnail({
             src={b.imagePath}
             alt=""
             className="block size-full select-none"
-            style={{ objectFit: "contain" }}
+            // Soft-blur trick (same as ManualCanvas / CreatureCanvas):
+            // blends each block's alpha halo into its neighbours' so
+            // overlapping blocks read as one connected body in the tile.
+            style={{ objectFit: "contain", filter: "blur(0.6px)" }}
             draggable={false}
           />
         </div>

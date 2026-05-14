@@ -292,7 +292,10 @@ export default function CreatureCanvas({
                 alt=""
                 src={b.imagePath}
                 className="block h-full w-full select-none"
-                style={{ objectFit: "contain" }}
+                // Same soft-blur trick the manual canvas uses — bleeds
+                // each block's alpha halo into its neighbours' so
+                // overlapping blocks read as one connected body.
+                style={{ objectFit: "contain", filter: "blur(0.8px)" }}
                 draggable={false}
               />
             </div>
