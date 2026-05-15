@@ -6,6 +6,7 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { Vector3 } from "three";
 import EcosystemCreatures from "./EcosystemCreatures";
 import CreaturesErrorBoundary from "./CreaturesErrorBoundary";
+import GardenDecorations from "./GardenDecorations";
 import SoundToggle from "./SoundToggle";
 import type { CreatureSpec } from "@/lib/creature";
 
@@ -265,6 +266,15 @@ export default function MainViewport({
             <planeGeometry args={[200, 200]} />
             <meshBasicMaterial color="#d6cfba" />
           </mesh>
+
+          {/* Garden — hand-drawn leaves / flowers / clovers / mushrooms
+              billboarded and rooted across the ground. Behind the
+              CreaturesErrorBoundary so its own Suspense for texture
+              loading doesn't take down the creature scene if a
+              decoration fails to load. */}
+          <Suspense fallback={null}>
+            <GardenDecorations />
+          </Suspense>
 
           <CreaturesErrorBoundary>
             <Suspense fallback={null}>
