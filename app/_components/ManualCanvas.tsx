@@ -95,6 +95,27 @@ export default function ManualCanvas({
     // most editors: once you branch off, the old "future" is gone.
     futureRef.current = [];
   };
+  // Arrow-key-nudge coalescing. When the user presses an arrow key in a
+  // burst (or holds one down for auto-repeat), each press shouldn't push
+  // its own history entry. We snapshot ONCE at the start of the burst,
+  // then clear the "active" flag after a short idle gap so the next
+  // burst gets its own entry.
+  const arrowBurstActive = useRef(false);
+  const arrowBurstTimer = useRef<number | null>(null);
+  const beginArrowBurst = () => {
+    if (!arrowBurstActive.current) {
+      commitHistory();
+      arrowBurstActive.current = true;
+    }
+    if (arrowBurstTimer.current !== null) {
+      window.clearTimeout(arrowBurstTimer.current);
+    }
+    arrowBurstTimer.current = window.setTimeout(() => {
+      arrowBurstActive.current = false;
+      arrowBurstTimer.current = null;
+    }, 450);
+  };
+
   const undo = () => {
     const past = historyRef.current.pop();
     if (!past) return;
@@ -412,12 +433,11 @@ export default function ManualCanvas({
       if (moveSet.has(b.id)) moveStart.set(b.id, { x: b.x, y: b.y });
     }
 
-    // Bring the active drag block to front; for multi-move, leave the
-    // other selected blocks where they are in z-order so nothing
-    // unexpected reorders behind the scenes.
-    setBlocks((prev) =>
-      prev.map((b) => (b.id === blockId ? { ...b, zIndex: nextZ.current++ } : b)),
-    );
+    // Block z-order is left alone here. Selecting / dragging used to
+    // auto-bump the block's zIndex, which surprised users who'd
+    // intentionally arranged layers (e.g. a background block buried
+    // under a foreground one). The right-click menu's "bring to front"
+    // / "bring to back" still let the user re-stack on demand.
 
     const onMove = (ev: MouseEvent) => {
       const ds = dragRef.current;
@@ -627,6 +647,34 @@ export default function ManualCanvas({
       const ids = selectedIdsRef.current;
       const idSet = new Set(ids);
       const selBlocks = blocksRef.current.filter((b) => idSet.has(b.id));
+
+      // Arrow keys — nudge every selected block by 2 px (or 20 px with
+      // Shift) in the direction of the key. Holding the key down auto-
+      // repeats; consecutive presses are coalesced into one undo step
+      // via the arrowBurst helper so Ctrl+Z reverts a whole nudge run.
+      const isArrow =
+        e.key === "ArrowUp" ||
+        e.key === "ArrowDown" ||
+        e.key === "ArrowLeft" ||
+        e.key === "ArrowRight";
+      if (isArrow && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (ids.length === 0) return;
+        e.preventDefault();
+        const step = e.shiftKey ? 20 : 2;
+        let dx = 0;
+        let dy = 0;
+        if (e.key === "ArrowUp") dy = -step;
+        else if (e.key === "ArrowDown") dy = step;
+        else if (e.key === "ArrowLeft") dx = -step;
+        else dx = step;
+        beginArrowBurst();
+        setBlocks((prev) =>
+          prev.map((b) =>
+            idSet.has(b.id) ? { ...b, x: b.x + dx, y: b.y + dy } : b,
+          ),
+        );
+        return;
+      }
 
       // Ctrl/Cmd+Z → undo, Ctrl/Cmd+Shift+Z (or Ctrl/Cmd+Y) → redo.
       // Checked before everything else so the user can always escape
