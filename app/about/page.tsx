@@ -205,10 +205,12 @@ export default function AboutPage() {
         <span className="absolute left-1/2 top-[285px] block -translate-x-1/2 whitespace-nowrap text-[36px] leading-normal text-black font-(family-name:--font-fancy)">
           BokBok
         </span>
-        {/* Korean onomatopoeic definition, two lines. */}
+        {/* Korean onomatopoeic definition, two lines. Per Figma 2251:1574:
+            x=21 y=333 (relative to the 396.28×386.37 creature view),
+            width 354, height 37, 16 px Casual Human Bold, uppercase,
+            centered horizontally. */}
         <p
-          className="absolute left-1/2 top-[325px] m-0 block w-[354px] -translate-x-1/2 text-center text-[20px] font-bold leading-[normal] text-black"
-          style={{ textTransform: "uppercase" }}
+          className="absolute left-[21px] top-[333px] m-0 block h-[37px] w-[354px] text-center text-[16px] font-bold leading-[normal] uppercase text-black"
         >
           :a Korean onomatopoeic word describing
           <br />
