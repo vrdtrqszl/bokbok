@@ -147,12 +147,14 @@ export default function AboutPage() {
           </div>
         </CartoonPanel>
 
-        {/* Panel 4 (bottom-right) — kneeling self-care figure. */}
+        {/* Panel 4 (bottom-right) — kneeling self-care figure. Figma
+            2251:1807 places the figure at (127.24, 17.24) within the
+            cartoon box, 102.52 × 204.51. */}
         <CartoonPanel left={501} top={399} width={362} height={241}>
           <img
             alt=""
             src="/assets/about-self-care.svg"
-            className="absolute left-[127px] top-[17px] block h-[205px] w-[103px]"
+            className="absolute left-[127.24px] top-[17.24px] block h-[204.51px] w-[102.52px] max-w-none"
             draggable={false}
           />
         </CartoonPanel>
