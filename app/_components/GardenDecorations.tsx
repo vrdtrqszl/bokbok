@@ -43,7 +43,14 @@ function makeRng(seed: number) {
   };
 }
 
-export default function GardenDecorations() {
+export default function GardenDecorations({
+  hidden = false,
+}: {
+  /** When true, the whole garden is skipped — used by MainViewport to
+   *  declutter the zoomed-in view when a creature is selected. The
+   *  textures stay preloaded so re-showing the garden is instant. */
+  hidden?: boolean;
+} = {}) {
   // Preload all four textures upfront — small SVGs, cheap.
   const srcs = useMemo(() => GARDEN_ASSETS.map((a) => a.src), []);
   const textures = useLoader(TextureLoader, srcs as unknown as string[]);
@@ -70,6 +77,11 @@ export default function GardenDecorations() {
       return { id: i, typeIdx, x, z, width, height };
     });
   }, []);
+
+  // When zoomed in on a single creature, the garden becomes visual
+  // noise and competes with the focused subject. Skip rendering all
+  // the decoration meshes entirely until selection clears.
+  if (hidden) return null;
 
   return (
     <>

@@ -273,7 +273,7 @@ export default function MainViewport({
               loading doesn't take down the creature scene if a
               decoration fails to load. */}
           <Suspense fallback={null}>
-            <GardenDecorations />
+            <GardenDecorations hidden={!!selectedCreatureId} />
           </Suspense>
 
           <CreaturesErrorBoundary>
