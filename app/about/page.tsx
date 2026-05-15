@@ -89,12 +89,17 @@ export default function AboutPage() {
 
         {/* Cartoon panels — frame positions match the Figma insets
             converted to pixels relative to the story-box wrapper. */}
-        {/* Panel 1 (top-left) — Instagram-style "you stopped journaling". */}
+        {/* Panel 1 (top-left) — Instagram-style "you stopped journaling".
+            The Insta illustration's intrinsic frame (Figma 2251:1613)
+            is 183.73 × 246.76 at (87, 28) inside the cartoon box —
+            slightly TALLER than the 240-px-high frame so the phone
+            illustration drops out below the bottom border. We render
+            at the design size and let it overflow. */}
         <CartoonPanel left={111} top={97} width={358} height={240}>
           <img
             alt=""
             src="/assets/about-insta.svg"
-            className="absolute left-[87px] top-[28px] block h-[174px] w-[184px]"
+            className="absolute left-[87px] top-[28px] block h-[246.76px] w-[183.73px] max-w-none"
             draggable={false}
           />
         </CartoonPanel>
