@@ -186,6 +186,44 @@ function FigmaSvg({
   );
 }
 
+// ── Book sub-part helper ────────────────────────────────────────────
+// The book illustration (Figma 2273:2498) is made of 18 small SVGs.
+// Each one uses the same two-wrapper pattern as FigmaSvg, but with the
+// outer positioned at absolute px coords (instead of percentage insets)
+// since the metadata gives raw pixels. Pulled out into its own helper
+// to keep the book block in AboutStory readable.
+function BookPart({
+  src,
+  left,
+  top,
+  width,
+  height,
+  inner,
+}: {
+  src: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  inner: string;
+}) {
+  return (
+    <div
+      className="pointer-events-none absolute"
+      style={{
+        left: `${left}px`,
+        top: `${top}px`,
+        width: `${width}px`,
+        height: `${height}px`,
+      }}
+    >
+      <div className="absolute" style={{ inset: inner }}>
+        <img alt="" src={src} className="block size-full max-w-none" draggable={false} />
+      </div>
+    </div>
+  );
+}
+
 // ── About story (974 × 1332 collage) ───────────────────────────────
 // Renders all the panels, dividers, illustrations, and text inside the
 // scrollable story-box wrapper. Coordinates come verbatim from the
@@ -315,75 +353,30 @@ function AboutStory() {
         inner="-0.36% -0.71% -0.24% -0.48%"
         src="/assets/about-divider-mid.svg"
       />
-      {/* Book left page. */}
-      <div
-        className="pointer-events-none absolute"
-        style={{ left: "440px", top: "445px", width: "65.488px", height: "99.501px" }}
-      >
-        <div className="absolute" style={{ inset: "-0.69% -1.15% -0.76% -0.29%" }}>
-          <img
-            alt=""
-            src="/assets/about-book-left.svg"
-            className="block size-full max-w-none"
-            draggable={false}
-          />
-        </div>
-      </div>
-      {/* Book right page. */}
-      <div
-        className="pointer-events-none absolute"
-        style={{ left: "502.49px", top: "439px", width: "64.806px", height: "106.006px" }}
-      >
-        <div className="absolute" style={{ inset: "-0.66% -1.4% -0.44% -1.08%" }}>
-          <img
-            alt=""
-            src="/assets/about-book-right.svg"
-            className="block size-full max-w-none"
-            draggable={false}
-          />
-        </div>
-      </div>
-      {/* Book spine. */}
-      <div
-        className="pointer-events-none absolute"
-        style={{ left: "502.21px", top: "449.34px", width: "3.734px", height: "95.523px" }}
-      >
-        <div className="absolute" style={{ inset: "-0.8% -17.35% -0.68% -20.45%" }}>
-          <img
-            alt=""
-            src="/assets/about-book-spine.svg"
-            className="block size-full max-w-none"
-            draggable={false}
-          />
-        </div>
-      </div>
-      {/* Pencil (right of the book). */}
-      <div
-        className="pointer-events-none absolute"
-        style={{ left: "591.08px", top: "439.62px", width: "10.2px", height: "15.15px" }}
-      >
-        <div className="absolute" style={{ inset: "-4.86% -6.65% -4.7% -6.98%" }}>
-          <img
-            alt=""
-            src="/assets/about-book-detail1.svg"
-            className="block size-full max-w-none"
-            draggable={false}
-          />
-        </div>
-      </div>
-      <div
-        className="pointer-events-none absolute"
-        style={{ left: "589.47px", top: "455.35px", width: "11.723px", height: "75.075px" }}
-      >
-        <div className="absolute" style={{ inset: "-0.62% -4.61% -1.14% -7.76%" }}>
-          <img
-            alt=""
-            src="/assets/about-book-detail3.svg"
-            className="block size-full max-w-none"
-            draggable={false}
-          />
-        </div>
-      </div>
+      {/* Book group (Figma 2273:2498) — 18 sub-vectors making up the
+          open-book illustration with pencil + handwritten "Bok Bok".
+          All px positions come straight from the Figma metadata. */}
+      <BookPart src="/assets/about-book-spine.svg" left={502.21} top={449.34} width={3.734} height={95.523} inner="-0.8% -17.35% -0.68% -20.45%" />
+      <BookPart src="/assets/about-book-left.svg" left={440} top={445} width={65.488} height={99.501} inner="-0.69% -1.15% -0.76% -0.29%" />
+      <BookPart src="/assets/about-book-right.svg" left={502.49} top={439} width={64.806} height={106.006} inner="-0.66% -1.4% -0.44% -1.08%" />
+      {/* Pencil group (right of the book). */}
+      <BookPart src="/assets/about-book-detail1.svg" left={591.08} top={439.62} width={10.2} height={15.15} inner="-4.86% -6.65% -4.7% -6.98%" />
+      <BookPart src="/assets/about-book-detail2.svg" left={591.46} top={452.8} width={10.312} height={2.981} inner="-23.34% -6.83% -25% -6.72%" />
+      <BookPart src="/assets/about-book-detail3.svg" left={589.47} top={455.35} width={11.723} height={75.075} inner="-0.62% -4.61% -1.14% -7.76%" />
+      <BookPart src="/assets/about-book-detail4.svg" left={593.7} top={446.43} width={4.689} height={0.08} inner="-883.09% -9.81% -799.32% -15.08%" />
+      <BookPart src="/assets/about-book-detail5.svg" left={589.64} top={520.97} width={9.867} height={0.31} inner="-279.22% -8.77% -279.68% -8.78%" />
+      {/* Handwritten "Bok" letters on the left page. */}
+      <BookPart src="/assets/about-book-detail6.svg" left={448.23} top={484.51} width={3.91} height={17.039} inner="-3.61% -16.39% -3.76% -15.74%" />
+      <BookPart src="/assets/about-book-detail7.svg" left={448.85} top={482} width={15.854} height={19.065} inner="-3.06% -4.03% -3.46% -3.84%" />
+      <BookPart src="/assets/about-book-detail8.svg" left={468.14} top={489.46} width={10.553} height={11.969} inner="-4.9% -6.23% -4.9% -5.52%" />
+      <BookPart src="/assets/about-book-detail9.svg" left={485.06} top={482.66} width={0.858} height={21.762} inner="-3.28% -83.17% -2.26% -81.04%" />
+      <BookPart src="/assets/about-book-detail10.svg" left={485.99} top={488.51} width={7.48} height={9.602} inner="-7.07% -9.08% -7.16% -9.07%" />
+      {/* Handwritten "Bok" letters on the right page. */}
+      <BookPart src="/assets/about-book-detail11.svg" left={514.99} top={486.54} width={8.801} height={17.84} inner="-4.44% -3.29% -1.59% -9%" />
+      <BookPart src="/assets/about-book-detail12.svg" left={515.7} top={483.3} width={15.518} height={20.603} inner="-3.3% -4.4% -3.53% -4.33%" />
+      <BookPart src="/assets/about-book-detail13.svg" left={535.44} top={491.19} width={9.489} height={12.211} inner="-5.36% -7.35% -5.49% -6.83%" />
+      <BookPart src="/assets/about-book-detail14.svg" left={546.9} top={479.51} width={2.133} height={17.039} inner="-4.35% -25.98% -3.21% -34.73%" />
+      <BookPart src="/assets/about-book-detail15.svg" left={548.75} top={481.59} width={7.25} height={10.719} inner="-6.82% -10.08% -4.71% -10.07%" />
 
       {/* ── Cell 5: self-care + "What if there were a new way…" ──── */}
       <FigmaSvg
