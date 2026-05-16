@@ -247,17 +247,13 @@ function AboutStory() {
       >
         cringe...
       </p>
-      {/* Cringe swirl accent — rotated +19.09°. Figma wraps the
-          rotated SVG in a flex container that centers it; the
-          container size matches the rotated bbox so the visible
-          content position equals the container position. Using
-          Figma's wrapper left=539 (NOT the vector-bbox metadata
-          x=579.83 — they differ by ~40 px because the metadata
-          gives the bbox post-rotation in absolute units while the
-          export's left puts the wrapper itself at that x). */}
+      {/* Cringe swirl accent — rotated +19.09°. Wrapper at the
+          metadata-reported vector bbox (579.83, 41) so the visible
+          rendered position lines up with where Figma renders it
+          in the design file. */}
       <div
         className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "539px", top: "41px", width: "209.278px", height: "176.261px" }}
+        style={{ left: "579.83px", top: "41px", width: "209.278px", height: "176.261px" }}
       >
         <div style={{ transform: "rotate(19.09deg)" }}>
           <div className="relative" style={{ width: "178.255px", height: "124.823px" }}>
@@ -272,14 +268,12 @@ function AboutStory() {
           </div>
         </div>
       </div>
-      {/* "Why do people have a hard time…" rotated -9.37°. Uses
-          Figma's export wrapper position (564.82, 185.75) — NOT the
-          vector-bbox metadata (565, 246), which reports the
-          post-rotation bbox and so would shift the text ~60 px
-          lower than Figma actually renders it. */}
+      {/* "Why do people have a hard time…" rotated -9.37°. Wrapper at
+          the metadata-reported text bbox (565, 246) — matches where
+          Figma actually renders it in the design file. */}
       <div
         className="absolute flex items-center justify-center"
-        style={{ left: "564.82px", top: "185.75px", width: "351.22px", height: "91.37px" }}
+        style={{ left: "565px", top: "246px", width: "351.26px", height: "92.97px" }}
       >
         <p
           className="m-0 w-full text-center text-[20px] font-bold leading-[normal] text-black"
@@ -349,34 +343,32 @@ function AboutStory() {
       >
         What if you could see your energy?!?!?!?!?
       </p>
-      {/* Main iris (2273:2464) rotated -6.22°. Wrapper position uses
-          Figma's export coordinates (inset that resolves to
-          (724.27, 647.5)) rather than the metadata vector bbox
-          (724.50, 676.02) — same reason as the cringe-lash: the
-          metadata reports the post-rotation bbox, while the export
-          positions the wrapper itself (sized to fit the rotated
-          bbox via flex centering). */}
+      {/* Main iris (2273:2464) — metadata bbox (724.50, 676.02)
+          172.65×164.89, rotated -6.22°. Wrapper sized to the
+          metadata bbox so flex-centered rotation produces visible
+          content at exactly that bbox. Inner unrotated child sized
+          157.47×148.75 (derived from the rotation math so its
+          rotated bbox fills the wrapper). */}
       <div
         className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "724.27px", top: "647.5px", width: "172.59px", height: "162.1px" }}
+        style={{ left: "724.50px", top: "676.02px", width: "172.65px", height: "164.89px" }}
       >
         <div style={{ transform: "rotate(-6.22deg)" }}>
           <img
             alt=""
             src="/assets/about-eye-iris.svg"
             className="block max-w-none"
-            style={{ width: "157.4px", height: "146.21px" }}
+            style={{ width: "157.47px", height: "148.75px" }}
             draggable={false}
           />
         </div>
       </div>
-      {/* Eyelash frame (2273:2465) rotated +3.52°. Wrapper at the
-          Figma export's left:678.97 (NOT metadata x:684.69 — the
-          two differ by ~6 px because the metadata gives the
-          post-rotation bbox in absolute units). */}
+      {/* Eyelash frame (2273:2465) — metadata (684.69, 606.34)
+          270.58×109.40, rotated +3.52°. The eyelash SVG bakes in
+          all the sub-paths so we render it as a single image. */}
       <div
         className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "678.97px", top: "606.34px", width: "270.581px", height: "109.399px" }}
+        style={{ left: "684.69px", top: "606.34px", width: "270.581px", height: "109.399px" }}
       >
         <div style={{ transform: "rotate(3.52deg)" }}>
           <img
@@ -388,19 +380,19 @@ function AboutStory() {
           />
         </div>
       </div>
-      {/* Second iris detail (V53, 2273:2477) rotated -6.22°. Wrapper
-          at Figma export's inset → (756.70, 689.97), NOT metadata's
-          (756.94, 705.09). */}
+      {/* Second iris detail (V53, 2273:2477) — metadata bbox
+          (756.94, 705.09) 31.49×38.24, rotated -6.22°. Inner child
+          sized for the rotation to fill the wrapper. */}
       <div
         className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "756.70px", top: "689.97px", width: "31.56px", height: "37.57px" }}
+        style={{ left: "756.94px", top: "705.09px", width: "31.49px", height: "38.24px" }}
       >
         <div style={{ transform: "rotate(-6.22deg)" }}>
           <img
             alt=""
             src="/assets/about-eye-detail-large.svg"
             className="block max-w-none"
-            style={{ width: "28.81px", height: "36.44px" }}
+            style={{ width: "27.34px", height: "34.86px" }}
             draggable={false}
           />
         </div>
