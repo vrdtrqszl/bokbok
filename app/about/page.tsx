@@ -398,77 +398,105 @@ function AboutStory() {
         What if there were a new way to take care of you?
       </p>
 
-      {/* ── Cell 6: eye + "What if you could see your energy?…" ──── */}
+      {/* ── Cell 6: eye composite + "What if you could see your energy?…"
+          Eye frame (Figma 2273:2463) at (669, 608) 299.77×251.02 —
+          every sub-vector is positioned ABSOLUTELY inside about-story
+          (i.e. coords NOT relative to the eye frame). All px values
+          come straight from the Figma metadata. */}
       <p
         className="absolute m-0 text-center text-[20px] font-bold leading-[normal] text-black"
         style={{ inset: "53.6% 32.46% 43.54% 43.73%" }}
       >
         What if you could see your energy?!?!?!?!?
       </p>
-      {/* Eye iris (rotated -6.22°) — the Figma uses container queries
-          for the rotated wrapper; we approximate with a fixed-px
-          rotation container that matches the bbox visible inset. */}
+      {/* Main iris (2273:2464) — (724.50, 676.02) 172.65×164.89,
+          rotated -6.22°. The Figma export uses container-query
+          dimensions for the rotated wrapper; we render at the bbox
+          dimensions and apply rotation in-place. */}
       <div
         className="pointer-events-none absolute flex items-center justify-center"
-        style={{ inset: "49.47% 7.92% 38.15% 74.36%" }}
+        style={{ left: "724.495px", top: "676.022px", width: "172.649px", height: "164.886px" }}
       >
         <div style={{ transform: "rotate(-6.22deg)" }}>
           <img
             alt=""
             src="/assets/about-eye-iris.svg"
-            className="block size-full max-w-none"
+            className="block max-w-none"
+            style={{ width: "172.649px", height: "164.886px" }}
             draggable={false}
           />
         </div>
       </div>
-      {/* Eyelash arc rotated +3.52°. */}
+      {/* Eyelash frame (2273:2465) — (684.69, 606.34) 270.58×109.40,
+          rotated +3.52°. The eyelash SVG bakes in all the sub-paths
+          (V8-V9 etc.) so we render it as a single image. */}
       <div
         className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "678.97px", top: "606.34px", width: "270.581px", height: "109.399px" }}
+        style={{ left: "684.689px", top: "606.342px", width: "270.581px", height: "109.399px" }}
       >
         <div style={{ transform: "rotate(3.52deg)" }}>
-          <div className="relative" style={{ width: "265.359px", height: "93.304px" }}>
-            <img
-              alt=""
-              src="/assets/about-eyelash-new.svg"
-              className="absolute inset-0 block size-full max-w-none"
-              draggable={false}
-            />
-          </div>
-        </div>
-      </div>
-      {/* Second iris layer / outer eye detail (rotated -6.22°). */}
-      <div
-        className="pointer-events-none absolute flex items-center justify-center"
-        style={{ inset: "52.71% 19.07% 44.42% 77.69%" }}
-      >
-        <div style={{ transform: "rotate(-6.22deg)" }}>
-          <div className="relative size-full">
-            <div className="absolute" style={{ inset: "-1.41% -1.8%" }}>
-              <img
-                alt=""
-                src="/assets/about-eye-detail-large.svg"
-                className="block size-full max-w-none"
-                draggable={false}
-              />
-            </div>
-          </div>
-        </div>
-      </div>
-      {/* Creature in pupil. */}
-      <div
-        className="pointer-events-none absolute"
-        style={{ left: "790.67px", top: "770.74px", width: "34.486px", height: "31.934px" }}
-      >
-        <div className="absolute" style={{ inset: "-1.57% -1.45%" }}>
           <img
             alt=""
-            src="/assets/about-eye-creature.svg"
-            className="block size-full max-w-none"
+            src="/assets/about-eyelash-new.svg"
+            className="block max-w-none"
+            style={{ width: "265.359px", height: "93.304px" }}
             draggable={false}
           />
         </div>
       </div>
+      {/* Second iris detail (V53, 2273:2477) — (756.94, 705.09)
+          31.49×38.24, rotated -6.22°. */}
+      <div
+        className="pointer-events-none absolute flex items-center justify-center"
+        style={{ left: "756.939px", top: "705.090px", width: "31.489px", height: "38.244px" }}
+      >
+        <div style={{ transform: "rotate(-6.22deg)" }}>
+          <img
+            alt=""
+            src="/assets/about-eye-detail-large.svg"
+            className="block max-w-none"
+            style={{ width: "31.489px", height: "38.244px" }}
+            draggable={false}
+          />
+        </div>
+      </div>
+      {/* Creature in pupil (V50, 2273:2476). */}
+      <img
+        alt=""
+        src="/assets/about-eye-creature.svg"
+        className="pointer-events-none absolute block max-w-none"
+        style={{ left: "790.669px", top: "770.739px", width: "34.486px", height: "31.934px" }}
+        draggable={false}
+      />
+      {/* Small sparkle / detail vectors around the eye. Each one is a
+          tiny SVG drawn at the Figma frame metadata's exact px coords. */}
+      <img alt="" src="/assets/about-eye-spark1.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "744.893px", top: "729.070px", width: "6.625px", height: "6.261px" }} draggable={false} />
+      <img alt="" src="/assets/about-eye-spark2.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "744.593px", top: "745.720px", width: "13.504px", height: "13.354px" }} draggable={false} />
+      <img alt="" src="/assets/about-eye-spark3.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "754.530px", top: "767.097px", width: "7.831px", height: "9.394px" }} draggable={false} />
+      <img alt="" src="/assets/about-eye-spark4.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "765.372px", top: "782.785px", width: "7.006px", height: "7.482px" }} draggable={false} />
+      <img alt="" src="/assets/about-eye-mini1.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "850.100px", top: "759.246px", width: "21.313px", height: "12.630px" }} draggable={false} />
+      <img alt="" src="/assets/about-eye-mini2.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "863.292px", top: "755.978px", width: "16.283px", height: "7.500px" }} draggable={false} />
+      <img alt="" src="/assets/about-eye-mini3.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "810.820px", top: "730.629px", width: "33.661px", height: "17.264px" }} draggable={false} />
+      <img alt="" src="/assets/about-eye-mini4.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "817.796px", top: "729.015px", width: "20.380px", height: "25.164px" }} draggable={false} />
+      <img alt="" src="/assets/about-eye-mini5.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "823.499px", top: "729.827px", width: "14.408px", height: "13.554px" }} draggable={false} />
+      {/* V60 (2273:2483) — rotated +8.53° around its center. */}
+      <div
+        className="pointer-events-none absolute flex items-center justify-center"
+        style={{ left: "834.172px", top: "758.718px", width: "23.062px", height: "35.349px" }}
+      >
+        <div style={{ transform: "rotate(8.53deg)" }}>
+          <img
+            alt=""
+            src="/assets/about-eye-mini6.svg"
+            className="block max-w-none"
+            style={{ width: "18.375px", height: "32.990px" }}
+            draggable={false}
+          />
+        </div>
+      </div>
+      <img alt="" src="/assets/about-eye-mini7.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "781.794px", top: "745.912px", width: "11.752px", height: "17.659px" }} draggable={false} />
+      <img alt="" src="/assets/about-eye-mini8.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "773.408px", top: "758.680px", width: "26.687px", height: "9.602px" }} draggable={false} />
+
 
       {/* ── Bottom divider line + horizontal panel separator ─────── */}
       <div
@@ -514,19 +542,21 @@ function AboutStory() {
         </div>
       </div>
 
-      {/* ── Long-form intro paragraph (below the visible area) ─── */}
+      {/* ── Long-form intro paragraph (Figma 2273:2518) ───────────
+          Position (11, 886) at 952×446. Container uses line-height:0
+          (so the empty paragraph "spacers" collapse to almost no
+          height), each paragraph has line-height:normal — matches
+          the Figma's leading-[0] / leading-[normal] structure. */}
       <div
-        className="absolute font-bold text-black"
+        className="absolute h-[446px] w-[952px] text-[20px] font-bold text-black"
         style={{
           left: "11px",
           top: "886px",
-          width: "952px",
-          fontSize: "20px",
-          lineHeight: "normal",
+          lineHeight: 0,
           whiteSpace: "pre-wrap",
         }}
       >
-        <p className="m-0">
+        <p className="m-0 leading-[normal]">
           We no longer keep journals the way we used to.
           <br />
           Instead, we leave fragments of ourselves on social media: curated
@@ -538,8 +568,8 @@ function AboutStory() {
           <br />
           So many feelings pass through us without ever being truly expressed.
         </p>
-        <p className="m-0">&#8203;</p>
-        <p className="m-0">
+        <p className="m-0 leading-[normal]">&#8203;</p>
+        <p className="m-0 leading-[normal]">
           But emotions do not disappear.
           <br />
           They remain layered, contradictory, and constantly shifting beyond
@@ -549,8 +579,8 @@ function AboutStory() {
           our lives, but to care for ourselves, observe our inner states, and
           create space for emotions that cannot be reduced to a single word.
         </p>
-        <p className="m-0">&#8203;</p>
-        <p className="m-0">
+        <p className="m-0 leading-[normal]">&#8203;</p>
+        <p className="m-0 leading-[normal]">
           This project explores emotion as a living creature of energy rather
           than a fixed emotional state.
           <br />
@@ -558,14 +588,14 @@ function AboutStory() {
           light, shape, and motion, forming an evolving emotional ecosystem
           where feelings coexist, drift, and change over time.
         </p>
-        <p className="m-0">
+        <p className="m-0 leading-[normal]">
           This is not a traditional journal.
           <br />
           It is a digital garden where emotions are allowed to live, grow, and
           remain.
         </p>
-        <p className="m-0">&#8203;</p>
-        <p className="m-0">
+        <p className="m-0 leading-[normal]">&#8203;</p>
+        <p className="m-0 leading-[normal]">
           Your emotions are not linear.
           <br />
           They overlap, mutate, contradict, and evolve.
