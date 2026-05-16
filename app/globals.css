@@ -73,6 +73,27 @@
   -webkit-mask-composite: source-in;
 }
 
+/* Bottom-only variant — fade only the bottom edge so content visibly
+   dissolves into the wavy outline as it scrolls past the visible area.
+   Used by the About page's scrollable story box, where the long
+   intro paragraph sits below the visible "comic page" and the user
+   shouldn't see hard text-clipping at the bottom. The top + sides
+   stay sharp so the comic panels touching those edges aren't softened. */
+.scroll-fade-bottom {
+  mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black 94%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    black 0%,
+    black 94%,
+    transparent 100%
+  );
+}
+
 /* Vertical-only variant — fades top/bottom only, leaves left/right edges
    sharp. Used by the right-column info boxes (creature view + journal
    panel) on every page, where text content is short and the side fade

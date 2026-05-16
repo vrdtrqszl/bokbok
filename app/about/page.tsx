@@ -75,7 +75,7 @@ export default function AboutPage() {
           src="/assets/main-box.svg"
           className="pointer-events-none absolute inset-0 z-10 block size-full"
         />
-        <div className="scroll-fade absolute inset-[12px] overflow-y-auto overflow-x-hidden">
+        <div className="scroll-fade-bottom absolute inset-[12px] overflow-y-auto overflow-x-hidden">
           {/* about-story group — 974×1332 collage. Insets/positions
               below come straight from the Figma export. */}
           <AboutStory />
