@@ -69,15 +69,23 @@ export default function AboutPage() {
       {/* Wavy outline = the standard main-box.svg the rest of the
           site uses. Inside is a scrollable area holding the about-
           story collage (which is taller than the box). */}
-      <div className="absolute left-[27px] top-[85px] h-[789.67px] w-[974.69px]">
+      <div className="absolute left-[27px] top-[85px] h-[789.67px] w-[974.69px] overflow-hidden">
         <img
           alt=""
           src="/assets/main-box.svg"
           className="pointer-events-none absolute inset-0 z-10 block size-full"
         />
-        <div className="scroll-fade-bottom absolute inset-[12px] overflow-y-auto overflow-x-hidden">
-          {/* about-story group — 974×1332 collage. Insets/positions
-              below come straight from the Figma export. */}
+        {/* Scroll container — sits at (4, 10) inside the story box per
+            Figma 2273:2913 (about-story frame). The previous
+            inset-[12px] shifted everything 8 px right + 2 px down AND
+            clipped an extra 20 px off the right side, which is why
+            content like the cringe-lash and "Why do people..." text
+            were partially cut off / overlapping. Now matches the
+            Figma about-story inset exactly. */}
+        <div
+          className="scroll-fade-bottom absolute overflow-y-auto overflow-x-hidden"
+          style={{ left: "4px", top: "10px", right: "0", bottom: "0" }}
+        >
           <AboutStory />
         </div>
       </div>
