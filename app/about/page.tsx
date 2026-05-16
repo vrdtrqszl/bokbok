@@ -247,12 +247,17 @@ function AboutStory() {
       >
         cringe...
       </p>
-      {/* Cringe swirl accent — rotated +19.09°. Figma wraps it in a
-          flex container of fixed px size that holds a rotated child of
-          smaller px size; centering keeps the rotation pivot right. */}
+      {/* Cringe swirl accent — rotated +19.09°. Figma wraps the
+          rotated SVG in a flex container that centers it; the
+          container size matches the rotated bbox so the visible
+          content position equals the container position. Using
+          Figma's wrapper left=539 (NOT the vector-bbox metadata
+          x=579.83 — they differ by ~40 px because the metadata
+          gives the bbox post-rotation in absolute units while the
+          export's left puts the wrapper itself at that x). */}
       <div
         className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "579.83px", top: "41px", width: "209.278px", height: "176.261px" }}
+        style={{ left: "539px", top: "41px", width: "209.278px", height: "176.261px" }}
       >
         <div style={{ transform: "rotate(19.09deg)" }}>
           <div className="relative" style={{ width: "178.255px", height: "124.823px" }}>
