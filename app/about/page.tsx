@@ -272,10 +272,14 @@ function AboutStory() {
           </div>
         </div>
       </div>
-      {/* "Why do people have a hard time…" rotated -9.37°. */}
+      {/* "Why do people have a hard time…" rotated -9.37°. Uses
+          Figma's export wrapper position (564.82, 185.75) — NOT the
+          vector-bbox metadata (565, 246), which reports the
+          post-rotation bbox and so would shift the text ~60 px
+          lower than Figma actually renders it. */}
       <div
         className="absolute flex items-center justify-center"
-        style={{ left: "565px", top: "246px", width: "351.26px", height: "92.97px" }}
+        style={{ left: "564.82px", top: "185.75px", width: "351.22px", height: "91.37px" }}
       >
         <p
           className="m-0 w-full text-center text-[20px] font-bold leading-[normal] text-black"
@@ -345,30 +349,34 @@ function AboutStory() {
       >
         What if you could see your energy?!?!?!?!?
       </p>
-      {/* Main iris (2273:2464) — (724.50, 676.02) 172.65×164.89,
-          rotated -6.22°. The Figma export uses container-query
-          dimensions for the rotated wrapper; we render at the bbox
-          dimensions and apply rotation in-place. */}
+      {/* Main iris (2273:2464) rotated -6.22°. Wrapper position uses
+          Figma's export coordinates (inset that resolves to
+          (724.27, 647.5)) rather than the metadata vector bbox
+          (724.50, 676.02) — same reason as the cringe-lash: the
+          metadata reports the post-rotation bbox, while the export
+          positions the wrapper itself (sized to fit the rotated
+          bbox via flex centering). */}
       <div
         className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "724.495px", top: "676.022px", width: "172.649px", height: "164.886px" }}
+        style={{ left: "724.27px", top: "647.5px", width: "172.59px", height: "162.1px" }}
       >
         <div style={{ transform: "rotate(-6.22deg)" }}>
           <img
             alt=""
             src="/assets/about-eye-iris.svg"
             className="block max-w-none"
-            style={{ width: "172.649px", height: "164.886px" }}
+            style={{ width: "157.4px", height: "146.21px" }}
             draggable={false}
           />
         </div>
       </div>
-      {/* Eyelash frame (2273:2465) — (684.69, 606.34) 270.58×109.40,
-          rotated +3.52°. The eyelash SVG bakes in all the sub-paths
-          (V8-V9 etc.) so we render it as a single image. */}
+      {/* Eyelash frame (2273:2465) rotated +3.52°. Wrapper at the
+          Figma export's left:678.97 (NOT metadata x:684.69 — the
+          two differ by ~6 px because the metadata gives the
+          post-rotation bbox in absolute units). */}
       <div
         className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "684.689px", top: "606.342px", width: "270.581px", height: "109.399px" }}
+        style={{ left: "678.97px", top: "606.34px", width: "270.581px", height: "109.399px" }}
       >
         <div style={{ transform: "rotate(3.52deg)" }}>
           <img
@@ -380,18 +388,19 @@ function AboutStory() {
           />
         </div>
       </div>
-      {/* Second iris detail (V53, 2273:2477) — (756.94, 705.09)
-          31.49×38.24, rotated -6.22°. */}
+      {/* Second iris detail (V53, 2273:2477) rotated -6.22°. Wrapper
+          at Figma export's inset → (756.70, 689.97), NOT metadata's
+          (756.94, 705.09). */}
       <div
         className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "756.939px", top: "705.090px", width: "31.489px", height: "38.244px" }}
+        style={{ left: "756.70px", top: "689.97px", width: "31.56px", height: "37.57px" }}
       >
         <div style={{ transform: "rotate(-6.22deg)" }}>
           <img
             alt=""
             src="/assets/about-eye-detail-large.svg"
             className="block max-w-none"
-            style={{ width: "31.489px", height: "38.244px" }}
+            style={{ width: "28.81px", height: "36.44px" }}
             draggable={false}
           />
         </div>
