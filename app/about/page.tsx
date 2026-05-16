@@ -161,37 +161,15 @@ export default function AboutPage() {
   );
 }
 
-// ── Two-wrapper SVG helper ──────────────────────────────────────────
+// ── Two-wrapper SVG helper (absolute-px outer) ──────────────────────
 // Figma's export pattern for a path-stretched SVG: an OUTER box at the
 // path's tight bbox, and an INNER box with negative insets that expand
-// back to the natural viewBox aspect. The img fills the inner box so
-// the SVG renders at the right shape without preserveAspectRatio
-// distortion. Both insets are expressed as the Figma "top right bottom
-// left" string ("X% Y% Z% W%" or raw px).
-function FigmaSvg({
-  outer,
-  inner,
-  src,
-}: {
-  outer: string;
-  inner: string;
-  src: string;
-}) {
-  return (
-    <div className="pointer-events-none absolute" style={{ inset: outer }}>
-      <div className="absolute" style={{ inset: inner }}>
-        <img alt="" src={src} className="block size-full max-w-none" draggable={false} />
-      </div>
-    </div>
-  );
-}
-
-// ── Book sub-part helper ────────────────────────────────────────────
-// The book illustration (Figma 2273:2498) is made of 18 small SVGs.
-// Each one uses the same two-wrapper pattern as FigmaSvg, but with the
-// outer positioned at absolute px coords (instead of percentage insets)
-// since the metadata gives raw pixels. Pulled out into its own helper
-// to keep the book block in AboutStory readable.
+// back to the SVG's natural viewBox aspect. The img fills the inner
+// box so the SVG renders at the right shape without preserveAspectRatio
+// distortion. We use absolute px coords for the outer (matching the
+// Figma metadata's raw-px values) and percentage insets for the inner
+// (matching the export's stroke-overflow padding). Reused everywhere
+// in AboutStory: dividers, illustrations, the entire book sub-group.
 function BookPart({
   src,
   left,
@@ -231,56 +209,33 @@ function BookPart({
 // the 974×1332 area; inner insets restore the natural viewBox aspect.
 function AboutStory() {
   return (
-    <div className="relative" style={{ width: "974px", height: "1332px" }}>
-      {/* ── Comic-page dividers (filled hand-drawn lines) ────────── */}
-      <FigmaSvg
-        outer="16.89% 1.53% 68.99% 0.3%"
-        inner="-0.25% 0 -0.37% 0"
-        src="/assets/about-divider-h1.svg"
-      />
-      <FigmaSvg
-        outer="0 45.6% 77.7% 53.89%"
-        inner="-0.25% -14.5% -0.26% -15.93%"
-        src="/assets/about-divider-v1.svg"
-      />
-      <FigmaSvg
-        outer="20.8% 33.9% 55.48% 65.59%"
-        inner="-0.24% -15.39% -0.13% -15.41%"
-        src="/assets/about-divider-v2.svg"
-      />
-      <FigmaSvg
-        outer="26.2% 54.12% 55.48% 29.56%"
-        inner="-0.37% -0.41% -0.26% -0.57%"
-        src="/assets/about-divider-diag.svg"
-      />
-      <FigmaSvg
-        outer="44.29% 1.46% 55.48% 45.88%"
-        inner="-18.69% -0.11% -26.16% -0.15%"
-        src="/assets/about-divider-extra.svg"
-      />
+    <div className="relative" style={{ width: "974.27px", height: "1309px" }}>
+      {/* ── Comic-page dividers (filled hand-drawn lines).
+          Every position now uses absolute px from the Figma 2273:2913
+          metadata so the new 974×1309 frame size is matched exactly. */}
+      <BookPart src="/assets/about-divider-h1.svg" left={2.88} top={224.91} width={956.45} height={188.16} inner="-0.25% 0 -0.37% 0" />
+      <BookPart src="/assets/about-divider-v1.svg" left={525} top={0} width={5} height={297} inner="-0.25% -14.5% -0.26% -15.93%" />
+      <BookPart src="/assets/about-divider-v2.svg" left={639} top={277} width={5} height={316} inner="-0.24% -15.39% -0.13% -15.41%" />
+      <BookPart src="/assets/about-divider-diag.svg" left={288} top={349} width={159} height={244} inner="-0.37% -0.41% -0.26% -0.57%" />
+      <BookPart src="/assets/about-divider-extra.svg" left={447} top={590} width={513} height={3} inner="-18.69% -0.11% -26.16% -0.15%" />
+      {/* Diagonal divider between "Then..." panel and the book/eye row
+          (Figma 2273:2494 / Vector 10). */}
+      <BookPart src="/assets/about-divider-mid.svg" left={321} top={592.5} width={125.5} height={246} inner="-0.36% -0.71% -0.24% -0.48%" />
 
       {/* ── Cell 1: "Why people stopped writing a journal?" + Insta */}
       <p
         className="absolute m-0 text-center text-[20px] font-bold leading-[normal] text-black"
-        style={{ inset: "0.75% 64.08% 97.82% 0" }}
+        style={{ left: "0px", top: "10px", width: "350px" }}
       >
         Why people stopped writing a journal?
       </p>
-      <FigmaSvg
-        outer="3.6% 45.38% 70.48% 4.38%"
-        inner="-0.26% 0 0 -0.1%"
-        src="/assets/about-insta-new.svg"
-      />
+      <BookPart src="/assets/about-insta-new.svg" left={42.69} top={48} width={489.42} height={345.18} inner="-0.26% 0 0 -0.1%" />
 
       {/* ── Cell 2: cringe face + "Why do people…" rotated text ──── */}
-      <FigmaSvg
-        outer="5.11% 10.6% 88.29% 78.52%"
-        inner="-0.32% -0.47% 0 0"
-        src="/assets/about-face-new.svg"
-      />
+      <BookPart src="/assets/about-face-new.svg" left={765} top={68} width={106} height={88} inner="-0.32% -0.47% 0 0" />
       <p
         className="absolute m-0 text-center text-[13px] font-bold leading-[normal] text-black"
-        style={{ inset: "8.48% 32.46% 90.69% 58.92%" }}
+        style={{ left: "574px", top: "113px", width: "84px" }}
       >
         cringe...
       </p>
@@ -289,7 +244,7 @@ function AboutStory() {
           smaller px size; centering keeps the rotation pivot right. */}
       <div
         className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "539px", top: "41px", width: "209.278px", height: "176.261px" }}
+        style={{ left: "579.83px", top: "41px", width: "209.278px", height: "176.261px" }}
       >
         <div style={{ transform: "rotate(19.09deg)" }}>
           <div className="relative" style={{ width: "178.255px", height: "124.823px" }}>
@@ -307,7 +262,7 @@ function AboutStory() {
       {/* "Why do people have a hard time…" rotated -9.37°. */}
       <div
         className="absolute flex items-center justify-center"
-        style={{ inset: "14.19% 5.95% 78.83% 57.99%" }}
+        style={{ left: "565px", top: "246px", width: "351.26px", height: "92.97px" }}
       >
         <p
           className="m-0 w-full text-center text-[20px] font-bold leading-[normal] text-black"
@@ -318,41 +273,20 @@ function AboutStory() {
       </div>
 
       {/* ── Cell 3 + 4: "Then..." starburst + journaling question ── */}
-      <div
-        className="pointer-events-none absolute"
-        style={{ left: "36.21px", top: "512.19px", width: "305.799px", height: "180.824px" }}
-      >
-        <div className="absolute" style={{ inset: "-0.85% -0.24% -0.39% -0.21%" }}>
-          <img
-            alt=""
-            src="/assets/about-starburst.svg"
-            className="block size-full max-w-none"
-            draggable={false}
-          />
-        </div>
-      </div>
+      <BookPart src="/assets/about-starburst.svg" left={36.21} top={512.19} width={305.799} height={180.824} inner="-0.85% -0.24% -0.39% -0.21%" />
       <p
         className="absolute m-0 text-center text-[48px] font-bold leading-[normal] text-black"
-        style={{ inset: "43.39% 71.67% 53.15% 12.83%" }}
+        style={{ left: "125px", top: "578px", width: "151px" }}
       >
         Then...
       </p>
 
       <p
-        className="absolute m-0 w-[263px] text-center text-[20px] font-bold leading-[normal] text-black"
-        style={{ left: "490.5px", top: "371px", transform: "translateX(-50%)" }}
+        className="absolute m-0 text-center text-[20px] font-bold leading-[normal] text-black"
+        style={{ left: "359px", top: "371px", width: "263px" }}
       >
         What if you found your way back to journaling?
       </p>
-
-      {/* Diagonal divider between the "Then..." starburst panel and
-          the book/eye panels (Figma 2273:2494 — Vector 10). Position
-          is (321, 592.5) at 125.5×246 inside the 974×1332 about-story. */}
-      <FigmaSvg
-        outer="44.48% 54.17% 37.05% 32.95%"
-        inner="-0.36% -0.71% -0.24% -0.48%"
-        src="/assets/about-divider-mid.svg"
-      />
       {/* Book group (Figma 2273:2498) — 18 sub-vectors making up the
           open-book illustration with pencil + handwritten "Bok Bok".
           All px positions come straight from the Figma metadata. */}
@@ -379,14 +313,10 @@ function AboutStory() {
       <BookPart src="/assets/about-book-detail15.svg" left={548.75} top={481.59} width={7.25} height={10.719} inner="-6.82% -10.08% -4.71% -10.07%" />
 
       {/* ── Cell 5: self-care + "What if there were a new way…" ──── */}
-      <FigmaSvg
-        outer="22.67% 12.7% 61.97% 76.78%"
-        inner="-0.24% -0.49%"
-        src="/assets/about-self-care.svg"
-      />
+      <BookPart src="/assets/about-self-care.svg" left={748} top={302} width={102.52} height={204.51} inner="-0.24% -0.49%" />
       <p
         className="absolute m-0 text-center text-[20px] font-bold leading-[normal] text-black"
-        style={{ inset: "40.92% 3.52% 55.93% 67.54%" }}
+        style={{ left: "658px", top: "545px", width: "282px" }}
       >
         What if there were a new way to take care of you?
       </p>
@@ -398,7 +328,7 @@ function AboutStory() {
           come straight from the Figma metadata. */}
       <p
         className="absolute m-0 text-center text-[20px] font-bold leading-[normal] text-black"
-        style={{ inset: "53.6% 32.46% 43.54% 43.73%" }}
+        style={{ left: "426px", top: "714px", width: "232px" }}
       >
         What if you could see your energy?!?!?!?!?
       </p>
@@ -536,12 +466,12 @@ function AboutStory() {
       </div>
 
       {/* ── Long-form intro paragraph (Figma 2273:2518) ───────────
-          Position (11, 886) at 952×446. Container uses line-height:0
+          Position (11, 886) at 952×423. Container uses line-height:0
           (so the empty paragraph "spacers" collapse to almost no
           height), each paragraph has line-height:normal — matches
           the Figma's leading-[0] / leading-[normal] structure. */}
       <div
-        className="absolute h-[446px] w-[952px] text-[20px] font-bold text-black"
+        className="absolute h-[423px] w-[952px] text-[20px] font-bold text-black"
         style={{
           left: "11px",
           top: "886px",
