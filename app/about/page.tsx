@@ -110,7 +110,15 @@ export default function AboutPage() {
           }}
           draggable={false}
         />
-        <span className="absolute left-1/2 top-[285px] block -translate-x-1/2 whitespace-nowrap text-[36px] leading-normal text-black font-(family-name:--font-fancy)">
+        {/* "BokBok" — Figma 2273:2316: x=122, y=285, w=145, h=40,
+            centered text in a 145-px box. Avoid the previous
+            translate(-50%) centering because that depended on the
+            rendered text width and drifted a few px off the Figma
+            position. */}
+        <span
+          className="absolute block whitespace-nowrap text-center text-[36px] leading-[40px] text-black font-(family-name:--font-fancy)"
+          style={{ left: "122px", top: "285px", width: "145px", height: "40px" }}
+        >
           BokBok
         </span>
         {/* Korean definition (Figma 2273:2315): 16 px Casual Human Bold,
@@ -247,13 +255,15 @@ function AboutStory() {
       >
         cringe...
       </p>
-      {/* Cringe swirl accent — rotated +19.09°. Wrapper at the
-          metadata-reported vector bbox (579.83, 41) so the visible
-          rendered position lines up with where Figma renders it
-          in the design file. */}
+      {/* Cringe swirl accent — rotated +19.09°. Wrapper at Figma
+          export's left:539 / top:41 (NOT the raw metadata's x=579.83 —
+          Figma's metadata for a rotated vector reports a different
+          reference point than the export's flex-center wrapper; the
+          export's coords are what produce the correct visual position
+          per the 2275:26 export reference). */}
       <div
         className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "579.83px", top: "41px", width: "209.278px", height: "176.261px" }}
+        style={{ left: "539px", top: "41px", width: "209.278px", height: "176.261px" }}
       >
         <div style={{ transform: "rotate(19.09deg)" }}>
           <div className="relative" style={{ width: "178.255px", height: "124.823px" }}>
@@ -269,15 +279,21 @@ function AboutStory() {
         </div>
       </div>
       {/* "Why do people have a hard time…" rotated -9.37°. Wrapper at
-          the metadata-reported text bbox (565, 246) — matches where
-          Figma actually renders it in the design file. */}
+          the 2275:26 export's flex-center position (565.07, 189.02)
+          sized 351.32×92.94 — the export uses inset[14.44% 5.95%
+          78.46% 57.99%] of the 974.27×1309 story frame, which
+          resolves to those px values. The inner unrotated text is
+          ~349.94×36.45 (derived from cqw/cqh hypot in the export);
+          after rotation it exactly fills the wrapper. NOTE: this is
+          ~57 px above the raw metadata's y=246 — same rotation-bbox
+          reference-frame offset as the cringe-lash + eye. */}
       <div
         className="absolute flex items-center justify-center"
-        style={{ left: "565px", top: "246px", width: "351.26px", height: "92.97px" }}
+        style={{ left: "565.07px", top: "189.02px", width: "351.32px", height: "92.94px" }}
       >
         <p
-          className="m-0 w-full text-center text-[20px] font-bold leading-[normal] text-black"
-          style={{ transform: "rotate(-9.37deg)" }}
+          className="m-0 text-center text-[20px] font-bold leading-[normal] text-black"
+          style={{ width: "349.94px", height: "36.45px", transform: "rotate(-9.37deg)" }}
         >
           Why do people have a hard time expressing emotions through language?
         </p>
@@ -298,30 +314,14 @@ function AboutStory() {
       >
         What if you found your way back to journaling?
       </p>
-      {/* Book group (Figma 2273:2498) — 18 sub-vectors making up the
-          open-book illustration with pencil + handwritten "Bok Bok".
-          All px positions come straight from the Figma metadata. */}
-      <BookPart src="/assets/about-book-spine.svg" left={502.21} top={449.34} width={3.734} height={95.523} inner="-0.8% -17.35% -0.68% -20.45%" />
-      <BookPart src="/assets/about-book-left.svg" left={440} top={445} width={65.488} height={99.501} inner="-0.69% -1.15% -0.76% -0.29%" />
-      <BookPart src="/assets/about-book-right.svg" left={502.49} top={439} width={64.806} height={106.006} inner="-0.66% -1.4% -0.44% -1.08%" />
-      {/* Pencil group (right of the book). */}
-      <BookPart src="/assets/about-book-detail1.svg" left={591.08} top={439.62} width={10.2} height={15.15} inner="-4.86% -6.65% -4.7% -6.98%" />
-      <BookPart src="/assets/about-book-detail2.svg" left={591.46} top={452.8} width={10.312} height={2.981} inner="-23.34% -6.83% -25% -6.72%" />
-      <BookPart src="/assets/about-book-detail3.svg" left={589.47} top={455.35} width={11.723} height={75.075} inner="-0.62% -4.61% -1.14% -7.76%" />
-      <BookPart src="/assets/about-book-detail4.svg" left={593.7} top={446.43} width={4.689} height={0.08} inner="-883.09% -9.81% -799.32% -15.08%" />
-      <BookPart src="/assets/about-book-detail5.svg" left={589.64} top={520.97} width={9.867} height={0.31} inner="-279.22% -8.77% -279.68% -8.78%" />
-      {/* Handwritten "Bok" letters on the left page. */}
-      <BookPart src="/assets/about-book-detail6.svg" left={448.23} top={484.51} width={3.91} height={17.039} inner="-3.61% -16.39% -3.76% -15.74%" />
-      <BookPart src="/assets/about-book-detail7.svg" left={448.85} top={482} width={15.854} height={19.065} inner="-3.06% -4.03% -3.46% -3.84%" />
-      <BookPart src="/assets/about-book-detail8.svg" left={468.14} top={489.46} width={10.553} height={11.969} inner="-4.9% -6.23% -4.9% -5.52%" />
-      <BookPart src="/assets/about-book-detail9.svg" left={485.06} top={482.66} width={0.858} height={21.762} inner="-3.28% -83.17% -2.26% -81.04%" />
-      <BookPart src="/assets/about-book-detail10.svg" left={485.99} top={488.51} width={7.48} height={9.602} inner="-7.07% -9.08% -7.16% -9.07%" />
-      {/* Handwritten "Bok" letters on the right page. */}
-      <BookPart src="/assets/about-book-detail11.svg" left={514.99} top={486.54} width={8.801} height={17.84} inner="-4.44% -3.29% -1.59% -9%" />
-      <BookPart src="/assets/about-book-detail12.svg" left={515.7} top={483.3} width={15.518} height={20.603} inner="-3.3% -4.4% -3.53% -4.33%" />
-      <BookPart src="/assets/about-book-detail13.svg" left={535.44} top={491.19} width={9.489} height={12.211} inner="-5.36% -7.35% -5.49% -6.83%" />
-      <BookPart src="/assets/about-book-detail14.svg" left={546.9} top={479.51} width={2.133} height={17.039} inner="-4.35% -25.98% -3.21% -34.73%" />
-      <BookPart src="/assets/about-book-detail15.svg" left={548.75} top={481.59} width={7.25} height={10.719} inner="-6.82% -10.08% -4.71% -10.07%" />
+      {/* Book group (Figma 2273:2498) at (440, 439) 161.771×106.006.
+          The 18 individual sub-vectors that previously made up the
+          open-book + pencil + handwritten "Bok Bok" are now baked
+          into a single composite SVG per the 2275:26 export. Render
+          as one image with the same two-wrapper pattern as the rest
+          of the dividers — outer at the frame bbox, inner with the
+          stroke-overflow padding from the export. */}
+      <BookPart src="/assets/about-book-composite.svg" left={440} top={439} width={161.771} height={106.006} inner="-0.66% -0.44% -0.48% -0.12%" />
 
       {/* ── Cell 5: self-care + "What if there were a new way…" ──── */}
       <BookPart src="/assets/about-self-care.svg" left={748} top={302} width={102.52} height={204.51} inner="-0.24% -0.49%" />
@@ -333,106 +333,46 @@ function AboutStory() {
       </p>
 
       {/* ── Cell 6: eye composite + "What if you could see your energy?…"
-          Eye frame (Figma 2273:2463) at (669, 608) 299.77×251.02 —
-          every sub-vector is positioned ABSOLUTELY inside about-story
-          (i.e. coords NOT relative to the eye frame). All px values
-          come straight from the Figma metadata. */}
+          The eye composite (Figma 2273:2463) was significantly
+          simplified in the latest design — the 13 individual sparkle
+          /mini/detail vectors and the in-pupil creature illustration
+          are gone. The new structure is just:
+            • iris  (2273:2464) at (724.50, 676.02) 172.65×164.89
+            • lash  frame (2273:2916) at (685.13, 606.83) 269.57×108.41
+              — five lash strokes baked into the SVG
+            • energy frame (2273:2914) at (738.92, 707.05) 145.04×118.36
+              — empty placeholder, nothing renders
+          Figma now exports the whole composite as a single baked SVG
+          (about-eye-composite.svg) covering the eye frame's bbox
+          (669.60, 608.53) 298.62×250.37 — iris + lash + interior
+          doodles all in one. Render as a single image. */}
       <p
         className="absolute m-0 text-center text-[20px] font-bold leading-[normal] text-black"
-        style={{ left: "426px", top: "714px", width: "232px" }}
+        style={{ left: "426.02px", top: "714px", width: "232.02px" }}
       >
         What if you could see your energy?!?!?!?!?
       </p>
-      {/* Main iris (2273:2464) — metadata bbox (724.50, 676.02)
-          172.65×164.89, rotated -6.22°. Wrapper sized to the
-          metadata bbox so flex-centered rotation produces visible
-          content at exactly that bbox. Inner unrotated child sized
-          157.47×148.75 (derived from the rotation math so its
-          rotated bbox fills the wrapper). */}
+      {/* Eye composite (Figma 2273:2463) — flex-center wrapper at
+          (669.6, 578.59) sized 298.622×250.37, inner SVG at its
+          natural viewBox size 276.219×221.743 rotated -6.22°. This
+          matches the 2275:26 export reference exactly. The export's
+          wrapper top (578.59) is the visual bbox top AFTER rotation;
+          the raw metadata's y=608.528 reports a different reference
+          point (similar offset issue as the cringe-lash above). */}
       <div
         className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "724.50px", top: "676.02px", width: "172.65px", height: "164.89px" }}
+        style={{ left: "669.6px", top: "578.59px", width: "298.622px", height: "250.37px" }}
       >
         <div style={{ transform: "rotate(-6.22deg)" }}>
           <img
             alt=""
-            src="/assets/about-eye-iris.svg"
+            src="/assets/about-eye-composite.svg"
             className="block max-w-none"
-            style={{ width: "157.47px", height: "148.75px" }}
+            style={{ width: "276.219px", height: "221.743px" }}
             draggable={false}
           />
         </div>
       </div>
-      {/* Eyelash frame (2273:2465) — metadata (684.69, 606.34)
-          270.58×109.40, rotated +3.52°. The eyelash SVG bakes in
-          all the sub-paths so we render it as a single image. */}
-      <div
-        className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "684.69px", top: "606.34px", width: "270.581px", height: "109.399px" }}
-      >
-        <div style={{ transform: "rotate(3.52deg)" }}>
-          <img
-            alt=""
-            src="/assets/about-eyelash-new.svg"
-            className="block max-w-none"
-            style={{ width: "265.359px", height: "93.304px" }}
-            draggable={false}
-          />
-        </div>
-      </div>
-      {/* Second iris detail (V53, 2273:2477) — metadata bbox
-          (756.94, 705.09) 31.49×38.24, rotated -6.22°. Inner child
-          sized for the rotation to fill the wrapper. */}
-      <div
-        className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "756.94px", top: "705.09px", width: "31.49px", height: "38.24px" }}
-      >
-        <div style={{ transform: "rotate(-6.22deg)" }}>
-          <img
-            alt=""
-            src="/assets/about-eye-detail-large.svg"
-            className="block max-w-none"
-            style={{ width: "27.34px", height: "34.86px" }}
-            draggable={false}
-          />
-        </div>
-      </div>
-      {/* Creature in pupil (V50, 2273:2476). */}
-      <img
-        alt=""
-        src="/assets/about-eye-creature.svg"
-        className="pointer-events-none absolute block max-w-none"
-        style={{ left: "790.669px", top: "770.739px", width: "34.486px", height: "31.934px" }}
-        draggable={false}
-      />
-      {/* Small sparkle / detail vectors around the eye. Each one is a
-          tiny SVG drawn at the Figma frame metadata's exact px coords. */}
-      <img alt="" src="/assets/about-eye-spark1.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "744.893px", top: "729.070px", width: "6.625px", height: "6.261px" }} draggable={false} />
-      <img alt="" src="/assets/about-eye-spark2.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "744.593px", top: "745.720px", width: "13.504px", height: "13.354px" }} draggable={false} />
-      <img alt="" src="/assets/about-eye-spark3.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "754.530px", top: "767.097px", width: "7.831px", height: "9.394px" }} draggable={false} />
-      <img alt="" src="/assets/about-eye-spark4.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "765.372px", top: "782.785px", width: "7.006px", height: "7.482px" }} draggable={false} />
-      <img alt="" src="/assets/about-eye-mini1.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "850.100px", top: "759.246px", width: "21.313px", height: "12.630px" }} draggable={false} />
-      <img alt="" src="/assets/about-eye-mini2.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "863.292px", top: "755.978px", width: "16.283px", height: "7.500px" }} draggable={false} />
-      <img alt="" src="/assets/about-eye-mini3.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "810.820px", top: "730.629px", width: "33.661px", height: "17.264px" }} draggable={false} />
-      <img alt="" src="/assets/about-eye-mini4.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "817.796px", top: "729.015px", width: "20.380px", height: "25.164px" }} draggable={false} />
-      <img alt="" src="/assets/about-eye-mini5.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "823.499px", top: "729.827px", width: "14.408px", height: "13.554px" }} draggable={false} />
-      {/* V60 (2273:2483) — rotated +8.53° around its center. */}
-      <div
-        className="pointer-events-none absolute flex items-center justify-center"
-        style={{ left: "834.172px", top: "758.718px", width: "23.062px", height: "35.349px" }}
-      >
-        <div style={{ transform: "rotate(8.53deg)" }}>
-          <img
-            alt=""
-            src="/assets/about-eye-mini6.svg"
-            className="block max-w-none"
-            style={{ width: "18.375px", height: "32.990px" }}
-            draggable={false}
-          />
-        </div>
-      </div>
-      <img alt="" src="/assets/about-eye-mini7.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "781.794px", top: "745.912px", width: "11.752px", height: "17.659px" }} draggable={false} />
-      <img alt="" src="/assets/about-eye-mini8.svg" className="pointer-events-none absolute block max-w-none" style={{ left: "773.408px", top: "758.680px", width: "26.687px", height: "9.602px" }} draggable={false} />
 
 
       {/* ── Bottom divider line + horizontal panel separator ─────── */}
@@ -480,14 +420,17 @@ function AboutStory() {
       </div>
 
       {/* ── Long-form intro paragraph (Figma 2273:2518) ───────────
-          Position (11, 886) at 952×423. Container uses line-height:0
-          (so the empty paragraph "spacers" collapse to almost no
-          height), each paragraph has line-height:normal — matches
-          the Figma's leading-[0] / leading-[normal] structure. */}
+          Position (13, 886) at 952×423 per the 2275:26 export
+          (raw metadata reports x=11, but the export's left=13 is
+          what matches the design canvas). Container uses
+          line-height:0 (so the empty paragraph "spacers" collapse
+          to almost no height), each paragraph has line-height:normal
+          — matches the Figma's leading-[0] / leading-[normal]
+          structure. */}
       <div
         className="absolute h-[423px] w-[952px] text-[20px] font-bold text-black"
         style={{
-          left: "11px",
+          left: "13px",
           top: "886px",
           lineHeight: 0,
           whiteSpace: "pre-wrap",
