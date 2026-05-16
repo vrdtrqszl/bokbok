@@ -307,14 +307,13 @@ function AboutStory() {
         What if you found your way back to journaling?
       </p>
 
-      {/* Book illustration container (Figma: vector + small details).
-          We render the book outline + the few visible parts; the
-          dozens of tiny <1-px book sub-vectors are omitted (they
-          don't visibly contribute at this rendering scale). */}
+      {/* Diagonal divider between the "Then..." starburst panel and
+          the book/eye panels (Figma 2273:2494 — Vector 10). Position
+          is (321, 592.5) at 125.5×246 inside the 974×1332 about-story. */}
       <FigmaSvg
         outer="44.48% 54.17% 37.05% 32.95%"
         inner="-0.36% -0.71% -0.24% -0.48%"
-        src="/assets/about-book-extra.svg"
+        src="/assets/about-divider-mid.svg"
       />
       {/* Book left page. */}
       <div
@@ -493,6 +492,22 @@ function AboutStory() {
           <img
             alt=""
             src="/assets/about-book-panel.svg"
+            className="block size-full max-w-none"
+            draggable={false}
+          />
+        </div>
+      </div>
+      {/* Horizontal panel-bottom line (Figma 2273:2497 — Vector 65)
+          spanning the book / self-care / eye row. Position is
+          (357, 774) at 363.258×49.786 inside the 974×1332 about-story. */}
+      <div
+        className="pointer-events-none absolute"
+        style={{ left: "357px", top: "774px", width: "363.258px", height: "49.786px" }}
+      >
+        <div className="absolute" style={{ inset: "-1% -0.14%" }}>
+          <img
+            alt=""
+            src="/assets/about-book-extra.svg"
             className="block size-full max-w-none"
             draggable={false}
           />
