@@ -1,9 +1,9 @@
 "use client";
 
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { Suspense, useEffect, useRef, useState } from "react";
-import { Vector3 } from "three";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { RepeatWrapping, TextureLoader, Vector3 } from "three";
 import EcosystemCreatures from "./EcosystemCreatures";
 import CreaturesErrorBoundary from "./CreaturesErrorBoundary";
 import GardenDecorations from "./GardenDecorations";
@@ -267,15 +267,18 @@ export default function MainViewport({
               so the flat plane doesn't read as an infinite sticker board. */}
           <fog attach="fog" args={["#dfd9c9", 22, 80]} />
 
-          {/* Flat ground plane — a large rectangular slab in the same
-              beige family as the page background. Sized big enough that
-              creatures wandering without a bounding radius still appear
-              to be on solid ground, never running off the edge of the
-              world. */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]}>
-            <planeGeometry args={[200, 200]} />
-            <meshBasicMaterial color="#d6cfba" />
-          </mesh>
+          {/* Flat ground plane — tiled with the SAME bg-grain.jpg
+              texture the page background uses (over the same #dfd9c9
+              base colour), so the 3D ground reads as a continuation
+              of the surrounding page instead of a brighter solid slab.
+              Solid #dfd9c9 alone looked too light against the page
+              because the grain JPG darkens the page's average pixel
+              value. Suspense above (around the creatures) already
+              handles the texture-load delay; ground falls back to
+              transparent for the one frame before the image lands. */}
+          <Suspense fallback={null}>
+            <GroundPlane />
+          </Suspense>
 
           {/* Garden — hand-drawn leaves / flowers / clovers / mushrooms
               billboarded and rooted across the ground. Behind the
@@ -363,5 +366,40 @@ export default function MainViewport({
         </>
       )}
     </div>
+  );
+}
+
+/**
+ * Flat ground plane tiled with the same `bg-grain.jpg` texture the page
+ * `.bg-grain` background uses. Keeping the same texture (and the same
+ * #dfd9c9 base colour the grain JPG sits on in CSS) means the 3D ground
+ * blends seamlessly into the surrounding page — no visible seam at the
+ * canvas edge.
+ *
+ * `RepeatWrapping` + a generous repeat count makes the grain pattern
+ * dense enough that the viewer never sees a single stretched tile when
+ * the camera is at default zoom. The plane itself is 200×200 world
+ * units (big enough that wandering creatures never run off the edge).
+ *
+ * Lives outside the main component so `useLoader` can suspend cleanly
+ * inside the parent `<Suspense>` boundary.
+ */
+function GroundPlane() {
+  const texture = useLoader(TextureLoader, "/assets/bg-grain.jpg");
+  // Configure tiling once when the texture lands. 40×40 repeats over a
+  // 200-unit plane gives ~5 world-units per tile — the texture grain
+  // ends up at roughly the same visual density as it appears on the
+  // surrounding page, regardless of camera zoom level.
+  useMemo(() => {
+    texture.wrapS = RepeatWrapping;
+    texture.wrapT = RepeatWrapping;
+    texture.repeat.set(40, 40);
+    texture.needsUpdate = true;
+  }, [texture]);
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]}>
+      <planeGeometry args={[200, 200]} />
+      <meshBasicMaterial map={texture} color="#dfd9c9" />
+    </mesh>
   );
 }
