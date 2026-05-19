@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { loadEcosystem, deleteCreatureById, matchesCreatureQuery, subscribeRemoteEcosystem } from "@/lib/ecosystem";
@@ -8,12 +7,22 @@ import { downloadCreaturePng } from "@/lib/downloadCreature";
 import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
 import { nameHighlightDataUrl, creatureHighlightColor } from "@/lib/nameHighlight";
 import { useT } from "@/lib/i18n";
+import { useIsMobile } from "@/lib/useIsMobile";
 import type { CreatureSpec } from "@/lib/creature";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
 import ViewportZoomControls from "@/app/_components/ViewportZoomControls";
+import MobileEncyclopediaPage from "@/app/_components/MobileEncyclopediaPage";
+import BokBokLogo from "@/app/_components/BokBokLogo";
 
 export default function BokBokpediaPage() {
+  // Mobile branches to a 2-col grid + bottom-sheet creature detail.
+  const isMobile = useIsMobile();
+  if (isMobile) return <MobileEncyclopediaPage />;
+  return <DesktopBokBokpediaPage />;
+}
+
+function DesktopBokBokpediaPage() {
   const router = useRouter();
   const t = useT();
   const [creatures, setCreatures] = useState<CreatureSpec[]>([]);
@@ -69,13 +78,15 @@ export default function BokBokpediaPage() {
 
   return (
     <div className="relative mx-auto h-[900px] w-[1440px] overflow-hidden font-(family-name:--font-casual)">
-      {/* BokBok logo / Home link */}
-      <Link
+      {/* BokBok logo / Home link — hand-drawn wordmark (Figma 2287:82). */}
+      <a
         href="/"
-        className="absolute left-[1213.5px] top-[24px] block -translate-x-1/2 cursor-pointer whitespace-nowrap text-[48px] leading-normal text-black font-(family-name:--font-fancy)"
+        aria-label="BokBok home"
+        className="absolute block cursor-pointer transition-transform active:scale-95 hover:scale-[1.02]"
+        style={{ left: 1152, top: -27 }}
       >
-        BokBok
-      </Link>
+        <BokBokLogo />
+      </a>
 
       {/* Top nav — Figma values per node, with the row stair-stepping
           slightly down across the bar:
@@ -83,18 +94,18 @@ export default function BokBokpediaPage() {
             Calendar      (2102:153)  x=115 y=51 w=151
             BokBokpedia  (2102:157)  x=255 y=51 w=151
           Energy Blocks and About (further right) sit at y=54. */}
-      <Link
+      <a
         href="/create"
         className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.create")}
-      </Link>
-      <Link
+      </a>
+      <a
         href="/calender"
         className="absolute left-[190.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.calendar")}
-      </Link>
+      </a>
 
       {/* Active tab indicator behind BokBokpedia — shifted +3px with the label. */}
       <div className="absolute left-[255px] top-[44px] h-[53.89px] w-[152.19px]">
@@ -109,20 +120,20 @@ export default function BokBokpediaPage() {
       </span>
 
       {/* Energy Blocks (Figma 2109:248) — at x=418, y=54, w=151. */}
-      <Link
+      <a
         href="/energy-blocks"
         className="absolute left-[493.5px] top-[54px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.energy_blocks")}
-      </Link>
+      </a>
 
       {/* About (Figma 2109:250) — at x=581, y=54, w=76. */}
-      <Link
+      <a
         href="/about"
         className="absolute left-[619px] top-[54px] block h-[36px] w-[76px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.about")}
-      </Link>
+      </a>
 
       {/* Search box — filters the encyclopedia grid by name or date. */}
       <div className="absolute left-[42px] top-[111px] h-[44px] w-[225px] overflow-hidden">
@@ -166,9 +177,9 @@ export default function BokBokpediaPage() {
         {creatures.length === 0 ? (
           <div className="col-span-4 mt-12 flex flex-col items-center gap-3 text-center text-[18px] font-bold leading-relaxed text-black/40">
             <span>{t("enc.empty_no_creatures")}</span>
-            <Link href="/create" className="cursor-pointer text-black/70 underline">
+            <a href="/create" className="cursor-pointer text-black/70 underline">
               {t("enc.empty_create_first")}
-            </Link>
+            </a>
           </div>
         ) : filtered.length === 0 ? (
           <div className="col-span-4 mt-12 text-center text-[16px] font-bold text-black/40">

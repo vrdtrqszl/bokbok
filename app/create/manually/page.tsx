@@ -7,10 +7,13 @@ import { EMOTION_LIST } from "@/lib/emotions";
 import { uploadCreature, findCreatureById, deleteCreatureById } from "@/lib/ecosystem";
 import { playCreatureGiggle } from "@/lib/audio";
 import { useT, emotionName, useLanguage } from "@/lib/i18n";
+import { useIsMobile } from "@/lib/useIsMobile";
 import { type CreatureSpec } from "@/lib/creature";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import ManualCanvas, { type ManualCanvasHandle } from "@/app/_components/ManualCanvas";
 import DatePicker from "@/app/_components/DatePicker";
+import MobileCreateManuallyPage from "@/app/_components/MobileCreateManuallyPage";
+import BokBokLogo from "@/app/_components/BokBokLogo";
 
 const MONTHS_FULL = [
   "January", "February", "March", "April", "May", "June",
@@ -28,9 +31,20 @@ function fromISO(iso: string): Date {
 export default function CreateManuallyPage() {
   return (
     <Suspense fallback={null}>
-      <CreateManuallyPageInner />
+      <CreateManuallyRouter />
     </Suspense>
   );
+}
+
+function CreateManuallyRouter() {
+  // Mobile branches to a stacked single-column layout. The ManualCanvas
+  // drawing area is preserved (tap-to-add emotion blocks works without
+  // touch event conversion); full block-manipulation gestures still
+  // assume mouse events but iOS/Android touch-to-mouse emulation gives
+  // most of it for free.
+  const isMobile = useIsMobile();
+  if (isMobile) return <MobileCreateManuallyPage />;
+  return <CreateManuallyPageInner />;
 }
 
 function CreateManuallyPageInner() {
@@ -159,13 +173,15 @@ function CreateManuallyPageInner() {
 
   return (
     <div className="relative mx-auto h-[900px] w-[1440px] overflow-hidden font-(family-name:--font-casual)">
-      {/* BokBok logo / Home link */}
-      <Link
+      {/* BokBok logo / Home link — hand-drawn wordmark (Figma 2287:82). */}
+      <a
         href="/"
-        className="absolute left-[1213.5px] top-[24px] block -translate-x-1/2 cursor-pointer whitespace-nowrap text-[48px] leading-normal text-black font-(family-name:--font-fancy)"
+        aria-label="BokBok home"
+        className="absolute block cursor-pointer transition-transform active:scale-95 hover:scale-[1.02]"
+        style={{ left: 1152, top: -27 }}
       >
-        BokBok
-      </Link>
+        <BokBokLogo />
+      </a>
 
       {/* Top nav — Figma values per node, with the row stair-stepping
           slightly down across the bar:
@@ -183,34 +199,34 @@ function CreateManuallyPageInner() {
       <span className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 text-center text-[24px] font-bold text-black">
         {t("nav.create")}
       </span>
-      <Link
+      <a
         href="/calender"
         className="absolute left-[190.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.calendar")}
-      </Link>
-      <Link
+      </a>
+      <a
         href="/encyclopedia"
         className="absolute left-[330.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.encyclopedia")}
-      </Link>
+      </a>
 
       {/* Energy Blocks (Figma 2109:248) — at x=418, y=54, w=151. */}
-      <Link
+      <a
         href="/energy-blocks"
         className="absolute left-[493.5px] top-[54px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.energy_blocks")}
-      </Link>
+      </a>
 
       {/* About (Figma 2109:250) — at x=581, y=54, w=76. */}
-      <Link
+      <a
         href="/about"
         className="absolute left-[619px] top-[54px] block h-[36px] w-[76px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.about")}
-      </Link>
+      </a>
 
       {/* Sub-nav: Generate | Manually (Manually active) */}
       <div className="absolute left-[31px] top-[90px] h-[38px] w-[227px] overflow-hidden">
@@ -229,13 +245,13 @@ function CreateManuallyPageInner() {
             <img alt="" src="/assets/subnav-divider.svg" className="block size-full max-w-none" />
           </div>
         </div>
-        <Link
+        <a
           href="/create"
           className="absolute flex cursor-pointer flex-col justify-center text-center text-[24px] font-bold leading-none text-black"
           style={{ inset: "-2.63% 43.94% 7.89% -7.49%" }}
         >
           {t("create.generate")}
-        </Link>
+        </a>
         <Link
           href="/create/manually"
           className="absolute flex cursor-pointer flex-col justify-center text-center text-[24px] font-bold leading-none text-black"

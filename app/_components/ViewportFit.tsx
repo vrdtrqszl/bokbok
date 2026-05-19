@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useIsMobile } from "@/lib/useIsMobile";
 
 // All pages are designed at this fixed size. We scale the entire stage to fit
 // the window while preserving aspect ratio (letterboxed when the window has a
@@ -17,12 +18,19 @@ const DESIGN_H = 900;
  * - Listens to window resize and updates scale on the fly.
  * - Uses `transform: scale()` (GPU-accelerated, no layout reflow).
  * - Letterboxes with the page background color when window aspect ≠ 16:10.
+ *
+ * MOBILE BYPASS: when the viewport is below the mobile breakpoint
+ * (useIsMobile), the fixed-canvas transform is skipped entirely and
+ * children render in a normal flow inside a full-viewport container.
+ * Each page is responsible for branching on useIsMobile() and rendering
+ * a mobile-friendly layout in that case.
  */
 export default function ViewportFit({ children }: { children: React.ReactNode }) {
   // Start at 1 so SSR markup matches the un-scaled design; the real scale is
   // computed in the first effect tick after mount.
   const [scale, setScale] = useState(1);
   const [mounted, setMounted] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const compute = () => {
@@ -35,6 +43,29 @@ export default function ViewportFit({ children }: { children: React.ReactNode })
     window.addEventListener("resize", compute);
     return () => window.removeEventListener("resize", compute);
   }, []);
+
+  // Mobile: skip the fixed-canvas transform. Children render directly in a
+  // full-viewport container with the same grain background. Allow native
+  // vertical scrolling because mobile layouts are designed to be longer
+  // than the viewport (stacked panels under the canvas, etc.).
+  if (isMobile) {
+    return (
+      <div
+        className="bg-grain"
+        style={{
+          position: "fixed",
+          inset: 0,
+          overflowY: "auto",
+          overflowX: "hidden",
+          // Disable touch-pan-x so swipes scroll vertically without
+          // accidentally triggering horizontal scroll on iOS.
+          touchAction: "pan-y",
+        }}
+      >
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div

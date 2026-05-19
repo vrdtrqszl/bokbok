@@ -8,7 +8,6 @@
 // view" (PNG + name) and the info panel (one-sentence description from
 // EMOTION_DESCRIPTION). Joy is selected by default.
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
   EMOTIONS,
@@ -22,6 +21,9 @@ import {
 import { playEnergyBlock } from "@/lib/audio";
 import { nameHighlightDataUrl } from "@/lib/nameHighlight";
 import { useT, emotionName, useLanguage } from "@/lib/i18n";
+import { useIsMobile } from "@/lib/useIsMobile";
+import MobileEnergyBlocksPage from "@/app/_components/MobileEnergyBlocksPage";
+import BokBokLogo from "@/app/_components/BokBokLogo";
 
 // Random shuffle (Fisher–Yates) followed by a greedy pass that swaps tiles
 // around so no two adjacent grid cells (left or directly above) share the
@@ -73,6 +75,14 @@ const PAD_RIGHT = 18;        // 974.69 − (33 + 162×5 + 28×4) ≈ 18
 const PAD_BOTTOM = 30;       // breathing room at the bottom of the scroll
 
 export default function EnergyBlocksPage() {
+  // Mobile branches to a dedicated single-column layout — the desktop 5-
+  // col grid + right-side viewfinder/info panels don't fit a phone.
+  const isMobile = useIsMobile();
+  if (isMobile) return <MobileEnergyBlocksPage />;
+  return <DesktopEnergyBlocksPage />;
+}
+
+function DesktopEnergyBlocksPage() {
   const t = useT();
   const lang = useLanguage();
   // null = nothing selected yet — both right-hand panels start empty and
@@ -90,13 +100,15 @@ export default function EnergyBlocksPage() {
 
   return (
     <div className="relative mx-auto h-[900px] w-[1440px] overflow-hidden font-(family-name:--font-casual)">
-      {/* BokBok logo / Home link */}
-      <Link
+      {/* BokBok logo / Home link — hand-drawn wordmark (Figma 2287:82). */}
+      <a
         href="/"
-        className="absolute left-[1213.5px] top-[24px] block -translate-x-1/2 cursor-pointer whitespace-nowrap text-[48px] leading-normal text-black font-(family-name:--font-fancy)"
+        aria-label="BokBok home"
+        className="absolute block cursor-pointer transition-transform active:scale-95 hover:scale-[1.02]"
+        style={{ left: 1152, top: -27 }}
       >
-        BokBok
-      </Link>
+        <BokBokLogo />
+      </a>
 
       {/* Top nav — Figma values per node, with the row stair-stepping
           slightly down across the bar:
@@ -104,24 +116,24 @@ export default function EnergyBlocksPage() {
             Calendar      (2102:153)  x=115 y=51 w=151
             BokBokpedia  (2102:157)  x=255 y=51 w=151
           Energy Blocks (active here) and About sit at y=54. */}
-      <Link
+      <a
         href="/create"
         className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.create")}
-      </Link>
-      <Link
+      </a>
+      <a
         href="/calender"
         className="absolute left-[190.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.calendar")}
-      </Link>
-      <Link
+      </a>
+      <a
         href="/encyclopedia"
         className="absolute left-[330.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.encyclopedia")}
-      </Link>
+      </a>
 
       {/* Active tab indicator behind Energy Blocks (Figma 2122:125 → 2129:230
           equivalent). Stroke box sits +3px relative to the label like the
@@ -138,12 +150,12 @@ export default function EnergyBlocksPage() {
       </span>
 
       {/* About (Figma 2109:250) — at x=581, y=54, w=76. */}
-      <Link
+      <a
         href="/about"
         className="absolute left-[619px] top-[54px] block h-[36px] w-[76px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.about")}
-      </Link>
+      </a>
 
       {/* Main wavy frame (Figma 2102:185) — same asset as Calendar/BokBokpedia. */}
       <div className="pointer-events-none absolute left-[27px] top-[85px] h-[789.67px] w-[974.69px]">

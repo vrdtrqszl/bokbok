@@ -22,36 +22,50 @@
 // the wrong dimension. We faithfully reproduce the two-wrapper
 // pattern here.
 
-import Link from "next/link";
 import { useT } from "@/lib/i18n";
+import { useIsMobile } from "@/lib/useIsMobile";
+import MobileAboutPage from "@/app/_components/MobileAboutPage";
+import BokBokLogo from "@/app/_components/BokBokLogo";
 
 const INSTAGRAM_URL =
   "https://www.instagram.com/bokbok.meee?igsh=aThxYnVscHV1MHNh&utm_source=qr";
 
 export default function AboutPage() {
+  // Mobile branches to a stacked single-column narrative — the desktop
+  // comic-collage with rotated SVG overlays doesn't reflow.
+  const isMobile = useIsMobile();
+  if (isMobile) return <MobileAboutPage />;
+  return <DesktopAboutPage />;
+}
+
+function DesktopAboutPage() {
   const t = useT();
 
   return (
     <div className="bg-grain relative mx-auto h-[900px] w-[1440px] overflow-hidden font-(family-name:--font-casual)">
       {/* ── Top nav + logo ──────────────────────────────────────── */}
-      <Link
+      {/* Hand-drawn wordmark (Figma 2287:82) placed at frame coords
+          (1152, -27); the empty top of the frame bleeds above y=0. */}
+      <a
         href="/"
-        className="absolute left-[1213.5px] top-[24px] block -translate-x-1/2 cursor-pointer whitespace-nowrap text-[48px] leading-normal text-black font-(family-name:--font-fancy)"
+        aria-label="BokBok home"
+        className="absolute block cursor-pointer transition-transform active:scale-95 hover:scale-[1.02]"
+        style={{ left: 1152, top: -27 }}
       >
-        BokBok
-      </Link>
-      <Link href="/create" className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black">
+        <BokBokLogo />
+      </a>
+      <a href="/create" className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black">
         {t("nav.create")}
-      </Link>
-      <Link href="/calender" className="absolute left-[190.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black">
+      </a>
+      <a href="/calender" className="absolute left-[190.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black">
         {t("nav.calendar")}
-      </Link>
-      <Link href="/encyclopedia" className="absolute left-[330.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black">
+      </a>
+      <a href="/encyclopedia" className="absolute left-[330.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black">
         {t("nav.encyclopedia")}
-      </Link>
-      <Link href="/energy-blocks" className="absolute left-[493.5px] top-[54px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black">
+      </a>
+      <a href="/energy-blocks" className="absolute left-[493.5px] top-[54px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black">
         {t("nav.energy_blocks")}
-      </Link>
+      </a>
 
       {/* "About" tab indicator + label. Figma about-box inset is
           5.11% / 54.27% / 89.67% / 40.21% within 1440×900 — converts
@@ -420,17 +434,20 @@ function AboutStory() {
       </div>
 
       {/* ── Long-form intro paragraph (Figma 2273:2518) ───────────
-          Position (13, 886) at 952×423 per the 2275:26 export
-          (raw metadata reports x=11, but the export's left=13 is
-          what matches the design canvas). Container uses
-          line-height:0 (so the empty paragraph "spacers" collapse
-          to almost no height), each paragraph has line-height:normal
-          — matches the Figma's leading-[0] / leading-[normal]
-          structure. */}
+          Figma metadata says (13, 886) 952×423, but the story-box's
+          left wavy outline is ~12-15 px thick (the left Vector spans
+          x=2.77→15.06), so text at left:13 visibly sits underneath /
+          touching the wavy line. Nudge left by 7px → left:20, and
+          shrink width by 7 → 945, so the right edge stays put at
+          x=965 (clear of the right wavy line and inside the scroll
+          container's 970.69-wide clip). Container uses line-height:0
+          (so the empty paragraph "spacers" collapse to almost no
+          height), each paragraph has line-height:normal — matches
+          the Figma's leading-[0] / leading-[normal] structure. */}
       <div
-        className="absolute h-[423px] w-[952px] text-[20px] font-bold text-black"
+        className="absolute h-[423px] w-[945px] text-[20px] font-bold text-black"
         style={{
-          left: "13px",
+          left: "20px",
           top: "886px",
           lineHeight: 0,
           whiteSpace: "pre-wrap",

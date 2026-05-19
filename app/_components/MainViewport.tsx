@@ -160,6 +160,7 @@ export default function MainViewport({
   onExitFullscreen,
   petMode = false,
   onCreatureHover,
+  mobile = false,
 }: {
   onCreatureSelect?: (c: CreatureSpec, position: [number, number, number]) => void;
   selectedCreatureId?: string | null;
@@ -174,6 +175,10 @@ export default function MainViewport({
   petMode?: boolean;
   /** Fires with the hovered creature on enter, null on leave. */
   onCreatureHover?: (creature: CreatureSpec | null) => void;
+  /** When true, fill the parent container instead of using the fixed Figma
+   *  coords (27, 85, 974.69, 789.67). Drops the wavy outline + zoom buttons
+   *  + sound toggle — mobile layouts host those affordances elsewhere. */
+  mobile?: boolean;
 } = {}) {
   const apiRef = useRef<CameraApi | null>(null);
 
@@ -195,8 +200,13 @@ export default function MainViewport({
 
   // In normal mode, the box sits at its Figma position inside the design
   // canvas. In fullscreen, expand it (in design coords) so that — after the
-  // ViewportFit transform — it visually fills 100% of the window.
+  // ViewportFit transform — it visually fills 100% of the window. In mobile
+  // mode, the wrapper fills its parent (the mobile layout sizes the parent
+  // container itself, e.g. to 55vh).
   const wrapperStyle = (() => {
+    if (mobile) {
+      return { left: 0, top: 0, right: 0, bottom: 0 } as const;
+    }
     if (!fullscreen) {
       return { left: 27, top: 85, width: 974.69, height: 789.67 };
     }
@@ -225,7 +235,7 @@ export default function MainViewport({
           ResizeObserver picks up reliably. */}
       <div
         className={`scroll-fade ${
-          fullscreen
+          fullscreen || mobile
             ? "absolute inset-0"
             : "absolute left-[18px] top-[10px] h-[769px] w-[945px]"
         }`}
@@ -295,9 +305,10 @@ export default function MainViewport({
         </Canvas>
       </div>
 
-      {/* Hand-drawn outline — only in normal mode. Removed in fullscreen
-          per design (cleaner look, 3D scene fills edge-to-edge). */}
-      {!fullscreen && (
+      {/* Hand-drawn outline — only in normal desktop mode. Removed in
+          fullscreen + mobile per design (cleaner look, 3D scene fills
+          edge-to-edge; the wavy outline only reads well at desktop scale). */}
+      {!fullscreen && !mobile && (
         <img
           alt=""
           src="/assets/main-box.svg"
@@ -324,12 +335,13 @@ export default function MainViewport({
         </button>
       )}
 
-      {/* Tools — sound on/off, zoom in/out. Hidden in fullscreen mode (the
-          design omits them; double-click a creature to zoom). Sound toggle
-          self-positions at the Figma frame coords (2238:1390 / 2238:1396);
-          on/off icons have different bbox sizes so the component swaps
-          its own left/top/width/height when state flips. */}
-      {!fullscreen && (
+      {/* Tools — sound on/off, zoom in/out. Hidden in fullscreen + mobile
+          modes (the design omits them; double-click / pinch a creature to
+          zoom). Sound toggle self-positions at the Figma frame coords
+          (2238:1390 / 2238:1396); on/off icons have different bbox sizes
+          so the component swaps its own left/top/width/height when state
+          flips. */}
+      {!fullscreen && !mobile && (
         <>
           <SoundToggle />
           <button

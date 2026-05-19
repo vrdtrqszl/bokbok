@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { loadEcosystem, deleteCreatureById, subscribeRemoteEcosystem } from "@/lib/ecosystem";
@@ -8,10 +7,13 @@ import { downloadCreaturePng } from "@/lib/downloadCreature";
 import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
 import { nameHighlightDataUrl, creatureHighlightColor } from "@/lib/nameHighlight";
 import { useT, type TranslationKey } from "@/lib/i18n";
+import { useIsMobile } from "@/lib/useIsMobile";
 import type { CreatureSpec } from "@/lib/creature";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import ViewportZoomControls from "@/app/_components/ViewportZoomControls";
+import MobileCalendarPage from "@/app/_components/MobileCalendarPage";
+import BokBokLogo from "@/app/_components/BokBokLogo";
 
 // MONTHS / DAY_LABELS used to be hardcoded English. Now they're keys
 // into the i18n dictionary so the calendar grid switches language with
@@ -170,6 +172,13 @@ function MonthGrid({
 }
 
 export default function CalendarPage() {
+  // Mobile branches to a single-month grid + bottom sheet.
+  const isMobile = useIsMobile();
+  if (isMobile) return <MobileCalendarPage />;
+  return <DesktopCalendarPage />;
+}
+
+function DesktopCalendarPage() {
   const t = useT();
   const router = useRouter();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -295,13 +304,15 @@ export default function CalendarPage() {
 
   return (
     <div className="relative mx-auto h-[900px] w-[1440px] overflow-hidden font-(family-name:--font-casual)">
-      {/* BokBok logo / Home link */}
-      <Link
+      {/* BokBok logo / Home link — hand-drawn wordmark (Figma 2287:82). */}
+      <a
         href="/"
-        className="absolute left-[1213.5px] top-[24px] block -translate-x-1/2 cursor-pointer whitespace-nowrap text-[48px] leading-normal text-black font-(family-name:--font-fancy)"
+        aria-label="BokBok home"
+        className="absolute block cursor-pointer transition-transform active:scale-95 hover:scale-[1.02]"
+        style={{ left: 1152, top: -27 }}
       >
-        BokBok
-      </Link>
+        <BokBokLogo />
+      </a>
 
       {/* Top nav — Figma values per node, with the row stair-stepping
           slightly down across the bar:
@@ -309,12 +320,12 @@ export default function CalendarPage() {
             Calendar      (2102:153)  x=115 y=51 w=151
             BokBokpedia  (2102:157)  x=255 y=51 w=151
           Energy Blocks and About (further right) sit at y=54. */}
-      <Link
+      <a
         href="/create"
         className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.create")}
-      </Link>
+      </a>
 
       {/* Active tab indicator behind Calendar — shifted +3px with the label. */}
       <div className="absolute left-[133px] top-[45px] h-[53px] w-[122px]">
@@ -328,28 +339,28 @@ export default function CalendarPage() {
         {t("nav.calendar")}
       </span>
 
-      <Link
+      <a
         href="/encyclopedia"
         className="absolute left-[330.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.encyclopedia")}
-      </Link>
+      </a>
 
       {/* Energy Blocks (Figma 2109:248) — at x=418, y=54, w=151. */}
-      <Link
+      <a
         href="/energy-blocks"
         className="absolute left-[493.5px] top-[54px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.energy_blocks")}
-      </Link>
+      </a>
 
       {/* About (Figma 2109:250) — at x=581, y=54, w=76. */}
-      <Link
+      <a
         href="/about"
         className="absolute left-[619px] top-[54px] block h-[36px] w-[76px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
       >
         {t("nav.about")}
-      </Link>
+      </a>
 
       {/* Main canvas box */}
       <div className="absolute left-[27px] top-[85px] h-[789.67px] w-[974.69px]">

@@ -1,12 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import MainViewport, { type FocusTarget, type ResetTrigger } from "./_components/MainViewport";
+import MobileMainPage from "./_components/MobileMainPage";
+import BokBokLogo from "./_components/BokBokLogo";
 import CandyButton from "./_components/CandyButton";
 import { creaturePositions } from "./_components/EcosystemCreatures";
 import { useT } from "@/lib/i18n";
+import { useIsMobile } from "@/lib/useIsMobile";
 import { deleteCreatureById, loadEcosystem, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { creatureFocusBox, emotionByKey, type CreatureSpec } from "@/lib/creature";
 import {
@@ -19,6 +21,17 @@ import { unlockAudio } from "@/lib/audio";
 import { ambientChatter } from "@/lib/ambientChatter";
 
 export default function MainPage() {
+  // Mobile branches to a completely separate layout (MobileMainPage). The
+  // desktop layout below assumes a fixed 1440×900 design canvas with side
+  // panels — it can't be reflowed into a portrait viewport. ViewportFit
+  // also bypasses its scale transform on mobile so the mobile layout uses
+  // the natural device viewport directly.
+  const isMobile = useIsMobile();
+  if (isMobile) return <MobileMainPage />;
+  return <DesktopMainPage />;
+}
+
+function DesktopMainPage() {
   const router = useRouter();
   const t = useT();
   const [selected, setSelected] = useState<CreatureSpec | null>(null);
@@ -249,13 +262,18 @@ export default function MainPage() {
           shows just the wavy frame + 3D scene + exit button). */}
       {!isFullscreen && (
         <>
-          {/* BokBok logo / Home link */}
-          <Link
+          {/* BokBok logo / Home link — hand-drawn wordmark (Figma 2287:82).
+              Placed at the original Figma frame coords (1152, -27); the
+              ~31% empty top of the frame bleeds above the page's y=0 and
+              clips naturally against the page's overflow-hidden. */}
+          <a
             href="/"
-            className="absolute left-[1213.5px] top-[24px] block -translate-x-1/2 cursor-pointer whitespace-nowrap text-[48px] leading-normal text-black font-(family-name:--font-fancy)"
+            aria-label="BokBok home"
+            className="absolute block cursor-pointer transition-transform active:scale-95 hover:scale-[1.02]"
+            style={{ left: 1152, top: -27 }}
           >
-            BokBok
-          </Link>
+            <BokBokLogo />
+          </a>
 
           {/* Top nav — Figma values per node, with the row stair-stepping
               slightly down across the bar:
@@ -263,40 +281,40 @@ export default function MainPage() {
                 Calendar      (2102:153)  x=115 y=51 w=151
                 BokBokpedia  (2102:157)  x=255 y=51 w=151
               Energy Blocks and About (further right) sit at y=54. */}
-          <Link
+          <a
             href="/create"
             className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
           >
             {t("nav.create")}
-          </Link>
-          <Link
+          </a>
+          <a
             href="/calender"
             className="absolute left-[190.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
           >
             {t("nav.calendar")}
-          </Link>
-          <Link
+          </a>
+          <a
             href="/encyclopedia"
             className="absolute left-[330.5px] top-[51px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
           >
             {t("nav.encyclopedia")}
-          </Link>
+          </a>
 
           {/* Energy Blocks (Figma 2109:248) — at x=418, y=54, w=151. */}
-          <Link
+          <a
             href="/energy-blocks"
             className="absolute left-[493.5px] top-[54px] block h-[36px] w-[151px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
           >
             {t("nav.energy_blocks")}
-          </Link>
+          </a>
 
           {/* About (Figma 2109:250) — at x=581, y=54, w=76. */}
-          <Link
+          <a
             href="/about"
             className="absolute left-[619px] top-[54px] block h-[36px] w-[76px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black"
           >
             {t("nav.about")}
-          </Link>
+          </a>
 
           {/* Enter fullscreen (Figma 2114:258) — child of the main box, so its
               page-absolute position is (27+926, 85+22) = (953, 107). */}
