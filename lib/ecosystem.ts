@@ -139,14 +139,40 @@ export function matchesCreatureQuery(c: CreatureSpec, query: string): boolean {
 
 // ── realtime subscription (shared mode only) ──────────────────────────────
 
+// Poll interval (ms) for the fallback re-fetch loop. Supabase realtime
+// generally delivers postgres_changes within a few hundred ms when the
+// table is part of the realtime publication and RLS allows it, but in
+// practice some deployments lose events (network flake, channel
+// re-connect, publication misconfig). A modest periodic poll gives us
+// belt-and-suspenders coverage: new creatures from other clients show
+// up within at most POLL_MS even if no realtime event ever arrives.
+//
+// 8s feels right for an installation/exhibition context — fast enough
+// that a visitor isn't waiting after the previous person finishes,
+// slow enough that the DB isn't hammered.
+const POLL_MS = 8000;
+
 /**
  * Subscribe to remote changes when in shared mode. In local mode this is a
- * no-op. The callback gets called whenever another browser changes the DB,
- * so callers can re-fetch.
+ * no-op. The callback gets called whenever another browser changes the DB
+ * (via the Supabase realtime channel) OR every POLL_MS as a backstop in
+ * case realtime events are missed.
  *
- * Returns an unsubscribe function.
+ * Returns an unsubscribe function that tears down BOTH the realtime
+ * channel and the poll interval.
  */
 export function subscribeRemoteEcosystem(onChange: () => void): () => void {
   if (!isSharedMode()) return () => {};
-  return subscribeEcosystemRemote(onChange);
+  const unsubscribeRealtime = subscribeEcosystemRemote(onChange);
+  // Backup poll — independent of the realtime channel. If realtime
+  // fires first the poll's next tick is a harmless extra refresh
+  // (loadEcosystem is idempotent).
+  const interval =
+    typeof window !== "undefined"
+      ? window.setInterval(onChange, POLL_MS)
+      : null;
+  return () => {
+    unsubscribeRealtime();
+    if (interval !== null) window.clearInterval(interval);
+  };
 }
