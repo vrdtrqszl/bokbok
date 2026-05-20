@@ -686,6 +686,114 @@ const DROPLET_NOTES_HZ: number[] = [
   587.33, 698.46, 783.99, 880.00, 1046.50,   // D5, F5, G5, A5, C6
 ];
 
+// ---- Candy bag rustle (candy button click) --------------------------
+// Plays the real plastic-bag rustle recording (public/sounds/plastic-
+// bag.mp3) — first 2 seconds only. Mimics the "treat bag" sound that
+// makes a dog snap to attention. Routed through alwaysOnGain so it
+// fires regardless of the Sound Off toggle ("you pressed it, you hear
+// it" — same rule as energy-block tile clicks).
+//
+// While the rustle plays, the creature voices (ambient chatter +
+// giggles, all routed through masterGain) duck to silence so the
+// rustle stands out — like a room going quiet when a dog hears the
+// crinkle. Master ramps back up automatically after the rustle ends.
+
+const PLASTIC_BAG_PATH = "/sounds/plastic-bag.mp3";
+const PLASTIC_BAG_PLAY_MS = 2000; // first 2 seconds of the file only
+const PLASTIC_BAG_GAIN = 0.7;
+
+let plasticBagBuffer: AudioBuffer | null = null;
+let plasticBagLoading: Promise<AudioBuffer | null> | null = null;
+function loadPlasticBag(c: AudioContext): Promise<AudioBuffer | null> {
+  if (plasticBagBuffer) return Promise.resolve(plasticBagBuffer);
+  if (plasticBagLoading) return plasticBagLoading;
+  plasticBagLoading = fetch(PLASTIC_BAG_PATH)
+    .then((r) => r.arrayBuffer())
+    .then((ab) => c.decodeAudioData(ab))
+    .then((buf) => {
+      plasticBagBuffer = buf;
+      return buf;
+    })
+    .catch((err) => {
+      // Don't crash if the file is missing / fails to decode — just
+      // log and let the button continue to work silently.
+      console.error("[bokbok] plastic bag sound failed to load:", err);
+      plasticBagLoading = null;
+      return null;
+    });
+  return plasticBagLoading;
+}
+
+// Tracks any in-flight master-duck restore so successive candy clicks
+// don't fight over the ramp schedule.
+let masterDuckRestoreTimer: number | null = null;
+
+/** Duck masterGain to silence for `ms`, then ramp back to the user's
+ *  current target gain (UNMUTED_GAIN, or 0 if muted). Used by the
+ *  candy rustle to make the creature voices momentarily go quiet. */
+function duckMasterFor(ms: number): void {
+  const c = ensureCtx();
+  if (!c || !masterGain) return;
+  const now = c.currentTime;
+  // Cancel any previously-scheduled ramps so we control the curve.
+  masterGain.gain.cancelScheduledValues(now);
+  masterGain.gain.setValueAtTime(masterGain.gain.value, now);
+  // 30 ms fade-down — fast enough to feel like a cut, slow enough not
+  // to click.
+  masterGain.gain.linearRampToValueAtTime(0.0001, now + 0.03);
+  if (masterDuckRestoreTimer !== null) {
+    clearTimeout(masterDuckRestoreTimer);
+  }
+  masterDuckRestoreTimer = window.setTimeout(() => {
+    masterDuckRestoreTimer = null;
+    const c2 = ensureCtx();
+    if (!c2 || !masterGain) return;
+    const t = c2.currentTime;
+    const target = muted ? 0 : UNMUTED_GAIN;
+    masterGain.gain.cancelScheduledValues(t);
+    masterGain.gain.setValueAtTime(masterGain.gain.value, t);
+    // 150 ms ramp back up — softer than the duck-down so the room
+    // gently comes back to life after the rustle settles.
+    masterGain.gain.linearRampToValueAtTime(target, t + 0.15);
+  }, ms);
+}
+
+export function playCandyRustle(): void {
+  const c = ensureCtx();
+  if (!c || !alwaysOnGain) return;
+
+  // Duck creature sounds immediately so the rustle has the room to
+  // itself, regardless of whether the buffer load is still in flight.
+  duckMasterFor(PLASTIC_BAG_PLAY_MS);
+
+  loadPlasticBag(c).then((buf) => {
+    if (!buf) return; // failed to load — quiet fallback, duck still ran
+    const c2 = ensureCtx();
+    if (!c2 || !alwaysOnGain) return;
+    const now = c2.currentTime;
+    const dur = Math.min(PLASTIC_BAG_PLAY_MS / 1000, buf.duration);
+
+    const src = c2.createBufferSource();
+    src.buffer = buf;
+
+    // Tail-end fade-out (last 150 ms) so cutting at 2.0 s doesn't
+    // produce an audible click. Body sits at PLASTIC_BAG_GAIN.
+    const gain = c2.createGain();
+    gain.gain.setValueAtTime(PLASTIC_BAG_GAIN, now);
+    const fadeStart = Math.max(0, dur - 0.15);
+    gain.gain.setValueAtTime(PLASTIC_BAG_GAIN, now + fadeStart);
+    gain.gain.linearRampToValueAtTime(0.0001, now + dur);
+
+    src.connect(gain);
+    gain.connect(alwaysOnGain);
+
+    src.start(now, 0, dur);
+    // Tiny extra stop margin so the ramp-to-near-zero completes
+    // before the source is torn down.
+    src.stop(now + dur + 0.02);
+  });
+}
+
 export function playDropletTick(pitchIndex?: number): void {
   const c = ensureCtx();
   if (!c || !masterGain) return;

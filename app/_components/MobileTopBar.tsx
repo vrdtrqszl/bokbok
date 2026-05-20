@@ -70,16 +70,37 @@ export default function MobileTopBar({ active }: { active?: NavKey }) {
         >
           <BokBokLogo width={72} />
         </a>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          aria-label="Open navigation"
-          className="flex h-10 w-10 cursor-pointer flex-col items-center justify-center gap-[5px] bg-transparent p-2"
-        >
-          <span className="block h-[2px] w-6 bg-black" />
-          <span className="block h-[2px] w-6 bg-black" />
-          <span className="block h-[2px] w-6 bg-black" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* × close-to-home button — same hand-drawn × icon as the
+              desktop pages (Figma 2288:37), only shown on non-home
+              screens so the user always has a one-tap exit to /. The
+              `active` prop tells us which page we're on; we hide the
+              X when active === "home" (i.e., the mobile main page). */}
+          {active !== "home" && (
+            <a
+              href="/"
+              aria-label="Close — back to home"
+              className="block h-8 w-8 cursor-pointer transition-transform active:scale-95"
+            >
+              <img
+                alt=""
+                src="/assets/close-x.svg"
+                className="block size-full max-w-none"
+                draggable={false}
+              />
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Open navigation"
+            className="flex h-10 w-10 cursor-pointer flex-col items-center justify-center gap-[5px] bg-transparent p-2"
+          >
+            <span className="block h-[2px] w-6 bg-black" />
+            <span className="block h-[2px] w-6 bg-black" />
+            <span className="block h-[2px] w-6 bg-black" />
+          </button>
+        </div>
       </header>
 
       {open && (

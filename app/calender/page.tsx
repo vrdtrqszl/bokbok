@@ -14,6 +14,7 @@ import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import ViewportZoomControls from "@/app/_components/ViewportZoomControls";
 import MobileCalendarPage from "@/app/_components/MobileCalendarPage";
 import BokBokLogo from "@/app/_components/BokBokLogo";
+import CloseToHomeButton from "@/app/_components/CloseToHomeButton";
 
 // MONTHS / DAY_LABELS used to be hardcoded English. Now they're keys
 // into the i18n dictionary so the calendar grid switches language with
@@ -313,6 +314,8 @@ function DesktopCalendarPage() {
       >
         <BokBokLogo />
       </a>
+      {/* × close button (Figma 2288:37) — back to main from any non-main page. */}
+      <CloseToHomeButton />
 
       {/* Top nav — Figma values per node, with the row stair-stepping
           slightly down across the bar:

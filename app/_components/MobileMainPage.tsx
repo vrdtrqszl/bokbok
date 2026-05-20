@@ -9,7 +9,7 @@ import { useT } from "@/lib/i18n";
 import { deleteCreatureById, loadEcosystem, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { creatureFocusBox, emotionByKey, type CreatureSpec } from "@/lib/creature";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
-import { unlockAudio } from "@/lib/audio";
+import { playCandyRustle, unlockAudio } from "@/lib/audio";
 import { ambientChatter } from "@/lib/ambientChatter";
 
 /**
@@ -387,6 +387,8 @@ function CandyButtonMobile() {
       type="button"
       onClick={() => {
         unlockAudio();
+        // Plastic-bag crinkle cue — same as the desktop CandyButton.
+        playCandyRustle();
         triggerEcosystemGather();
       }}
       aria-label="Call creatures back to the centre"

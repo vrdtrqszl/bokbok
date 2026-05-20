@@ -316,13 +316,20 @@ function DesktopMainPage() {
             {t("nav.about")}
           </a>
 
-          {/* Enter fullscreen (Figma 2114:258) — child of the main box, so its
-              page-absolute position is (27+926, 85+22) = (953, 107). */}
+          {/* Enter fullscreen — top-right inside the main box. Resized
+              from the original Figma 2114:258 dimensions (39.52×42.19)
+              to match the × close-to-home button's 32.12×32.5 footprint
+              so the two buttons (which occupy the same visual slot, on
+              different pages) read at the same weight. The SVG uses
+              preserveAspectRatio="none" so a slight aspect change is
+              harmless. Position aligned with the × button at (957, 107)
+              page coords (= Figma hidden frame 2288:47). */}
           <button
             type="button"
             onClick={toggleFullscreen}
             title="Enter full screen"
-            className="absolute left-[953px] top-[107px] z-[20] block h-[42.19px] w-[39.52px] cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:opacity-80"
+            className="absolute z-[20] block cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:opacity-80"
+            style={{ left: 957, top: 107, width: 32.12, height: 32.5 }}
           >
             <img
               alt=""

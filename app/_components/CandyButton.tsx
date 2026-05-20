@@ -1,7 +1,7 @@
 "use client";
 
 import { triggerEcosystemGather } from "./EcosystemCreatures";
-import { unlockAudio } from "@/lib/audio";
+import { playCandyRustle, unlockAudio } from "@/lib/audio";
 
 /**
  * Candy button (Figma 2239:1401) — pressing it calls the wandering
@@ -24,6 +24,10 @@ export default function CandyButton() {
         // user gesture, and the user may not have clicked anything else
         // yet, so this is a free moment to let ambient chatter start.
         unlockAudio();
+        // Plastic-bag crinkle — like rustling a treat bag in front of a
+        // dog. Plays BEFORE gather so the user hears the cue first;
+        // creatures then converge toward origin like a hungry pack.
+        playCandyRustle();
         triggerEcosystemGather();
       }}
       title="Call creatures back to the centre"

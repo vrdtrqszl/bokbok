@@ -26,6 +26,7 @@ import { useT } from "@/lib/i18n";
 import { useIsMobile } from "@/lib/useIsMobile";
 import MobileAboutPage from "@/app/_components/MobileAboutPage";
 import BokBokLogo from "@/app/_components/BokBokLogo";
+import CloseToHomeButton from "@/app/_components/CloseToHomeButton";
 
 const INSTAGRAM_URL =
   "https://www.instagram.com/bokbok.meee?igsh=aThxYnVscHV1MHNh&utm_source=qr";
@@ -54,6 +55,9 @@ function DesktopAboutPage() {
       >
         <BokBokLogo />
       </a>
+      {/* × close button (Figma 2288:37) — back to main page from any
+          non-main page. Positioned at the Figma frame coords (924, 8). */}
+      <CloseToHomeButton />
       <a href="/create" className="absolute left-[80.5px] top-[48px] block h-[36px] w-[91px] -translate-x-1/2 cursor-pointer text-center text-[24px] font-bold text-black">
         {t("nav.create")}
       </a>

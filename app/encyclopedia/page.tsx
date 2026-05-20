@@ -14,6 +14,7 @@ import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
 import ViewportZoomControls from "@/app/_components/ViewportZoomControls";
 import MobileEncyclopediaPage from "@/app/_components/MobileEncyclopediaPage";
 import BokBokLogo from "@/app/_components/BokBokLogo";
+import CloseToHomeButton from "@/app/_components/CloseToHomeButton";
 
 export default function BokBokpediaPage() {
   // Mobile branches to a 2-col grid + bottom-sheet creature detail.
@@ -87,6 +88,8 @@ function DesktopBokBokpediaPage() {
       >
         <BokBokLogo />
       </a>
+      {/* × close button (Figma 2288:37) — back to main from any non-main page. */}
+      <CloseToHomeButton />
 
       {/* Top nav — Figma values per node, with the row stair-stepping
           slightly down across the bar:

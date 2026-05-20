@@ -24,6 +24,7 @@ import { useT, emotionName, useLanguage } from "@/lib/i18n";
 import { useIsMobile } from "@/lib/useIsMobile";
 import MobileEnergyBlocksPage from "@/app/_components/MobileEnergyBlocksPage";
 import BokBokLogo from "@/app/_components/BokBokLogo";
+import CloseToHomeButton from "@/app/_components/CloseToHomeButton";
 
 // Random shuffle (Fisher–Yates) followed by a greedy pass that swaps tiles
 // around so no two adjacent grid cells (left or directly above) share the
@@ -109,6 +110,8 @@ function DesktopEnergyBlocksPage() {
       >
         <BokBokLogo />
       </a>
+      {/* × close button (Figma 2288:37) — back to main from any non-main page. */}
+      <CloseToHomeButton />
 
       {/* Top nav — Figma values per node, with the row stair-stepping
           slightly down across the bar:

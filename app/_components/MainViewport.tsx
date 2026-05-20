@@ -343,11 +343,20 @@ export default function MainViewport({
       {!fullscreen && !mobile && (
         <>
           <SoundToggle />
+          {/* + / − zoom buttons: resized to 32.12 × 32.5 (same footprint
+              as the × close button and the resized fullscreen button)
+              and shifted to wrapper left=930 (=page x=957) so all four
+              corner buttons share the same vertical axis on the right
+              side of the main box. tops 701 / 737 give the lower
+              button ~21 px breathing room from the main box's bottom
+              wavy edge — not too tight (original 7 px) and not too
+              floating (earlier 38 px). */}
           <button
             type="button"
             onClick={() => apiRef.current?.zoomIn()}
             title="Zoom in"
-            className="absolute left-[929px] top-[713px] h-[29.86px] w-[34.4px] cursor-pointer bg-transparent p-0 opacity-80 hover:opacity-100"
+            className="absolute cursor-pointer bg-transparent p-0 opacity-80 hover:opacity-100"
+            style={{ left: 930, top: 701, width: 32.12, height: 32.5 }}
           >
             <img alt="zoom in" src="/assets/zoom-in.svg" className="block size-full" />
           </button>
@@ -355,7 +364,8 @@ export default function MainViewport({
             type="button"
             onClick={() => apiRef.current?.zoomOut()}
             title="Zoom out"
-            className="absolute left-[929px] top-[747px] h-[31.13px] w-[34.33px] cursor-pointer bg-transparent p-0 opacity-80 hover:opacity-100"
+            className="absolute cursor-pointer bg-transparent p-0 opacity-80 hover:opacity-100"
+            style={{ left: 930, top: 737, width: 32.12, height: 32.5 }}
           >
             <img alt="zoom out" src="/assets/zoom-out.svg" className="block size-full" />
           </button>

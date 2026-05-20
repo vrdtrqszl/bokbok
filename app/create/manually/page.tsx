@@ -14,6 +14,7 @@ import ManualCanvas, { type ManualCanvasHandle } from "@/app/_components/ManualC
 import DatePicker from "@/app/_components/DatePicker";
 import MobileCreateManuallyPage from "@/app/_components/MobileCreateManuallyPage";
 import BokBokLogo from "@/app/_components/BokBokLogo";
+import CloseToHomeButton from "@/app/_components/CloseToHomeButton";
 
 const MONTHS_FULL = [
   "January", "February", "March", "April", "May", "June",
@@ -182,6 +183,8 @@ function CreateManuallyPageInner() {
       >
         <BokBokLogo />
       </a>
+      {/* × close button (Figma 2288:37) — back to main from any non-main page. */}
+      <CloseToHomeButton />
 
       {/* Top nav — Figma values per node, with the row stair-stepping
           slightly down across the bar:
