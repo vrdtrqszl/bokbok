@@ -73,18 +73,55 @@ function DesktopMainPage() {
     window.addEventListener("storage", refresh);
     const unsubscribeRemote = subscribeRemoteEcosystem(refresh);
 
-    // First gesture anywhere on the page unlocks the AudioContext and
-    // starts the chatter loop. `once` removes the listener automatically.
-    const onFirstGesture = () => {
+    // Try to unlock audio IMMEDIATELY on mount — in browsers that have
+    // media engagement with the site (e.g., returning visitors on
+    // Chrome), this succeeds without any user gesture and ambient
+    // chatter starts the moment the page loads. In stricter browsers
+    // the AudioContext gets created but stays suspended; the gesture
+    // listeners below resume() it on the first interaction.
+    const tryStart = () => {
       if (unlockAudio()) ambientChatter.start();
     };
-    window.addEventListener("pointerdown", onFirstGesture, { once: true });
+    tryStart();
+
+    // Browser autoplay policy requires a user-initiated gesture to
+    // resume a suspended AudioContext. Listen to a BROAD set of events
+    // (pointer, touch, mouse, keyboard) on the capture phase so even
+    // the very first click on a specific button (e.g., the Sound
+    // Toggle itself) triggers the unlock before that button's own
+    // onClick runs. All listeners share the same handler, which is a
+    // no-op once the context is live.
+    let unlocked = false;
+    const onAnyGesture = () => {
+      if (unlocked) return;
+      if (unlockAudio()) {
+        unlocked = true;
+        ambientChatter.start();
+        gestureEvents.forEach((ev) =>
+          window.removeEventListener(ev, onAnyGesture, true),
+        );
+      }
+    };
+    const gestureEvents = [
+      "pointerdown",
+      "pointerup",
+      "mousedown",
+      "touchstart",
+      "touchend",
+      "keydown",
+      "click",
+    ] as const;
+    gestureEvents.forEach((ev) =>
+      window.addEventListener(ev, onAnyGesture, { capture: true }),
+    );
 
     return () => {
       cancelled = true;
       window.removeEventListener("ecosystem:changed", refresh);
       window.removeEventListener("storage", refresh);
-      window.removeEventListener("pointerdown", onFirstGesture);
+      gestureEvents.forEach((ev) =>
+        window.removeEventListener(ev, onAnyGesture, true),
+      );
       unsubscribeRemote();
       ambientChatter.stop();
     };
@@ -389,7 +426,6 @@ function DesktopMainPage() {
         focusTarget={focusTarget}
         resetTrigger={resetTrigger}
         fullscreen={isFullscreen}
-        onExitFullscreen={toggleFullscreen}
         petMode={petMode}
         onCreatureHover={setHoveredCreature}
       />

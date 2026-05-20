@@ -51,16 +51,46 @@ export default function MobileMainPage() {
     window.addEventListener("storage", refresh);
     const unsubscribeRemote = subscribeRemoteEcosystem(refresh);
 
-    const onFirstGesture = () => {
+    // Try to unlock audio immediately on mount (succeeds on browsers
+    // with site engagement, e.g. returning Chrome visitors). On stricter
+    // browsers the AudioContext is created suspended and resumes on
+    // the first user gesture — see broad listener set below.
+    const tryStart = () => {
       if (unlockAudio()) ambientChatter.start();
     };
-    window.addEventListener("pointerdown", onFirstGesture, { once: true });
+    tryStart();
+
+    let unlocked = false;
+    const onAnyGesture = () => {
+      if (unlocked) return;
+      if (unlockAudio()) {
+        unlocked = true;
+        ambientChatter.start();
+        gestureEvents.forEach((ev) =>
+          window.removeEventListener(ev, onAnyGesture, true),
+        );
+      }
+    };
+    const gestureEvents = [
+      "pointerdown",
+      "pointerup",
+      "mousedown",
+      "touchstart",
+      "touchend",
+      "keydown",
+      "click",
+    ] as const;
+    gestureEvents.forEach((ev) =>
+      window.addEventListener(ev, onAnyGesture, { capture: true }),
+    );
 
     return () => {
       cancelled = true;
       window.removeEventListener("ecosystem:changed", refresh);
       window.removeEventListener("storage", refresh);
-      window.removeEventListener("pointerdown", onFirstGesture);
+      gestureEvents.forEach((ev) =>
+        window.removeEventListener(ev, onAnyGesture, true),
+      );
       unsubscribeRemote();
       ambientChatter.stop();
     };

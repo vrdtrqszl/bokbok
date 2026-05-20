@@ -156,7 +156,6 @@ export default function MainViewport({
   focusTarget,
   resetTrigger,
   fullscreen = false,
-  onExitFullscreen,
   petMode = false,
   onCreatureHover,
   mobile = false,
@@ -166,10 +165,10 @@ export default function MainViewport({
   query?: string;
   focusTarget?: FocusTarget | null;
   resetTrigger?: ResetTrigger | null;
-  /** When true, expand to fill the whole window regardless of aspect ratio. */
+  /** When true, expand to fill the whole window regardless of aspect ratio.
+   *  The browser's native Fullscreen API handles Esc to exit; the page's
+   *  fullscreenchange listener updates this flag back to false. */
   fullscreen?: boolean;
-  /** Called when the user clicks the exit-fullscreen button (only rendered in fullscreen). */
-  onExitFullscreen?: () => void;
   /** When true, clicking a creature pets it (makes it shake) instead of focusing the camera. */
   petMode?: boolean;
   /** Fires with the hovered creature on enter, null on leave. */
@@ -315,24 +314,9 @@ export default function MainViewport({
         />
       )}
 
-      {/* Exit fullscreen button (Figma 2114:317) — top-right of the box,
-          using right/top so it auto-follows the box as it stretches with
-          the window. Offsets are derived from the original 1428×885 design
-          (button at 1367.85, 15.94 inside the box). */}
-      {fullscreen && onExitFullscreen && (
-        <button
-          type="button"
-          onClick={onExitFullscreen}
-          title="Exit full screen"
-          className="absolute right-[21.94px] top-[15.94px] z-[20] block h-[41.15px] w-[38.53px] cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:opacity-80"
-        >
-          <img
-            alt=""
-            src="/assets/exit-fullscreen-button.svg"
-            className="block size-full"
-          />
-        </button>
-      )}
+      {/* Exit fullscreen button removed — browser's native Fullscreen
+          API exits on Esc anyway. The page-level fullscreenchange
+          listener picks up the state change and the UI re-renders. */}
 
       {/* Tools — sound on/off, zoom in/out. Hidden in fullscreen + mobile
           modes (the design omits them; double-click / pinch a creature to
