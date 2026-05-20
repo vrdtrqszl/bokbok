@@ -4,7 +4,7 @@ import { Canvas, useFrame, useLoader } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { RepeatWrapping, TextureLoader, Vector3 } from "three";
-import EcosystemCreatures from "./EcosystemCreatures";
+import EcosystemCreatures, { setEcosystemZoomDistance } from "./EcosystemCreatures";
 import CreaturesErrorBoundary from "./CreaturesErrorBoundary";
 import SoundToggle from "./SoundToggle";
 import type { CreatureSpec } from "@/lib/creature";
@@ -64,8 +64,17 @@ function ControlsBridge({
   const animRef = useRef<{ target: Vector3; position: Vector3 } | null>(null);
 
   useFrame(() => {
-    const a = animRef.current;
     const c = controlsRef.current;
+    // Feed the current camera-to-target distance into the ecosystem
+    // wanderer every frame so the wandering radius scales with zoom
+    // level: zooming out pushes creatures further apart so they fill
+    // the wider view; zooming back in toward default contracts them.
+    // Zooming PAST default doesn't shrink below the base radius — the
+    // ecosystem reads as appropriately dense at default zoom already.
+    if (c) {
+      setEcosystemZoomDistance(c.object.position.distanceTo(c.target));
+    }
+    const a = animRef.current;
     if (!a || !c) return;
     c.target.lerp(a.target, 0.12);
     c.object.position.lerp(a.position, 0.12);
@@ -157,6 +166,8 @@ export default function MainViewport({
   resetTrigger,
   fullscreen = false,
   petMode = false,
+  candyMode = false,
+  onCandyClick,
   onCreatureHover,
   mobile = false,
 }: {
@@ -171,6 +182,12 @@ export default function MainViewport({
   fullscreen?: boolean;
   /** When true, clicking a creature pets it (makes it shake) instead of focusing the camera. */
   petMode?: boolean;
+  /** When true, clicking the ground plane fires onCandyClick(x, z) so
+   *  the page can summon creatures to that point + play the candy rustle. */
+  candyMode?: boolean;
+  /** Fires with world-space XZ when the user clicks the ground (or any
+   *  open scene area) while candy mode is on. */
+  onCandyClick?: (x: number, z: number) => void;
   /** Fires with the hovered creature on enter, null on leave. */
   onCreatureHover?: (creature: CreatureSpec | null) => void;
   /** When true, fill the parent container instead of using the fixed Figma
@@ -275,7 +292,9 @@ export default function MainViewport({
               handles the texture-load delay; ground falls back to
               transparent for the one frame before the image lands. */}
           <Suspense fallback={null}>
-            <GroundPlane />
+            <GroundPlane
+              onCandyClick={candyMode ? onCandyClick : undefined}
+            />
           </Suspense>
 
           {/* Garden decorations (leaves / flowers / clovers / mushrooms)
@@ -291,6 +310,8 @@ export default function MainViewport({
                 selectedId={selectedCreatureId}
                 query={query}
                 petMode={petMode}
+                candyMode={candyMode}
+                onCandyClick={onCandyClick}
                 onHover={onCreatureHover}
               />
             </Suspense>
@@ -374,7 +395,15 @@ export default function MainViewport({
  * Lives outside the main component so `useLoader` can suspend cleanly
  * inside the parent `<Suspense>` boundary.
  */
-function GroundPlane() {
+function GroundPlane({
+  onCandyClick,
+}: {
+  /** Set by the parent only when candy mode is on. When defined, ground
+   *  clicks fire this with the world-space XZ so the page can summon
+   *  creatures to that point. When undefined the ground is a passive
+   *  visual — clicks pass through to OrbitControls as usual. */
+  onCandyClick?: (x: number, z: number) => void;
+} = {}) {
   const texture = useLoader(TextureLoader, "/assets/bg-grain.jpg");
   // Configure tiling once when the texture lands. 40×40 repeats over a
   // 200-unit plane gives ~5 world-units per tile — the texture grain
@@ -387,7 +416,20 @@ function GroundPlane() {
     texture.needsUpdate = true;
   }, [texture]);
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]}>
+    <mesh
+      rotation={[-Math.PI / 2, 0, 0]}
+      position={[0, -0.02, 0]}
+      onPointerDown={
+        onCandyClick
+          ? (e) => {
+              // Stop propagation so OrbitControls doesn't also start a
+              // drag from this same press. event.point is world space.
+              e.stopPropagation();
+              onCandyClick(e.point.x, e.point.z);
+            }
+          : undefined
+      }
+    >
       <planeGeometry args={[200, 200]} />
       <meshBasicMaterial map={texture} color="#dfd9c9" />
     </mesh>

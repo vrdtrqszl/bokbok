@@ -942,6 +942,30 @@ function isEnglishNegated(text: string, start: number): boolean {
   return !CLAUSE_BREAK.test(between);
 }
 
+// Korean negation. Two patterns dominate written Korean:
+//   1. "안 X" / "안X"  — prefix "안" (or "못") immediately before the verb
+//   2. "X지 않" / "X지 못" — suffix attached to the verb's connective "-지"
+// We check ~10 chars before the match for pattern 1 (allowing one
+// intervening space/jamo) and ~10 chars after for pattern 2. Clause
+// breaks (마침표/쉼표/. ,) inside the check window cancel the negation.
+const KOREAN_NEG_PREFIX = /(?:^|[\s.,!?])(?:안|못)\s?$/u;
+const KOREAN_NEG_SUFFIX_FOLLOWING = /^[가-힣]{0,4}지\s?(?:않|못)/u;
+const KOREAN_CLAUSE_BREAK = /[.,;!?]|그런데|하지만|그래도|그러나|근데/u;
+const KOREAN_LOOKBACK_CHARS = 10;
+const KOREAN_LOOKAHEAD_CHARS = 10;
+function isKoreanNegated(text: string, start: number, end: number): boolean {
+  // Prefix negation: look immediately before the keyword for "안" / "못".
+  const before = text.slice(Math.max(0, start - KOREAN_LOOKBACK_CHARS), start);
+  if (KOREAN_NEG_PREFIX.test(before)) return true;
+  // Suffix negation: look immediately after for "-지 않" / "-지 못". Bail
+  // if a clause break sits before the negation.
+  const after = text.slice(end, Math.min(text.length, end + KOREAN_LOOKAHEAD_CHARS));
+  const breakMatch = KOREAN_CLAUSE_BREAK.exec(after);
+  const sufWindow = breakMatch ? after.slice(0, breakMatch.index) : after;
+  if (KOREAN_NEG_SUFFIX_FOLLOWING.test(sufWindow)) return true;
+  return false;
+}
+
 function escapeForRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -1012,9 +1036,14 @@ export function extractEmotions(text: string, minResults = 5): EmotionScore[] {
           }
         }
         if (overlaps) continue;
-        // Skip hits negated within their clause (English only — Korean
-        // negation handling is harder and lower ROI; left as future work).
-        if (isAscii && isEnglishNegated(lower, start)) continue;
+        // Skip hits negated within their clause. ASCII keywords use the
+        // English negation tracker; non-ASCII (Korean / mixed) keywords
+        // use the Korean prefix / suffix negation patterns.
+        if (isAscii) {
+          if (isEnglishNegated(lower, start)) continue;
+        } else {
+          if (isKoreanNegated(lower, start, end)) continue;
+        }
         used.push([start, end]);
         score += 1;
       }
@@ -1026,26 +1055,58 @@ export function extractEmotions(text: string, minResults = 5): EmotionScore[] {
   // output feels emotionally specific.
   scored.sort((a, b) => b.score - a.score || Math.abs(b.emotion.valence) - Math.abs(a.emotion.valence));
 
-  // If we have fewer than minResults, top up using a deterministic-ish but
-  // varied selection seeded by the text length so the same input is stable
-  // within a session but two different inputs vary.
+  // Top-up rules (previously this picked uniformly from the FULL emotion
+  // catalog after sorting by valence proximity, so a positive journal
+  // could still get "anger" or "despair" as filler — the user's exact
+  // complaint). New behaviour:
+  //   • Filler candidates are restricted to those CLOSEST to the
+  //     journal's leading valence (or neutral when nothing matched).
+  //     With valence-distance ≤ 0.7, positive-lead text only pulls
+  //     positive / neutral fillers, never extreme negatives.
+  //   • If literally no real matches exist (scored.length === 0), we
+  //     fall back to a curated NEUTRAL pool (curiosity / surprise /
+  //     intimacy / etc.) so a vague entry produces a soft creature
+  //     instead of a random hot-take.
+  //   • Filler score lowered 0.5 → 0.3 so even if a filler sneaks in,
+  //     it makes a smaller block than any actual match.
   if (scored.length < minResults) {
-    // Bias the top-up toward the dominant valence we already saw, falling
-    // back to neutral if we have nothing.
     const leadingValence = scored[0]?.emotion.valence ?? 0;
     const present = new Set(scored.map((s) => s.emotion.key));
-    const candidates = EMOTION_LIST.filter((e) => !present.has(e.key)).sort((a, b) => {
-      const aDist = Math.abs(a.valence - leadingValence);
-      const bDist = Math.abs(b.valence - leadingValence);
-      return aDist - bDist;
-    });
+    let candidates: Emotion[];
+    if (scored.length === 0) {
+      // No real matches → neutral fallback set: emotions with small
+      // |valence| that read as "ambient mood" rather than a strong
+      // sentiment. Picked from the catalog where |valence| <= 0.3.
+      candidates = EMOTION_LIST.filter(
+        (e) => Math.abs(e.valence) <= 0.3 && !present.has(e.key),
+      );
+    } else {
+      // Real matches present → restrict filler to emotions whose
+      // valence is WITHIN 0.7 of the leading valence. For a strongly
+      // positive lead (+1) this admits +0.3 to +1 emotions; for a
+      // strongly negative lead it admits only the negative half.
+      // Sorted by closeness so random picks favour the nearest first.
+      const VALENCE_WINDOW = 0.7;
+      candidates = EMOTION_LIST.filter(
+        (e) =>
+          !present.has(e.key) &&
+          Math.abs(e.valence - leadingValence) <= VALENCE_WINDOW,
+      ).sort(
+        (a, b) =>
+          Math.abs(a.valence - leadingValence) -
+          Math.abs(b.valence - leadingValence),
+      );
+      // Keep at most the closest 8 so the random pick stays
+      // concentrated around the actual mood.
+      candidates = candidates.slice(0, 8);
+    }
     const seed = (text.length * 9301 + 49297) % 233280;
     let s = seed;
     while (scored.length < minResults && candidates.length) {
       s = (s * 9301 + 49297) % 233280;
       const idx = s % candidates.length;
       const picked = candidates.splice(idx, 1)[0];
-      scored.push({ emotion: picked, score: 0.5 }); // half-strength filler
+      scored.push({ emotion: picked, score: 0.3 }); // soft filler
     }
   }
 

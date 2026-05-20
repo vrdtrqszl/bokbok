@@ -38,10 +38,20 @@ const GATHER_DURATION_SEC = 4.7; // ~3 s travel + ~1.7 s settle at the cluster
 const SCATTER_DURATION_SEC = 3; // ~3 s active spread back outward
 let gatherUntilMs = 0;
 let scatterUntilMs = 0;
-export function triggerEcosystemGather(): void {
+// Where the flock is summoned to. (0, 0) when the candy button gathers
+// to origin (legacy behaviour); a user-clicked XZ when the candy
+// cursor drops a "treat" somewhere else in the scene. Each creature's
+// personal annulus spot is translated by this centre.
+let gatherCenter: { x: number; z: number } = { x: 0, z: 0 };
+/** Trigger the gather/scatter cycle. With no `target` the flock heads
+ *  to origin (legacy behaviour); with a target {x, z} the cluster
+ *  forms at that world-space point instead — used by the candy
+ *  cursor's "drop treat here" click. */
+export function triggerEcosystemGather(target?: { x: number; z: number }): void {
   const now = performance.now();
   gatherUntilMs = now + GATHER_DURATION_SEC * 1000;
   scatterUntilMs = gatherUntilMs + SCATTER_DURATION_SEC * 1000;
+  gatherCenter = target ? { x: target.x, z: target.z } : { x: 0, z: 0 };
 }
 
 // No hard radius wall — creatures hop freely on the flat ground plane.
@@ -51,8 +61,32 @@ export function triggerEcosystemGather(): void {
 // the random direction has an increasing probability of being replaced
 // by a toward-origin direction with small jitter; by HOME_HARD_RADIUS
 // every hop heads back. Feels like wandering, not a fenced ring.
-const HOME_SOFT_RADIUS = 7;
-const HOME_HARD_RADIUS = 11;
+//
+// Radii are module-level mutable and updated each frame by the
+// ControlsBridge based on camera-to-target distance: at the default
+// camera distance the radii sit at BASE values, and they scale UP as
+// the user zooms out (so creatures spread to fill the wider view).
+// Zooming back in toward default contracts them again. Zooming PAST
+// default (closer than default) doesn't shrink below the base — the
+// design feels right at default density already.
+const BASE_SOFT_RADIUS = 7;
+const BASE_HARD_RADIUS = 11;
+const BASE_SPAWN_RADIUS = 7;
+// Default OrbitControls distance is the initial camera (0, 14, 6) to
+// origin = sqrt(196 + 36) = √232 ≈ 15.232.
+const DEFAULT_CAMERA_DISTANCE = Math.sqrt(232);
+let HOME_SOFT_RADIUS = BASE_SOFT_RADIUS;
+let HOME_HARD_RADIUS = BASE_HARD_RADIUS;
+let SPAWN_RADIUS_CURRENT = BASE_SPAWN_RADIUS;
+/** Update the wandering / spawn radii to match the current camera zoom.
+ *  Called from ControlsBridge.useFrame on every tick. `distance` is the
+ *  Euclidean distance from camera to its target (OrbitControls). */
+export function setEcosystemZoomDistance(distance: number): void {
+  const zoomFactor = Math.max(1, distance / DEFAULT_CAMERA_DISTANCE);
+  HOME_SOFT_RADIUS = BASE_SOFT_RADIUS * zoomFactor;
+  HOME_HARD_RADIUS = BASE_HARD_RADIUS * zoomFactor;
+  SPAWN_RADIUS_CURRENT = BASE_SPAWN_RADIUS * zoomFactor;
+}
 // Per-hop step distance — large enough for the creatures to actually
 // traverse the scene (vs. fidgeting in place), small enough that each
 // hop is still a discrete cartoon "boing" rather than a long flight.
@@ -103,6 +137,8 @@ function EnergyCreature({
   onSelect,
   selected,
   petMode,
+  candyMode,
+  onCandyClick,
   onHover,
 }: {
   creature: CreatureSpec;
@@ -111,6 +147,11 @@ function EnergyCreature({
   selected?: boolean;
   /** When true, clicking pets the creature (shake) instead of selecting. */
   petMode?: boolean;
+  /** When true, clicking the creature gathers the flock to its world XZ
+   *  (treating the creature as just another point in the scene under
+   *  the candy cursor). */
+  candyMode?: boolean;
+  onCandyClick?: (x: number, z: number) => void;
   /** Fires when the pointer enters/leaves a creature. Pass null on leave. */
   onHover?: (creature: CreatureSpec | null) => void;
 }) {
@@ -212,8 +253,13 @@ function EnergyCreature({
         const gathering = now < gatherUntilMs;
         const scattering = !gathering && now < scatterUntilMs;
         if (gathering) {
-          const dxToSpot = gatherSpot.x - w.pos.x;
-          const dzToSpot = gatherSpot.z - w.pos.z;
+          // Translate the creature's personal annulus spot to whatever
+          // centre the gather was fired against (origin by default,
+          // or the user's candy-cursor click point).
+          const spotX = gatherCenter.x + gatherSpot.x;
+          const spotZ = gatherCenter.z + gatherSpot.z;
+          const dxToSpot = spotX - w.pos.x;
+          const dzToSpot = spotZ - w.pos.z;
           const distToSpot = Math.hypot(dxToSpot, dzToSpot);
           if (distToSpot < 0.3) {
             // Already at the personal spot — tiny random hops in place
@@ -368,6 +414,17 @@ function EnergyCreature({
       position={position}
       onClick={(e) => {
         e.stopPropagation();
+        if (candyMode) {
+          // Candy cursor — clicking a creature is treated the same as
+          // clicking the ground at that creature's XZ: the flock will
+          // converge on it. (User is still in candy mode after; press
+          // the candy button again or Escape to exit.)
+          const g = groupRef.current;
+          const x = g ? g.position.x : position[0];
+          const z = g ? g.position.z : position[2];
+          onCandyClick?.(x, z);
+          return;
+        }
         if (petMode) {
           // Pet the creature — shake for ~1.4 seconds. Click again to
           // re-shake (the timestamp just gets bumped).
@@ -411,6 +468,8 @@ export default function EcosystemCreatures({
   selectedId,
   query,
   petMode,
+  candyMode,
+  onCandyClick,
   onHover,
 }: {
   onSelect?: (c: CreatureSpec, position: [number, number, number]) => void;
@@ -418,6 +477,10 @@ export default function EcosystemCreatures({
   query?: string;
   /** When true, clicking a creature pets it (shake) instead of selecting. */
   petMode?: boolean;
+  /** When true, clicking a creature gathers the flock to its XZ
+   *  instead of focusing the camera. */
+  candyMode?: boolean;
+  onCandyClick?: (x: number, z: number) => void;
   /** Fires with the hovered creature on enter, null on leave. */
   onHover?: (creature: CreatureSpec | null) => void;
 } = {}) {
@@ -486,8 +549,10 @@ export default function EcosystemCreatures({
           rh = Math.imul(rh, 0x85ebca6b);
         }
         const angle = ((ah >>> 0) % 10000) / 10000 * Math.PI * 2;
-        const SPAWN_RADIUS_MAX = 7; // matches HOME_SOFT_RADIUS — within the camera frame
-        const radius = Math.sqrt(((rh >>> 0) % 10000) / 10000) * SPAWN_RADIUS_MAX;
+        // Spawn radius mirrors the current zoom-scaled bound. New
+        // creatures appear distributed across the visible plane
+        // regardless of how far the camera is zoomed out.
+        const radius = Math.sqrt(((rh >>> 0) % 10000) / 10000) * SPAWN_RADIUS_CURRENT;
         const pos: [number, number, number] = [
           Math.cos(angle) * radius,
           0,
@@ -501,6 +566,8 @@ export default function EcosystemCreatures({
             onSelect={onSelect}
             selected={selectedId === c.id}
             petMode={petMode}
+            candyMode={candyMode}
+            onCandyClick={onCandyClick}
             onHover={onHover}
           />
         );

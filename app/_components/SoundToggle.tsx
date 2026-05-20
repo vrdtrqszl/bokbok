@@ -22,6 +22,11 @@ import {
  *   Sound On  (Figma 2238:1390): x 21, y 16, w 41.46, h 43.06
  *   Sound Off (Figma 2238:1396): x 11, y 17, w 43.09, h 41.08
  *
+ * Sizes shrunk by 10% from the raw Figma values for a slightly more
+ * compact look that sits closer in weight to the other corner buttons
+ * (× close, fullscreen, +/− zoom — all 32.12 × 32.5). Position offsets
+ * unchanged so the icon still anchors from the same top-left point.
+ *
  * Coordinates are absolute, relative to the parent positioned element
  * (currently the main viewport box wrapper, whose origin matches the
  * Figma "main box" frame's top-left).
@@ -30,15 +35,15 @@ import {
 const ON_STYLE = {
   left: 21,
   top: 16,
-  width: 41.46,
-  height: 43.06,
+  width: 37.31,  // 41.46 × 0.90
+  height: 38.75, // 43.06 × 0.90
 } as const;
 
 const OFF_STYLE = {
   left: 11,
   top: 17,
-  width: 43.09,
-  height: 41.08,
+  width: 38.78,  // 43.09 × 0.90
+  height: 36.97, // 41.08 × 0.90
 } as const;
 
 export default function SoundToggle({

@@ -17,8 +17,9 @@ import {
   hoverDateHighlightUrl,
 } from "@/lib/nameHighlight";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
-import { unlockAudio } from "@/lib/audio";
+import { playCandyRustle, unlockAudio } from "@/lib/audio";
 import { ambientChatter } from "@/lib/ambientChatter";
+import { triggerEcosystemGather } from "./_components/EcosystemCreatures";
 
 export default function MainPage() {
   // Mobile branches to a completely separate layout (MobileMainPage). The
@@ -41,6 +42,11 @@ function DesktopMainPage() {
   // Pet mode: when on, the cursor becomes a hand and clicking a creature
   // makes it shake wildly instead of opening the focus view.
   const [petMode, setPetMode] = useState(false);
+  // Candy mode: when on, the cursor becomes a small candy icon and
+  // clicking anywhere in the 3D scene makes creatures gather to that
+  // point + replays the plastic-bag rustle. Mutually exclusive with
+  // pet mode (activating one exits the other).
+  const [candyMode, setCandyMode] = useState(false);
   // Hover tooltip state: the creature currently under the cursor (if any)
   // and the cursor position in design pixels.
   const [hoveredCreature, setHoveredCreature] = useState<CreatureSpec | null>(null);
@@ -133,15 +139,38 @@ function DesktopMainPage() {
     ambientChatter.setSelected(selected?.id ?? null);
   }, [selected?.id]);
 
-  // Exit pet mode on Escape — feels natural for "I'm done petting".
+  // Exit pet / candy mode on Escape — feels natural for "I'm done".
   useEffect(() => {
-    if (!petMode) return;
+    if (!petMode && !candyMode) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPetMode(false);
+      if (e.key !== "Escape") return;
+      if (petMode) setPetMode(false);
+      if (candyMode) setCandyMode(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [petMode]);
+  }, [petMode, candyMode]);
+
+  // Activating one mode exits the other so we never have two custom
+  // cursors fighting for the click.
+  const toggleCandyMode = () => {
+    setCandyMode((on) => !on);
+    setPetMode(false);
+  };
+  const togglePetMode = () => {
+    setPetMode((on) => !on);
+    setCandyMode(false);
+  };
+
+  // Candy mode: a click anywhere on the ground (world XZ) summons the
+  // flock to that point and replays the plastic-bag cue. The actual
+  // pointer event is captured by the ground plane mesh inside
+  // MainViewport (see onCandyClick prop below).
+  const handleCandyClick = (x: number, z: number) => {
+    unlockAudio();
+    playCandyRustle();
+    triggerEcosystemGather({ x, z });
+  };
 
   // Track cursor position in DESIGN pixels (relative to the 1440×900 page)
   // while a creature is hovered. clientX/Y are in actual viewport pixels;
@@ -286,12 +315,16 @@ function DesktopMainPage() {
         // coords to fill the actual window — so the page must NOT clip.
         isFullscreen ? "overflow-visible" : "overflow-hidden"
       }`}
-      // Hand cursor while pet mode is active. The 16,16 hotspot is the
-      // hand's center — close enough to the index-finger area for the
-      // "tap on creature to pet" interaction to feel natural.
+      // Custom cursor per active mode:
+      //  • Pet mode: hand cursor (16,16 hotspot ≈ index-finger area).
+      //  • Candy mode: wrapped-candy cursor (33,18 hotspot ≈ middle
+      //    of the artwork so the candy "drops" where you click).
+      // Both modes are mutually exclusive so we just check pet first.
       style={
         petMode
           ? { cursor: "url(/assets/hand-cursor.svg) 16 16, pointer" }
+          : candyMode
+          ? { cursor: "url(/assets/candy-cursor.svg) 33 18, crosshair" }
           : undefined
       }
     >
@@ -385,7 +418,7 @@ function DesktopMainPage() {
               Position/size/inner-text inset come straight from Figma. */}
           <button
             type="button"
-            onClick={() => setPetMode((p) => !p)}
+            onClick={togglePetMode}
             aria-pressed={petMode}
             className="absolute left-[469px] top-[766px] z-[20] block h-[92.03px] w-[97.29px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
           >
@@ -409,10 +442,11 @@ function DesktopMainPage() {
             </span>
           </button>
 
-          {/* Candy button (Figma 2239:1401) — bottom-left of the main page.
-              Click to "call" wandering creatures back toward the centre of
-              the scene; their next hops are biased at origin for ~5 s. */}
-          <CandyButton />
+          {/* Candy button (Figma 2239:1401) — bottom-left of the main
+              page. Toggles candy mode: cursor becomes a candy icon and
+              the next click in the scene gathers the flock to that
+              spot. Pressing again (or Escape) leaves candy mode. */}
+          <CandyButton active={candyMode} onToggle={toggleCandyMode} />
         </>
       )}
 
@@ -427,6 +461,8 @@ function DesktopMainPage() {
         resetTrigger={resetTrigger}
         fullscreen={isFullscreen}
         petMode={petMode}
+        candyMode={candyMode}
+        onCandyClick={handleCandyClick}
         onCreatureHover={setHoveredCreature}
       />
 
