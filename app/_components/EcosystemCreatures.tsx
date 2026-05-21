@@ -454,6 +454,14 @@ export function EnergyCreature({
     <Billboard
       ref={groupRef}
       position={position}
+      // Stop pointerdown / pointerup propagation so the GroundPlane
+      // behind the creature DOESN'T see them. Without this the ground's
+      // tap-to-reset handler fires when you click a creature (the
+      // pointer is also "on the ground" along the ray), which queues a
+      // setResetTrigger that immediately overrides the click's
+      // setFocusTarget → camera never zooms in.
+      onPointerDown={(e) => e.stopPropagation()}
+      onPointerUp={(e) => e.stopPropagation()}
       onClick={(e) => {
         e.stopPropagation();
         if (candyMode) {

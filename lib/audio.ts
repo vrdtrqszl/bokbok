@@ -1083,76 +1083,108 @@ export function playCandyRustle(): void {
 }
 
 // ---- Magnetic mouse-move ticks --------------------------------------
-// Plays short slices of /sounds/magnetic.mp3 as the cursor moves so the
-// page has a soft "magnetic shimmer" trail under the pointer. Each tick:
-//   • Random offset into the cached buffer (variety, no obvious repeat)
-//   • Short slice (~140 ms in sample time) at slight playbackRate
-//     jitter (±15 %) for additional variation
-//   • Soft attack / decay envelope so cutting mid-waveform doesn't click
-//   • Routed through masterGain so the global Sound Off toggle silences
-//     the mouse trail along with the rest of the UI audio
+// Procedural "magnetic shimmer" tick fired under the cursor as it moves.
+// Inspired by the first ~7 s of the user-supplied magnetic.mp3 reference
+// — bright high-register pings with a quick attack chirp, a long
+// crystalline tail, and lots of reverb wash. Not a direct sample replay
+// (so the texture varies subtly with every tick and the page doesn't
+// have to ship a 6 MB MP3); the recipe targets a similar character.
+//
+// Per-tick recipe:
+//   • Two close-detuned sine oscillators (±9 cents) = chorus shimmer
+//   • Snappy upward pitch chirp at attack (start × 0.75 → target over
+//     ~20 ms) — gives each tick a soft metallic "ping" onset
+//   • Bandpass filter centred around the pitch with high Q (≈ 12) so
+//     the harmonics ring like a struck tine
+//   • 8 ms attack + ~700 ms exponential decay — long crystalline tail
+//   • Generous reverb send (0.6) so successive ticks blend into a wash
+//   • Random base pitch within a pentatonic-ish scale up high (G5–E7)
+//     so the trail feels musical rather than tuned to one note
+//
 // The trigger throttling (one tick every ~80 ms while moving, requires
 // minimum movement to filter micro-jitter) lives in the MouseSounds
-// component — this function just plays a single tick.
+// component — this function just plays a single tick. Routed through
+// masterGain so the Sound Off toggle silences the trail.
 
-const MAGNETIC_PATH = "/sounds/magnetic.mp3";
-const MAGNETIC_SLICE_SEC = 0.14; // ~140 ms per tick
-const MAGNETIC_GAIN = 0.08;       // very soft — cursor trail, not foreground
-
-let magneticBuffer: AudioBuffer | null = null;
-let magneticLoading: Promise<AudioBuffer | null> | null = null;
-function loadMagnetic(c: AudioContext): Promise<AudioBuffer | null> {
-  if (magneticBuffer) return Promise.resolve(magneticBuffer);
-  if (magneticLoading) return magneticLoading;
-  magneticLoading = fetch(MAGNETIC_PATH)
-    .then((r) => r.arrayBuffer())
-    .then((ab) => c.decodeAudioData(ab))
-    .then((buf) => {
-      magneticBuffer = buf;
-      return buf;
-    })
-    .catch((err) => {
-      console.error("[bokbok] magnetic mouse sound failed to load:", err);
-      magneticLoading = null;
-      return null;
-    });
-  return magneticLoading;
-}
+const MAGNETIC_GAIN = 0.10;
+const MAGNETIC_DURATION = 0.7; // total length of one chirp (with tail)
+// High-register pentatonic pool — every tick picks a random note. The
+// scale is loosely the same one the typing/droplet ticks use, two
+// octaves up, so the mouse trail layers musically with them.
+const MAGNETIC_NOTES_HZ: number[] = [
+  784.0,  // G5
+  880.0,  // A5
+  1046.5, // C6
+  1174.7, // D6
+  1396.9, // F6
+  1568.0, // G6
+  1760.0, // A6
+  2093.0, // C7
+  2349.3, // D7
+  2637.0, // E7
+];
 
 export function playMagneticTick(opts: { amp?: number } = {}): void {
   const c = ensureCtx();
   if (!c || !masterGain) return;
   const amp = opts.amp ?? MAGNETIC_GAIN;
-  loadMagnetic(c).then((buf) => {
-    if (!buf) return;
-    const c2 = ensureCtx();
-    if (!c2 || !masterGain) return;
-    const now = c2.currentTime;
-    const sliceDur = MAGNETIC_SLICE_SEC;
-    const maxOffset = Math.max(0, buf.duration - sliceDur);
-    const offset = Math.random() * maxOffset;
-    // Slight pitch jitter so two adjacent ticks don't sound identical.
-    const rate = 0.85 + Math.random() * 0.3;
-    const realDur = sliceDur / rate;
+  const t0 = c.currentTime;
+  const baseNote =
+    MAGNETIC_NOTES_HZ[Math.floor(Math.random() * MAGNETIC_NOTES_HZ.length)];
+  // ±15-cent jitter so two same-note ticks still feel slightly off-grid.
+  const pitch = baseNote * Math.pow(2, ((Math.random() - 0.5) * 30) / 1200);
 
-    const src = c2.createBufferSource();
-    src.buffer = buf;
-    src.playbackRate.value = rate;
+  // Two-oscillator chorus.
+  const oscA = c.createOscillator();
+  oscA.type = "sine";
+  const oscB = c.createOscillator();
+  oscB.type = "sine";
+  oscB.detune.value = 9;
 
-    const env = c2.createGain();
-    env.gain.setValueAtTime(0, now);
-    env.gain.linearRampToValueAtTime(amp, now + 0.01);
-    // Hold until the tail's quick fade so a clipped slice doesn't click.
-    const tailStart = Math.max(now + 0.012, now + realDur - 0.04);
-    env.gain.setValueAtTime(amp, tailStart);
-    env.gain.linearRampToValueAtTime(0.0001, now + realDur);
+  // Attack chirp: start ~75 % of target → rise to target over ~20 ms.
+  const pStart = pitch * 0.75;
+  for (const osc of [oscA, oscB]) {
+    osc.frequency.setValueAtTime(pStart, t0);
+    osc.frequency.exponentialRampToValueAtTime(pitch, t0 + 0.02);
+  }
 
-    src.connect(env);
-    env.connect(masterGain);
+  // Per-oscillator mix.
+  const mixA = c.createGain();
+  mixA.gain.value = 1.0;
+  const mixB = c.createGain();
+  mixB.gain.value = 0.55;
 
-    src.start(now, offset, sliceDur);
-    src.stop(now + realDur + 0.02);
-  });
+  // Resonant bandpass centred on the pitch — gives the "tine" ring.
+  const filter = c.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.frequency.value = pitch;
+  filter.Q.value = 12;
+
+  // Soft attack, long exponential decay.
+  const env = c.createGain();
+  env.gain.setValueAtTime(0, t0);
+  env.gain.linearRampToValueAtTime(amp, t0 + 0.008);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + MAGNETIC_DURATION);
+
+  oscA.connect(mixA);
+  oscB.connect(mixB);
+  mixA.connect(filter);
+  mixB.connect(filter);
+  filter.connect(env);
+  env.connect(masterGain);
+
+  // Big reverb wash so the trail feels magnetic / floating.
+  if (reverbInput) {
+    const send = c.createGain();
+    send.gain.value = 0.6;
+    env.connect(send);
+    send.connect(reverbInput);
+  }
+
+  oscA.start(t0);
+  oscB.start(t0);
+  oscA.stop(t0 + MAGNETIC_DURATION + 0.05);
+  oscB.stop(t0 + MAGNETIC_DURATION + 0.05);
 }
 
 export function playDropletTick(pitchIndex?: number): void {

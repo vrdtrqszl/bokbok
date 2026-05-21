@@ -86,6 +86,14 @@ function ControlsBridge({
   useEffect(() => {
     const c = controlsRef.current;
     if (!c) return;
+    // Track interaction state purely for the AMBIENT DRIFT logic:
+    // pause drift while the user is dragging the camera and for 30 s
+    // after they let go. We no longer try to cancel in-flight focus /
+    // reset tweens — the cancel logic was misfiring on plain creature
+    // clicks (which also bubble pointerdown through OrbitControls),
+    // breaking click-to-zoom. The focus animation is brief enough
+    // that briefly fighting it during a drag is acceptable; users can
+    // re-click the focused creature to fully release.
     const onStart = () => {
       interactingRef.current = true;
     };
@@ -130,12 +138,13 @@ function ControlsBridge({
       return;
     }
 
-    // Ambient drift — only when the user isn't dragging and at least
-    // 6 seconds have passed since they let go. Keeps the scene feeling
-    // alive (slow flyover) without fighting deliberate camera input.
+    // Ambient drift — only when the user isn't dragging AND it's been
+    // ~30 seconds since they last released the camera. Long pause so a
+    // deliberate "I want to look at this angle" hold doesn't immediately
+    // get pulled away by the drift.
     if (!c) return;
     if (interactingRef.current) return;
-    if (performance.now() - lastInteractionMsRef.current < 6000) return;
+    if (performance.now() - lastInteractionMsRef.current < 30000) return;
 
     // Read current spherical coords from actual camera position so
     // the drift always continues smoothly from where the user (or a
@@ -504,10 +513,13 @@ function GroundPlane({
    *  creatures to that point. When undefined the ground is a passive
    *  visual — clicks pass through to OrbitControls as usual. */
   onCandyClick?: (x: number, z: number) => void;
-  /** Set by the parent when no special mode is active. Fires on a TAP
-   *  (not drag) anywhere on the ground; used to reset the camera back
-   *  to default. r3f's onClick only fires when no pointer movement
-   *  happens between down + up, so OrbitControls drags still work. */
+  /** Set by the parent when no special mode is active. Fires on a TRUE
+   *  TAP (pointer barely moved between down and up). We can't use
+   *  r3f's onClick directly here — the ground plane is a giant 200×200
+   *  mesh so even a long OrbitControls drag ends with the pointerup
+   *  still on it, which onClick treats as a click and would cause an
+   *  unintended camera reset. Tracking screen-space movement instead
+   *  lets us suppress drag-end events. */
   onEmptyClick?: () => void;
 } = {}) {
   const texture = useLoader(TextureLoader, "/assets/bg-grain.jpg");
@@ -521,6 +533,13 @@ function GroundPlane({
     texture.repeat.set(40, 40);
     texture.needsUpdate = true;
   }, [texture]);
+
+  // Tap detection: remember the screen-space pointer position on
+  // pointerdown and compare against pointerup. If the cursor moved
+  // more than TAP_MOVE_PX pixels, treat it as a drag (no tap fired).
+  const tapDownRef = useRef<{ x: number; y: number; id: number } | null>(null);
+  const TAP_MOVE_PX = 5;
+
   return (
     <mesh
       rotation={[-Math.PI / 2, 0, 0]}
@@ -528,20 +547,36 @@ function GroundPlane({
       onPointerDown={
         onCandyClick
           ? (e) => {
-              // Stop propagation so OrbitControls doesn't also start a
-              // drag from this same press. event.point is world space.
+              // Candy mode: pointerdown → summon. Stop propagation
+              // so OrbitControls doesn't also start a drag.
               e.stopPropagation();
               onCandyClick(e.point.x, e.point.z);
             }
+          : onEmptyClick
+          ? (e) => {
+              // Empty-tap detection: record the down position; do
+              // NOT stop propagation, so OrbitControls still gets
+              // the event and can start a rotate / pan drag.
+              tapDownRef.current = {
+                x: e.clientX,
+                y: e.clientY,
+                id: e.pointerId,
+              };
+            }
           : undefined
       }
-      // Tap-to-reset only when NOT in candy mode (candy mode owns
-      // pointerdown above; onClick on top of that would double-fire).
-      onClick={
+      onPointerUp={
         !onCandyClick && onEmptyClick
           ? (e) => {
-              e.stopPropagation();
-              onEmptyClick();
+              const down = tapDownRef.current;
+              tapDownRef.current = null;
+              if (!down || down.id !== e.pointerId) return;
+              const dx = e.clientX - down.x;
+              const dy = e.clientY - down.y;
+              // Was the pointer essentially stationary? → fire tap.
+              // Otherwise the user was dragging OrbitControls and we
+              // stay out of it.
+              if (Math.hypot(dx, dy) <= TAP_MOVE_PX) onEmptyClick();
             }
           : undefined
       }
