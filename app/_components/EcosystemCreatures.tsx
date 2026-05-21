@@ -72,9 +72,13 @@ export function triggerEcosystemGather(target?: { x: number; z: number }): void 
 const BASE_SOFT_RADIUS = 7;
 const BASE_HARD_RADIUS = 11;
 const BASE_SPAWN_RADIUS = 7;
-// Default OrbitControls distance is the initial camera (0, 14, 6) to
-// origin = sqrt(196 + 36) = √232 ≈ 15.232.
-const DEFAULT_CAMERA_DISTANCE = Math.sqrt(232);
+// Default OrbitControls distance is the initial camera (0, 16, 7) to
+// origin = sqrt(256 + 49) = √305 ≈ 17.464. Must stay in sync with
+// MainViewport's INITIAL_CAMERA_POSITION — they describe the same
+// view from two angles: this constant tells the wander loop "this
+// distance counts as zoomFactor = 1", and the MainViewport sets the
+// camera there on first load.
+const DEFAULT_CAMERA_DISTANCE = Math.sqrt(305);
 let HOME_SOFT_RADIUS = BASE_SOFT_RADIUS;
 let HOME_HARD_RADIUS = BASE_HARD_RADIUS;
 let SPAWN_RADIUS_CURRENT = BASE_SPAWN_RADIUS;
@@ -131,7 +135,7 @@ function EnergyBlock({ block }: { block: CreatureBlock }) {
   );
 }
 
-function EnergyCreature({
+export function EnergyCreature({
   creature,
   position,
   onSelect,
@@ -304,8 +308,46 @@ function EnergyCreature({
           step =
             HOP_MIN_STEP + Math.random() * (HOP_MAX_STEP - HOP_MIN_STEP);
         }
-        const nx = w.pos.x + Math.cos(dir) * step;
-        const nz = w.pos.z + Math.sin(dir) * step;
+        let nx = w.pos.x + Math.cos(dir) * step;
+        let nz = w.pos.z + Math.sin(dir) * step;
+
+        // Separation — only during normal wandering (NOT gather, which
+        // intentionally clusters via the per-creature annulus spot,
+        // and NOT scatter, which intentionally explodes outward).
+        // Looks at every OTHER creature's current XZ; if the chosen
+        // target is closer than MIN_SEPARATION to any of them, retry
+        // with a direction biased AWAY from the nearest crowder. A
+        // handful of retries usually finds open space; if all retries
+        // still collide we just take the last try (better to overlap
+        // briefly than to freeze in place).
+        if (!gathering && !scattering) {
+          const MIN_SEPARATION = 1.4;
+          for (let attempt = 0; attempt < 4; attempt++) {
+            let nearest: {
+              dx: number;
+              dz: number;
+              d: number;
+            } | null = null;
+            for (const [otherId, pos] of creaturePositions) {
+              if (otherId === creature.id) continue;
+              const dx = nx - pos[0];
+              const dz = nz - pos[2];
+              const d = Math.hypot(dx, dz);
+              if (d < MIN_SEPARATION && (!nearest || d < nearest.d)) {
+                nearest = { dx, dz, d };
+              }
+            }
+            if (!nearest) break;
+            // Aim AWAY from the crowder, with a small jitter so two
+            // creatures repelling each other don't pick the exact
+            // mirrored angle and oscillate.
+            const away = Math.atan2(nearest.dz, nearest.dx);
+            dir = away + (Math.random() - 0.5) * Math.PI * 0.3;
+            nx = w.pos.x + Math.cos(dir) * step;
+            nz = w.pos.z + Math.sin(dir) * step;
+          }
+        }
+
         w.to.set(nx, 0, nz);
         w.progress = 0;
         // Cartoony jumps: snappy (0.30–0.55 s) and bouncy — short steps

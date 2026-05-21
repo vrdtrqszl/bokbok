@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
-import { loadEcosystem, deleteCreatureById, subscribeRemoteEcosystem } from "@/lib/ecosystem";
+import { loadEcosystem, deleteCreatureById, matchesCreatureQuery, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
 import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
 import { nameHighlightDataUrl, creatureHighlightColor } from "@/lib/nameHighlight";
@@ -185,6 +185,7 @@ function DesktopCalendarPage() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [creatures, setCreatures] = useState<CreatureSpec[]>([]);
   const [selected, setSelected] = useState<CreatureSpec | null>(null);
+  const [query, setQuery] = useState("");
   const [viewportZoom, setViewportZoom] = useState(1);
   const zoomIn = () => setViewportZoom((z) => Math.min(3, z * 1.2));
   const zoomOut = () => setViewportZoom((z) => Math.max(0.4, z / 1.2));
@@ -250,17 +251,24 @@ function DesktopCalendarPage() {
     return () => window.clearInterval(id);
   }, []);
 
-  // Index by ISO date so each MonthGrid cell can lookup in O(1).
+  // Index by ISO date so each MonthGrid cell can lookup in O(1). The
+  // search query filters BEFORE indexing — non-matching creatures
+  // disappear from the calendar cells, so the user can scrub through
+  // their journal entries by name.
   const creaturesByDate = useMemo(() => {
+    const q = query.trim();
+    const list = q
+      ? creatures.filter((c) => matchesCreatureQuery(c, q))
+      : creatures;
     const map = new Map<string, CreatureSpec[]>();
-    for (const c of creatures) {
+    for (const c of list) {
       if (!c.dateISO) continue;
-      const list = map.get(c.dateISO) ?? [];
-      list.push(c);
-      map.set(c.dateISO, list);
+      const arr = map.get(c.dateISO) ?? [];
+      arr.push(c);
+      map.set(c.dateISO, arr);
     }
     return map;
-  }, [creatures]);
+  }, [creatures, query]);
 
   // Initial scroll target: prefer the LATEST month that actually has a
   // creature (so the user lands on their data instead of an empty month
@@ -302,6 +310,64 @@ function DesktopCalendarPage() {
     // puts the month at the visible top.
     container.scrollTop = target.offsetTop;
   }, [creaturesLoaded, creatures]);
+
+  // Auto-scroll when the search query changes:
+  //   • Non-empty + date pattern (YYYY / YYYY-MM / YYYYMM[DD]) →
+  //     smooth-scroll to that month so the user lands on the matched
+  //     creatures' window.
+  //   • Empty (cleared after typing) → snap back to today's month so
+  //     erasing the query returns the user to "now".
+  //
+  // We track the previous query in a ref so the empty case only fires
+  // AFTER the user has typed something — the initial-load scroll
+  // (handled by a separate effect above, which targets the latest
+  // creature) isn't fighting this one for control.
+  const prevQueryRef = useRef("");
+  useEffect(() => {
+    const q = query.trim();
+    const prev = prevQueryRef.current.trim();
+    prevQueryRef.current = query;
+    const container = scrollRef.current;
+    if (!container) return;
+
+    if (q) {
+      // Date-pattern parsing.
+      let yr: number | null = null;
+      let mo: number | null = null;
+      // Hyphenated form first (avoids YYYY matching the leading 4
+      // chars of a YYYY-MM-DD string).
+      let m = /^(\d{4})-(\d{1,2})(?:-\d{1,2})?$/.exec(q);
+      if (m) {
+        yr = parseInt(m[1], 10);
+        mo = parseInt(m[2], 10) - 1;
+      } else {
+        m = /^(\d{4})(\d{2})?(\d{2})?$/.exec(q);
+        if (m) {
+          yr = parseInt(m[1], 10);
+          mo = m[2] ? parseInt(m[2], 10) - 1 : 0;
+        }
+      }
+      if (yr === null) return;
+      if (yr < YEAR_START || yr > YEAR_END) return;
+      if (mo === null || mo < 0 || mo > 11) mo = 0;
+
+      const targetId = `month-${yr}-${mo}`;
+      const target = document.getElementById(targetId) as HTMLElement | null;
+      if (!target) return;
+      container.scrollTo({ top: target.offsetTop, behavior: "smooth" });
+    } else if (prev) {
+      // Query just got cleared (was non-empty, now empty) → return to
+      // today's month. Clamped to the YEAR_START..YEAR_END range in
+      // case "today" falls outside (unlikely, but safe).
+      const today = new Date();
+      const yr = Math.min(YEAR_END, Math.max(YEAR_START, today.getFullYear()));
+      const mo = today.getMonth();
+      const targetId = `month-${yr}-${mo}`;
+      const target = document.getElementById(targetId) as HTMLElement | null;
+      if (!target) return;
+      container.scrollTo({ top: target.offsetTop, behavior: "smooth" });
+    }
+  }, [query]);
 
   return (
     <div className="relative mx-auto h-[900px] w-[1440px] overflow-hidden font-(family-name:--font-casual)">
@@ -364,6 +430,30 @@ function DesktopCalendarPage() {
       >
         {t("nav.about")}
       </a>
+
+      {/* Search box (Figma 2303:149) — in the top nav strip. Filters
+          which creatures appear in calendar day cells AND scrolls the
+          month list to a YYYY-MM date if the query is a date pattern
+          (handled in the useEffect on `query`). */}
+      <div className="absolute left-[776.64px] top-[53.99px] z-[5] h-[30.66px] w-[219.71px]">
+        <div
+          className="pointer-events-none absolute"
+          style={{ inset: "-1.63% -0.23% -1.63% 0" }}
+        >
+          <img
+            alt=""
+            src="/assets/search-box-v2.svg"
+            className="block size-full max-w-none"
+          />
+        </div>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t("enc.search_placeholder")}
+          className="absolute left-[28px] top-[4px] block h-[22px] w-[180px] bg-transparent text-[16px] font-bold text-black outline-none placeholder:text-black/35"
+        />
+      </div>
 
       {/* Main canvas box */}
       <div className="absolute left-[27px] top-[85px] h-[789.67px] w-[974.69px]">
@@ -457,14 +547,17 @@ function DesktopCalendarPage() {
           </div>
         </div>
 
-        <h2 className="absolute left-1/2 top-[15px] -translate-x-1/2 whitespace-nowrap text-center text-[36px] text-black font-(family-name:--font-fancy)">
-          {selected?.name ?? t("panel.empty_name")}
-        </h2>
-        <span className="absolute left-1/2 top-[57px] -translate-x-1/2 text-center text-[18px] font-bold text-black">
-          {selected?.dateISO ?? "—"}
-        </span>
+        {/* Name + date — flex column so long names wrap. */}
+        <div className="absolute left-[20px] right-[20px] top-[15px] flex flex-col items-center text-center">
+          <h2 className="m-0 max-w-full break-words text-[36px] leading-[1.05] text-black font-(family-name:--font-fancy)">
+            {selected?.name ?? t("panel.empty_name")}
+          </h2>
+          <span className="mt-[2px] text-[18px] font-bold leading-none text-black">
+            {selected?.dateISO ?? "—"}
+          </span>
+        </div>
 
-        <div className="scroll-fade-vertical absolute left-[26px] right-[18px] top-[96px] bottom-[58px] flex flex-col items-center overflow-y-auto overflow-x-hidden">
+        <div className="scroll-fade-vertical absolute left-[26px] right-[18px] top-[110px] bottom-[58px] flex flex-col items-center overflow-y-auto overflow-x-hidden">
           <div className="w-full text-[20px] font-bold leading-normal text-black">
             {selected ? (
               selected.journalText ? (

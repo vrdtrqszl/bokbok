@@ -41,7 +41,14 @@ export type ResetTrigger = {
 // Slightly tilted bird's-eye default view (high angle, not full top-down).
 // Camera is locked to this direction — only zoom in/out is allowed. Distance
 // matches the original layout the user signed off on.
-const INITIAL_CAMERA_POSITION = new Vector3(0, 14, 6);
+// Default camera position. Distance from the target (origin) = √(16² + 7²)
+// = √305 ≈ 17.46 world units. Bumped up from the previous (0, 14, 6)
+// (≈ 15.23 units) to give the room slightly more breathing space — the
+// flock now reads as "creatures in a wider garden" instead of filling
+// the frame edge-to-edge. Keep this value in sync with
+// DEFAULT_CAMERA_DISTANCE inside EcosystemCreatures.tsx so the zoom-
+// scaled wandering radius treats THIS position as zoomFactor = 1.
+const INITIAL_CAMERA_POSITION = new Vector3(0, 16, 7);
 const INITIAL_CAMERA_TARGET = new Vector3(0, 0, 0);
 // Normalised look direction. Reused when focusing on a clicked creature so
 // the angle stays consistent (only the distance changes).

@@ -83,6 +83,36 @@ function DesktopAboutPage() {
         {t("nav.about")}
       </span>
 
+      {/* "Search box" slot (Figma 2303:149) — on the About page it
+          displays the site URL instead of acting as a real input.
+          Same outline as the search boxes on Main / Calendar /
+          Encyclopedia so the top nav strip reads as one consistent
+          row; clicking the link opens www.bokbok.me. */}
+      <a
+        href="https://www.bokbok.me"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="absolute left-[776.64px] top-[53.99px] block h-[30.66px] w-[219.71px] cursor-pointer"
+      >
+        <div
+          className="pointer-events-none absolute"
+          style={{ inset: "-1.63% -0.23% -1.63% 0" }}
+        >
+          <img
+            alt=""
+            src="/assets/search-box-v2.svg"
+            className="block size-full max-w-none"
+          />
+        </div>
+        {/* Centred URL — inset 28px on the left clears the magnifier
+            icon's footprint; matching 28px on the right keeps the
+            text visually centred between the magnifier and the
+            right edge of the box. */}
+        <span className="absolute inset-y-0 left-[28px] right-[28px] flex items-center justify-center text-[16px] font-bold leading-none text-black">
+          www.bokbok.me
+        </span>
+      </a>
+
       {/* ── Story box (left) ────────────────────────────────────── */}
       {/* Wavy outline = the standard main-box.svg the rest of the
           site uses. Inside is a scrollable area holding the about-

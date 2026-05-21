@@ -98,6 +98,13 @@ export async function findCreatureById(
 }
 
 export async function deleteCreatureById(id: string): Promise<boolean> {
+  // Soft-archive to the per-browser trash BEFORE removing from the
+  // active ecosystem (Supabase row or localStorage entry). Even in
+  // shared mode the trash stays local — every visitor sees only the
+  // creatures THEY personally deleted. The trash page can later show
+  // these in grayscale; we don't currently auto-restore them.
+  await archiveToTrash(id);
+
   if (isSharedMode()) {
     const ok = await deleteCreatureByIdRemote(id);
     if (ok && typeof window !== "undefined") {
@@ -112,6 +119,78 @@ export function clearEcosystem() {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(KEY);
   window.dispatchEvent(new CustomEvent("ecosystem:changed"));
+}
+
+// ── Trash (per-browser localStorage of soft-deleted creatures) ────────────
+//
+// Every creature deleted via deleteCreatureById is COPIED into this
+// localStorage list with a `deletedAt` timestamp. The trash page reads
+// from here. The list is per-browser by design: even on shared/Supabase
+// mode, your trash shows only what YOU deleted from this device, since
+// the deletion event itself didn't carry author info to the server.
+
+const TRASH_KEY = "bokbok:ecosystem-trash:v1";
+
+export type TrashEntry = CreatureSpec & {
+  /** ISO timestamp set by archiveToTrash, used for sorting (newest first). */
+  deletedAt: string;
+};
+
+function loadTrashRaw(): TrashEntry[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(TRASH_KEY);
+    if (!raw) return [];
+    const arr = JSON.parse(raw);
+    return Array.isArray(arr) ? (arr as TrashEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeTrashRaw(list: TrashEntry[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(TRASH_KEY, JSON.stringify(list));
+    window.dispatchEvent(new CustomEvent("trash:changed"));
+  } catch {
+    // Quota exceeded etc. — silently no-op. The deletion still proceeds.
+  }
+}
+
+/** Fetch the soon-to-be-deleted creature and copy it into the trash. */
+async function archiveToTrash(id: string): Promise<void> {
+  const c = await findCreatureById(id);
+  if (!c) return;
+  const list = loadTrashRaw();
+  // Dedupe: if the same id is already in trash, replace the entry.
+  const filtered = list.filter((e) => e.id !== c.id);
+  filtered.unshift({ ...c, deletedAt: new Date().toISOString() });
+  writeTrashRaw(filtered);
+}
+
+/** Public read for the trash page. Same shape as loadEcosystem returns,
+ *  with the extra deletedAt field on each entry. Newest deletions first. */
+export async function loadTrash(): Promise<TrashEntry[]> {
+  const list = loadTrashRaw();
+  // Sanitize each entry against the current catalog so the trash page
+  // can render their thumbnails / canvas without 404 textures.
+  const cleaned: TrashEntry[] = [];
+  for (const c of list) {
+    const fixed = sanitizeCreatureForCatalog(c);
+    if (fixed) cleaned.push({ ...fixed, deletedAt: c.deletedAt });
+  }
+  return cleaned;
+}
+
+/** Permanently remove an entry from the trash (no undo). */
+export function purgeTrashCreature(id: string): void {
+  writeTrashRaw(loadTrashRaw().filter((e) => e.id !== id));
+}
+
+/** Clear the whole trash. */
+export function clearTrash(): void {
+  writeTrashRaw([]);
 }
 
 // ── search / matching (pure, sync) ────────────────────────────────────────

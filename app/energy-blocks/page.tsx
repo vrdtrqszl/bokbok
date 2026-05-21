@@ -8,7 +8,7 @@
 // view" (PNG + name) and the info panel (one-sentence description from
 // EMOTION_DESCRIPTION). Joy is selected by default.
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   EMOTIONS,
   EMOTION_LIST,
@@ -99,6 +99,25 @@ function DesktopEnergyBlocksPage() {
     setOrder(shuffleWithColorSpread(EMOTION_LIST, NUM_COLS));
   }, []);
 
+  // Search query — filters the visible tiles by emotion name (English
+  // displayName, key, and localized name in the current language all
+  // get matched as case-insensitive substrings). Non-matching tiles
+  // are hidden so the user can find a specific block in the 50-tile
+  // grid without scrolling.
+  const [query, setQuery] = useState("");
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return order;
+    return order.filter((e) => {
+      const local = emotionName(e.key, lang).toLowerCase();
+      return (
+        e.displayName.toLowerCase().includes(q) ||
+        e.key.toLowerCase().includes(q) ||
+        local.includes(q)
+      );
+    });
+  }, [order, query, lang]);
+
   return (
     <div className="relative mx-auto h-[900px] w-[1440px] overflow-hidden font-(family-name:--font-casual)">
       {/* BokBok logo / Home link — hand-drawn wordmark (Figma 2287:82). */}
@@ -160,6 +179,30 @@ function DesktopEnergyBlocksPage() {
         {t("nav.about")}
       </a>
 
+      {/* Search box (Figma 2303:149) — filters the energy-block grid by
+          emotion name. Matches the catalog displayName, the internal
+          key, and the localized name so the user can search in Korean
+          too (e.g. "기쁨" → joy). */}
+      <div className="absolute left-[776.64px] top-[53.99px] z-[5] h-[30.66px] w-[219.71px]">
+        <div
+          className="pointer-events-none absolute"
+          style={{ inset: "-1.63% -0.23% -1.63% 0" }}
+        >
+          <img
+            alt=""
+            src="/assets/search-box-v2.svg"
+            className="block size-full max-w-none"
+          />
+        </div>
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t("eb.search_placeholder")}
+          className="absolute left-[28px] top-[4px] block h-[22px] w-[180px] bg-transparent text-[16px] font-bold text-black outline-none placeholder:text-black/35"
+        />
+      </div>
+
       {/* Main wavy frame (Figma 2102:185) — same asset as Calendar/BokBokpedia. */}
       <div className="pointer-events-none absolute left-[27px] top-[85px] h-[789.67px] w-[974.69px]">
         <img
@@ -187,7 +230,7 @@ function DesktopEnergyBlocksPage() {
           gridAutoRows: `${TILE_HEIGHT}px`,
         }}
       >
-        {order.map((emotion) => {
+        {visible.map((emotion) => {
           const isActive = emotion.key === selectedKey;
           return (
             <button

@@ -22,28 +22,29 @@ import {
  *   Sound On  (Figma 2238:1390): x 21, y 16, w 41.46, h 43.06
  *   Sound Off (Figma 2238:1396): x 11, y 17, w 43.09, h 41.08
  *
- * Sizes shrunk by 10% from the raw Figma values for a slightly more
- * compact look that sits closer in weight to the other corner buttons
- * (× close, fullscreen, +/− zoom — all 32.12 × 32.5). Position offsets
- * unchanged so the icon still anchors from the same top-left point.
+ * Original Figma had two DIFFERENT bounding boxes (the artwork's
+ * visual centre differs between the speaker-with-waves and the
+ * speaker-with-X), which made the icon visibly jump 10 px left/right
+ * every time the user toggled mute. We now use a SINGLE fixed
+ * bounding box (BUTTON_STYLE below) for both states — both SVGs
+ * declare preserveAspectRatio="none" so the icon stretches harmlessly
+ * to fit, and the button no longer hops.
+ *
+ * Box centred between the two original Figma anchors at a 38×38
+ * footprint (~90% of the raw 41×43 / 43×41) so it sits at the same
+ * visual weight as the other corner buttons (× close, fullscreen,
+ * +/− zoom — all 32.12 × 32.5).
  *
  * Coordinates are absolute, relative to the parent positioned element
  * (currently the main viewport box wrapper, whose origin matches the
  * Figma "main box" frame's top-left).
  */
 
-const ON_STYLE = {
-  left: 21,
+const BUTTON_STYLE = {
+  left: 16,
   top: 16,
-  width: 37.31,  // 41.46 × 0.90
-  height: 38.75, // 43.06 × 0.90
-} as const;
-
-const OFF_STYLE = {
-  left: 11,
-  top: 17,
-  width: 38.78,  // 43.09 × 0.90
-  height: 36.97, // 41.08 × 0.90
+  width: 38,
+  height: 38,
 } as const;
 
 export default function SoundToggle({
@@ -65,7 +66,6 @@ export default function SoundToggle({
   }, []);
 
   const label = title ?? (muted ? "Sound off — click to turn on" : "Sound on — click to mute");
-  const frame = muted ? OFF_STYLE : ON_STYLE;
 
   return (
     <button
@@ -74,15 +74,14 @@ export default function SoundToggle({
       title={label}
       aria-label={label}
       aria-pressed={!muted}
-      // Inline style because each state has its own pixel-precise Figma
-      // frame — keeping it out of Tailwind avoids two duplicate class
-      // strings and makes the mapping to the design tokens obvious.
+      // Single fixed footprint for BOTH states so toggling mute swaps
+      // only the SVG src — the button itself stays exactly where it is.
       style={{
         position: "absolute",
-        left: `${frame.left}px`,
-        top: `${frame.top}px`,
-        width: `${frame.width}px`,
-        height: `${frame.height}px`,
+        left: `${BUTTON_STYLE.left}px`,
+        top: `${BUTTON_STYLE.top}px`,
+        width: `${BUTTON_STYLE.width}px`,
+        height: `${BUTTON_STYLE.height}px`,
       }}
       className="cursor-pointer bg-transparent p-0 opacity-80 transition-opacity hover:opacity-100"
     >

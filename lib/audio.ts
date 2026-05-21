@@ -526,6 +526,294 @@ function voiceTotalDur(style: GroupStyle): number {
  * BokBokpedia creature box should always play, even when ambient
  * chatter is silenced.
  */
+// ---- Per-color-group creature chirps ---------------------------------
+// Eight color groups, eight distinct sonic flavours. Every chirp still
+// shares the "mystical / bouncy / cute" umbrella (pure-sine sources +
+// reverb wash), but the pitch arc, envelope, octave register, detune
+// shimmer, lowpass character, and reverb send all vary by group so a
+// red anger chirp doesn't sound like a yellow joy chirp.
+//
+// The eight groups (EmotionColorGroup):
+//   yellow → bright bouncy "ping!"   high register, big overshoot
+//   green  → soft warm hum            low-mid, gentle upward glide
+//   red    → punchy drop "bomp!"      mid register, descending arc
+//   blue   → falling sigh             low register, long tail, downward slide
+//   purple → harmonic chime           perfect-fifth overtone, slow attack
+//   orange → trembling bell           tremolo wobble, jittery decay
+//   grey   → distant whisper          muted (filter closed), long fade
+//   mint   → crystal "ding!"          neutral pitch, no arc, light reverb
+//
+// Per-emotion pitch (pitchFor) still picks the specific note within
+// the group's octave register, so the 50 emotions remain distinguish-
+// able even after collapsing onto 8 timbres.
+type ChirpGroupStyle = {
+  /** Multiply pitchFor(key) by this. 2 = +1 octave, 1 = same, 0.5 = -1. */
+  octaveMult: number;
+  /** Pitch arc as [start_mult, peak_mult, end_mult] of the base pitch. */
+  pitchArc: [number, number, number];
+  /** Arc timing in seconds — [time to peak, time to end]. */
+  pitchArcTiming: [number, number];
+  /** Detune of oscB in cents (0 = unison, ±N = chorus / beating). */
+  oscBDetuneCents: number;
+  /** Add a third oscillator at the perfect fifth (1.5× pitch) for
+   *  harmonic depth. Used by purple. */
+  fifthHarmonic: boolean;
+  /** Attack time in seconds. Snappier = brighter onset. */
+  attackSec: number;
+  /** Total chirp duration in seconds. */
+  durationSec: number;
+  /** Lowpass cutoff multiplier (× base pitch). Lower = darker. */
+  lowpassMult: number;
+  /** Lowpass Q resonance. */
+  lowpassQ: number;
+  /** Reverb wet send (0–1). Higher = more ethereal. */
+  reverbSend: number;
+  /** Tremolo amount on the gain (0–1). 0 = no wobble. Used by orange. */
+  tremoloDepth: number;
+  /** Tremolo rate (Hz). */
+  tremoloHz: number;
+};
+
+const GROUP_CHIRPS: Record<EmotionColorGroup, ChirpGroupStyle> = {
+  // 🟡 Bright bouncy "ping!" — high register, big up-overshoot, sparkly.
+  yellow: {
+    octaveMult: 2.0,
+    pitchArc: [0.7, 1.18, 1.0],
+    pitchArcTiming: [0.04, 0.13],
+    oscBDetuneCents: 14,
+    fifthHarmonic: false,
+    attackSec: 0.005,
+    durationSec: 0.38,
+    lowpassMult: 7,
+    lowpassQ: 0.4,
+    reverbSend: 0.45,
+    tremoloDepth: 0,
+    tremoloHz: 0,
+  },
+  // 🟢 Soft warm hum — mid register, gentle small upward glide, long
+  // mellow tail. Sounds like a deep breath out.
+  green: {
+    octaveMult: 1.0,
+    pitchArc: [0.95, 1.02, 1.0],
+    pitchArcTiming: [0.06, 0.22],
+    oscBDetuneCents: 8,
+    fifthHarmonic: false,
+    attackSec: 0.05,
+    durationSec: 0.55,
+    lowpassMult: 4,
+    lowpassQ: 0.3,
+    reverbSend: 0.35,
+    tremoloDepth: 0,
+    tremoloHz: 0,
+  },
+  // 🔴 Punchy descending "bomp!" — mid register, pitch DROPS, snappy
+  // envelope, less reverb (more direct / dry).
+  red: {
+    octaveMult: 1.5,
+    pitchArc: [1.25, 1.0, 0.85],
+    pitchArcTiming: [0.03, 0.18],
+    oscBDetuneCents: 18,
+    fifthHarmonic: false,
+    attackSec: 0.003,
+    durationSec: 0.32,
+    lowpassMult: 5,
+    lowpassQ: 0.8,
+    reverbSend: 0.22,
+    tremoloDepth: 0,
+    tremoloHz: 0,
+  },
+  // 🔵 Falling sigh — low register, slow downward slide, lots of
+  // reverb. Distant and sad.
+  blue: {
+    octaveMult: 1.0,
+    pitchArc: [1.05, 0.92, 0.78],
+    pitchArcTiming: [0.08, 0.45],
+    oscBDetuneCents: 6,
+    fifthHarmonic: false,
+    attackSec: 0.04,
+    durationSec: 0.65,
+    lowpassMult: 3.5,
+    lowpassQ: 0.4,
+    reverbSend: 0.55,
+    tremoloDepth: 0,
+    tremoloHz: 0,
+  },
+  // 🟣 Harmonic chime — mid register, adds a perfect-fifth overtone
+  // for layered depth. Slow attack, generous reverb. The "complex
+  // emotion" sound.
+  purple: {
+    octaveMult: 1.5,
+    pitchArc: [0.9, 1.0, 1.0],
+    pitchArcTiming: [0.12, 0.35],
+    oscBDetuneCents: 4,
+    fifthHarmonic: true,
+    attackSec: 0.06,
+    durationSec: 0.55,
+    lowpassMult: 5,
+    lowpassQ: 0.4,
+    reverbSend: 0.55,
+    tremoloDepth: 0,
+    tremoloHz: 0,
+  },
+  // 🟠 Trembling bell — mid-high register, fast tremolo wobble that
+  // makes the chirp feel anxious / jittery.
+  orange: {
+    octaveMult: 1.5,
+    pitchArc: [0.9, 1.05, 0.98],
+    pitchArcTiming: [0.05, 0.18],
+    oscBDetuneCents: 22,
+    fifthHarmonic: false,
+    attackSec: 0.01,
+    durationSec: 0.45,
+    lowpassMult: 5,
+    lowpassQ: 0.6,
+    reverbSend: 0.4,
+    tremoloDepth: 0.4,
+    tremoloHz: 11,
+  },
+  // ⚫ Distant whisper — low register, dark filter, very long soft
+  // tail. Sounds far away / fading.
+  grey: {
+    octaveMult: 1.0,
+    pitchArc: [0.9, 0.95, 0.85],
+    pitchArcTiming: [0.07, 0.4],
+    oscBDetuneCents: 3,
+    fifthHarmonic: false,
+    attackSec: 0.07,
+    durationSec: 0.7,
+    lowpassMult: 2.5,
+    lowpassQ: 0.3,
+    reverbSend: 0.6,
+    tremoloDepth: 0,
+    tremoloHz: 0,
+  },
+  // 🌿 Crystal "ding!" — neutral pitch (no arc), pure clean sine,
+  // light reverb. The "insight" / "clarity" sound.
+  mint: {
+    octaveMult: 2.0,
+    pitchArc: [1.0, 1.0, 1.0],
+    pitchArcTiming: [0.005, 0.2],
+    oscBDetuneCents: 5,
+    fifthHarmonic: false,
+    attackSec: 0.004,
+    durationSec: 0.4,
+    lowpassMult: 8,
+    lowpassQ: 0.3,
+    reverbSend: 0.4,
+    tremoloDepth: 0,
+    tremoloHz: 0,
+  },
+};
+
+function playGroupChirp(
+  c: AudioContext,
+  out: GainNode,
+  basePitchHz: number,
+  group: EmotionColorGroup,
+  opts: { amp?: number; t0?: number } = {},
+): void {
+  const { amp = 0.36, t0: requestedT0 } = opts;
+  const now = c.currentTime;
+  const t0 = Math.max(requestedT0 ?? now, now);
+  const style = GROUP_CHIRPS[group];
+  const p = basePitchHz * style.octaveMult;
+
+  // Two-oscillator chorus, optionally plus a fifth harmonic for purple.
+  const oscs: OscillatorNode[] = [];
+  const mixGains: number[] = [];
+  const oscA = c.createOscillator();
+  oscA.type = "sine";
+  oscs.push(oscA);
+  mixGains.push(1.0);
+  const oscB = c.createOscillator();
+  oscB.type = "sine";
+  oscB.detune.value = style.oscBDetuneCents;
+  oscs.push(oscB);
+  mixGains.push(0.5);
+  if (style.fifthHarmonic) {
+    const oscC = c.createOscillator();
+    oscC.type = "sine";
+    oscs.push(oscC);
+    // Mix the fifth at low level so it adds harmonic colour without
+    // overpowering the root.
+    mixGains.push(0.35);
+  }
+
+  // Apply the pitch arc to every oscillator. The fifth-harmonic osc
+  // (if present) plays at p × 1.5 — we pre-multiply the arc values
+  // for it so the relative arc shape is the same.
+  const [aStart, aPeak, aEnd] = style.pitchArc;
+  const [tPeak, tEnd] = style.pitchArcTiming;
+  oscs.forEach((osc, i) => {
+    const fifth = i === 2 ? 1.5 : 1.0;
+    const base = p * fifth;
+    osc.frequency.setValueAtTime(base * aStart, t0);
+    osc.frequency.exponentialRampToValueAtTime(base * aPeak, t0 + tPeak);
+    osc.frequency.exponentialRampToValueAtTime(base * aEnd, t0 + tEnd);
+  });
+
+  // Per-oscillator mix gains.
+  const mixNodes = mixGains.map((g) => {
+    const node = c.createGain();
+    node.gain.value = g;
+    return node;
+  });
+
+  const filter = c.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.value = Math.min(9000, p * style.lowpassMult);
+  filter.Q.value = style.lowpassQ;
+
+  const env = c.createGain();
+  env.gain.setValueAtTime(0, t0);
+  env.gain.linearRampToValueAtTime(amp, t0 + style.attackSec);
+  env.gain.exponentialRampToValueAtTime(0.0001, t0 + style.durationSec);
+
+  // Wire: each osc → its mix gain → shared filter → env → out.
+  oscs.forEach((osc, i) => {
+    osc.connect(mixNodes[i]);
+    mixNodes[i].connect(filter);
+  });
+  filter.connect(env);
+  env.connect(out);
+
+  // Reverb send.
+  if (reverbInput && style.reverbSend > 0) {
+    const send = c.createGain();
+    send.gain.value = style.reverbSend;
+    env.connect(send);
+    send.connect(reverbInput);
+  }
+
+  // Orange's tremolo: a low-rate sine LFO modulates a second gain
+  // node sitting between env and out, ±tremoloDepth around 1.0.
+  if (style.tremoloDepth > 0 && style.tremoloHz > 0) {
+    const trem = c.createGain();
+    trem.gain.value = 1 - style.tremoloDepth / 2; // sits at mid-depth
+    const lfo = c.createOscillator();
+    lfo.type = "sine";
+    lfo.frequency.value = style.tremoloHz;
+    const lfoAmp = c.createGain();
+    lfoAmp.gain.value = style.tremoloDepth / 2;
+    lfo.connect(lfoAmp);
+    lfoAmp.connect(trem.gain);
+    // Insert trem AFTER env. Disconnect env→out and rewire env→trem→out.
+    env.disconnect();
+    env.connect(trem);
+    trem.connect(out);
+    // Reverb send was already attached to env above; that still works
+    // — the dry/wet pre-tremolo signal goes to reverb (which is fine,
+    // tremoloing the reverb tail can sound seasick).
+    lfo.start(t0);
+    lfo.stop(t0 + style.durationSec + 0.05);
+  }
+
+  oscs.forEach((osc) => {
+    osc.start(t0);
+    osc.stop(t0 + style.durationSec + 0.05);
+  });
+}
+
 export function playEnergyBlock(
   key: EmotionKey,
   amp = 0.36,
@@ -534,7 +822,8 @@ export function playEnergyBlock(
   const c = ensureCtx();
   const out = opts.force ? alwaysOnGain : masterGain;
   if (!c || !out) return;
-  playVoice(c, out, pitchFor(key), styleFor(key), { amp });
+  const group = EMOTION_COLOR_GROUP[key] ?? "mint";
+  playGroupChirp(c, out, pitchFor(key), group, { amp });
 }
 
 /**
@@ -577,23 +866,22 @@ export function playCreatureGiggle(
     );
   }
 
-  // Stagger: each next voice starts ~70% through the previous voice's
-  // total duration plus a little jitter — overlapping enough to feel like
-  // a babbling chorus, separated enough that you can pick out chirps.
+  // Stagger by each chirp's own duration. Blue / grey emotions have
+  // longer tails, so the cascade spaces them out more; yellow / mint
+  // chirps are short and pile up faster — this matches the "feel" of
+  // each colour group (high-energy creatures babble, low-energy ones
+  // sigh slowly). 45 % overlap so each new chirp lands while the
+  // previous one is still ringing.
+  const baseTime = c.currentTime;
   let cursor = 0;
   voices.forEach((b, i) => {
-    const style = styleFor(b.emotionKey);
-    const offset = cursor + Math.random() * 0.025;
+    const group = EMOTION_COLOR_GROUP[b.emotionKey] ?? "mint";
+    const dur = GROUP_CHIRPS[group].durationSec;
+    const t0 = baseTime + cursor + Math.random() * 0.04;
     const amp = 0.26 + Math.random() * 0.10;
-    playVoice(c, out, pitchFor(b.emotionKey), style, {
-      startOffset: offset,
-      amp,
-    });
-    // Advance the cursor by ~70% of this voice's total duration so the
-    // next voice overlaps the tail of this one.
-    cursor += voiceTotalDur(style) * 0.55;
-    // Tiny safety nudge so we never get exact zero spacing.
-    if (i === 0) cursor = Math.max(cursor, 0.06);
+    playGroupChirp(c, out, pitchFor(b.emotionKey), group, { amp, t0 });
+    cursor += dur * 0.45;
+    if (i === 0) cursor = Math.max(cursor, 0.08);
   });
 }
 

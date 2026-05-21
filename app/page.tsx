@@ -47,6 +47,10 @@ function DesktopMainPage() {
   // point + replays the plastic-bag rustle. Mutually exclusive with
   // pet mode (activating one exits the other).
   const [candyMode, setCandyMode] = useState(false);
+  // Search query — filters which creatures render in the 3D scene
+  // (via EcosystemCreatures' `query` prop, which already supports
+  // matchesCreatureQuery). Empty string = show everything.
+  const [query, setQuery] = useState("");
   // Hover tooltip state: the creature currently under the cursor (if any)
   // and the cursor position in design pixels.
   const [hoveredCreature, setHoveredCreature] = useState<CreatureSpec | null>(null);
@@ -386,6 +390,31 @@ function DesktopMainPage() {
             {t("nav.about")}
           </a>
 
+          {/* Search box (Figma 2303:149) — filters the 3D scene. Sits
+              in the TOP NAV STRIP between the About link and the
+              BokBok logo, not on the main canvas. The SVG renders
+              slightly outside its bbox (inner -1.63% −0.23% inset)
+              to compensate for stroke overflow. */}
+          <div className="absolute left-[776.64px] top-[53.99px] z-[5] h-[30.66px] w-[219.71px]">
+            <div
+              className="pointer-events-none absolute"
+              style={{ inset: "-1.63% -0.23% -1.63% 0" }}
+            >
+              <img
+                alt=""
+                src="/assets/search-box-v2.svg"
+                className="block size-full max-w-none"
+              />
+            </div>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={t("enc.search_placeholder")}
+              className="absolute left-[28px] top-[4px] block h-[22px] w-[180px] bg-transparent text-[16px] font-bold text-black outline-none placeholder:text-black/35"
+            />
+          </div>
+
           {/* Enter fullscreen — top-right inside the main box. Resized
               from the original Figma 2114:258 dimensions (39.52×42.19)
               to match the × close-to-home button's 32.12×32.5 footprint
@@ -457,6 +486,7 @@ function DesktopMainPage() {
       <MainViewport
         onCreatureSelect={handleSelect}
         selectedCreatureId={selected?.id ?? null}
+        query={query}
         focusTarget={focusTarget}
         resetTrigger={resetTrigger}
         fullscreen={isFullscreen}
@@ -571,15 +601,19 @@ function DesktopMainPage() {
           </div>
         </div>
 
-        <h2 className="absolute left-1/2 top-[15px] -translate-x-1/2 whitespace-nowrap text-center text-[36px] text-black font-(family-name:--font-fancy)">
-          {selected?.name ?? t("panel.empty_name")}
-        </h2>
-        <span className="absolute left-1/2 top-[57px] -translate-x-1/2 text-center text-[18px] font-bold text-black">
-          {selected?.dateISO ?? "—"}
-        </span>
+        {/* Name + date — flex column so long names wrap and push the
+            date down naturally instead of overflowing the wavy frame. */}
+        <div className="absolute left-[20px] right-[20px] top-[15px] flex flex-col items-center text-center">
+          <h2 className="m-0 max-w-full break-words text-[36px] leading-[1.05] text-black font-(family-name:--font-fancy)">
+            {selected?.name ?? t("panel.empty_name")}
+          </h2>
+          <span className="mt-[2px] text-[18px] font-bold leading-none text-black">
+            {selected?.dateISO ?? "—"}
+          </span>
+        </div>
 
         {/* Diary text — scrollable */}
-        <div className="scroll-fade-vertical absolute left-[26px] right-[18px] top-[96px] bottom-[58px] flex flex-col items-center overflow-y-auto overflow-x-hidden">
+        <div className="scroll-fade-vertical absolute left-[26px] right-[18px] top-[110px] bottom-[58px] flex flex-col items-center overflow-y-auto overflow-x-hidden">
           <div className="w-full text-[20px] font-bold leading-normal text-black">
             {selected ? (
               selected.journalText ? (

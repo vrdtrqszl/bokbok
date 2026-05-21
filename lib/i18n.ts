@@ -135,6 +135,7 @@ const ENG: Dict = {
   "enc.empty_create_first": "Create your first one →",
 
   // Energy Blocks
+  "eb.search_placeholder": "Energy name",
   "eb.empty_viewfinder_line1": "Click an energy block in the",
   "eb.empty_viewfinder_line2": "grid to view it",
   "eb.info_intro_line1": "Each block holds a feeling.",
@@ -201,6 +202,7 @@ const ESP: Dict = {
   "enc.empty_no_creatures": "Aún no hay criaturas.",
   "enc.empty_create_first": "Crea la primera →",
 
+  "eb.search_placeholder": "Nombre de energía",
   "eb.empty_viewfinder_line1": "Haz clic en un bloque de la",
   "eb.empty_viewfinder_line2": "cuadrícula para verlo",
   "eb.info_intro_line1": "Cada bloque guarda un sentimiento.",
@@ -264,6 +266,7 @@ const KOR: Dict = {
   "enc.empty_no_creatures": "아직 크리쳐가 없어요.",
   "enc.empty_create_first": "첫 크리쳐를 만들어보세요 →",
 
+  "eb.search_placeholder": "에너지 이름",
   "eb.empty_viewfinder_line1": "오른쪽 격자에서",
   "eb.empty_viewfinder_line2": "에너지 블록을 클릭하세요",
   "eb.info_intro_line1": "각 블록은 하나의 감정을 담고 있어요.",
