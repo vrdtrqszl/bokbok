@@ -18,19 +18,18 @@ import { useEffect, useState } from "react";
 import {
   loadTrash,
   purgeTrashCreature,
+  uploadCreature,
   matchesCreatureQuery,
   type TrashEntry,
 } from "@/lib/ecosystem";
-import { downloadCreaturePng } from "@/lib/downloadCreature";
 import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
-import { nameHighlightDataUrl, creatureHighlightColor } from "@/lib/nameHighlight";
+import { nameHighlightDataUrl } from "@/lib/nameHighlight";
 import { useT } from "@/lib/i18n";
 import { useIsMobile } from "@/lib/useIsMobile";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
 import ViewportZoomControls from "@/app/_components/ViewportZoomControls";
 import BokBokLogo from "@/app/_components/BokBokLogo";
-import CloseToHomeButton from "@/app/_components/CloseToHomeButton";
 
 export default function TrashPage() {
   // For mobile, the encyclopedia's mobile layout doesn't have a trash
@@ -87,12 +86,14 @@ function DesktopTrashPage() {
     };
   }, []);
 
-  const handlePurge = () => {
+  const handleRevive = async () => {
     if (!selected) return;
-    const ok = window.confirm(
-      `Permanently delete "${selected.name ?? "this creature"}" from the trash? This cannot be undone.`,
-    );
-    if (!ok) return;
+    // Re-upload the creature into the active ecosystem (Supabase row
+    // or localStorage entry, depending on mode). Strip the TrashEntry-
+    // only deletedAt field so the restored creature looks identical
+    // to a freshly-uploaded one. Then remove it from the trash.
+    const { deletedAt: _deletedAt, ...creature } = selected;
+    await uploadCreature(creature);
     purgeTrashCreature(selected.id);
     setSelected(null);
   };
@@ -153,18 +154,16 @@ function DesktopTrashPage() {
         {t("nav.about")}
       </a>
 
-      <CloseToHomeButton />
-
-      {/* Back button (Figma 2303:117) — same slot as the trash button
-          on the encyclopedia page (919, 107), so the two icons swap
-          in place when navigating between the encyclopedia and its
-          trash bin. Click → return to /encyclopedia. */}
+      {/* Back button (Figma 2303:117) — sits in the × close button's
+          slot at (957, 107). On the trash page there's no separate
+          "home" affordance up top; back is the primary action, and
+          home is reachable via the BokBok wordmark in the corner. */}
       <a
         href="/encyclopedia"
         aria-label="Back to BokBokpedia"
         title="Back to BokBokpedia"
         className="absolute z-[30] block cursor-pointer transition-transform active:scale-95 hover:scale-105"
-        style={{ left: 919, top: 107, width: 32.12, height: 32.5 }}
+        style={{ left: 957, top: 107, width: 32.12, height: 32.5 }}
       >
         <div className="absolute" style={{ inset: "-1.54% -1.56%" }}>
           <img
@@ -269,11 +268,13 @@ function DesktopTrashPage() {
                       maxWidth: "195px",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
+                      // Selection highlight in GRAYSCALE so it matches
+                      // the rest of the trash page's monochrome look —
+                      // a mid-gray instead of the per-creature accent
+                      // colour the encyclopedia uses.
                       ...(isSelected
                         ? {
-                            backgroundImage: nameHighlightDataUrl(
-                              creatureHighlightColor(c),
-                            ),
+                            backgroundImage: nameHighlightDataUrl("#888888"),
                             backgroundRepeat: "no-repeat",
                             backgroundSize: "100% 20px",
                             backgroundPosition: "center",
@@ -375,35 +376,16 @@ function DesktopTrashPage() {
           </div>
         </div>
 
-        {/* Download — still works on archived creatures so the user can
-            keep a copy of what was deleted. */}
+        {/* Revive — restores the selected trash creature back into the
+            active ecosystem (uploadCreature) and removes it from the
+            trash (purgeTrashCreature). Sits in the same slot the
+            permanent-delete button used to occupy, reusing the same
+            delete-vector outline so the layout/weight stays familiar
+            — just relabelled. Download + permanent-delete buttons
+            removed per design: trash is now a recovery-only view. */}
         <button
           type="button"
-          onClick={() => selected && downloadCreaturePng(selected)}
-          disabled={!selected}
-          className={`absolute left-[13px] bottom-[19px] block h-[27px] w-[112px] overflow-visible bg-transparent p-0 transition-transform ${
-            selected
-              ? "cursor-pointer active:scale-95"
-              : "cursor-not-allowed opacity-40"
-          }`}
-        >
-          <img
-            alt=""
-            src="/assets/uploaded-box.svg"
-            className="absolute inset-0 block size-full"
-          />
-          <span
-            className="absolute flex items-center justify-center text-center text-[24px] font-bold leading-[normal] text-black"
-            style={{ inset: "-3.7% 0.88% -7.41% 0.88%" }}
-          >
-            {t("action.download")}
-          </span>
-        </button>
-
-        {/* Permanent-delete (purge) — removes from trash forever. */}
-        <button
-          type="button"
-          onClick={handlePurge}
+          onClick={handleRevive}
           disabled={!selected}
           className={`absolute right-[12.8px] bottom-[10px] block h-[40.58px] w-[88.56px] overflow-visible bg-transparent p-0 transition-transform ${
             selected
@@ -420,7 +402,7 @@ function DesktopTrashPage() {
             className="absolute m-0 text-center text-[24px] font-bold leading-[normal] text-black"
             style={{ inset: "12.2% 0 0 0" }}
           >
-            {t("action.delete")}
+            {t("action.revive")}
           </p>
         </button>
       </div>

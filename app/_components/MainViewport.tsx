@@ -70,7 +70,38 @@ function ControlsBridge({
   // Animation: lerp camera + target toward `animRef.current` each frame.
   const animRef = useRef<{ target: Vector3; position: Vector3 } | null>(null);
 
-  useFrame(() => {
+  // Ambient camera drift — slowly orbits + bobs the polar angle when
+  // the user isn't actively interacting and no focus/reset tween is
+  // running. Tracks last interaction so we can pause for a few
+  // seconds after the user touches the camera before resuming.
+  const interactingRef = useRef(false);
+  const lastInteractionMsRef = useRef(0);
+  // Polar wobble velocity (rad/sec). Bounces between PHI_MIN and
+  // PHI_MAX so the drift always continues smoothly from whatever
+  // polar angle the user / focus animation left the camera at — the
+  // sign of this velocity carries the current direction across
+  // interaction pauses, no phase reset / snap.
+  const phiVelocityRef = useRef(0.012);
+
+  useEffect(() => {
+    const c = controlsRef.current;
+    if (!c) return;
+    const onStart = () => {
+      interactingRef.current = true;
+    };
+    const onEnd = () => {
+      interactingRef.current = false;
+      lastInteractionMsRef.current = performance.now();
+    };
+    c.addEventListener("start", onStart);
+    c.addEventListener("end", onEnd);
+    return () => {
+      c.removeEventListener("start", onStart);
+      c.removeEventListener("end", onEnd);
+    };
+  }, []);
+
+  useFrame((_, dt) => {
     const c = controlsRef.current;
     // Feed the current camera-to-target distance into the ecosystem
     // wanderer every frame so the wandering radius scales with zoom
@@ -81,19 +112,73 @@ function ControlsBridge({
     if (c) {
       setEcosystemZoomDistance(c.object.position.distanceTo(c.target));
     }
+
     const a = animRef.current;
-    if (!a || !c) return;
-    c.target.lerp(a.target, 0.12);
-    c.object.position.lerp(a.position, 0.12);
-    c.update();
-    if (
-      c.target.distanceTo(a.target) < 0.005 &&
-      c.object.position.distanceTo(a.position) < 0.005
-    ) {
-      c.target.copy(a.target);
-      c.object.position.copy(a.position);
-      animRef.current = null;
+    if (a && c) {
+      c.target.lerp(a.target, 0.12);
+      c.object.position.lerp(a.position, 0.12);
+      c.update();
+      if (
+        c.target.distanceTo(a.target) < 0.005 &&
+        c.object.position.distanceTo(a.position) < 0.005
+      ) {
+        c.target.copy(a.target);
+        c.object.position.copy(a.position);
+        animRef.current = null;
+      }
+      // While the focus/reset tween is running, skip ambient drift.
+      return;
     }
+
+    // Ambient drift — only when the user isn't dragging and at least
+    // 6 seconds have passed since they let go. Keeps the scene feeling
+    // alive (slow flyover) without fighting deliberate camera input.
+    if (!c) return;
+    if (interactingRef.current) return;
+    if (performance.now() - lastInteractionMsRef.current < 6000) return;
+
+    // Read current spherical coords from actual camera position so
+    // the drift always continues smoothly from where the user (or a
+    // focus / reset tween) left off — no phase reset, no snap.
+    const offset = c.object.position.clone().sub(c.target);
+    const r = offset.length();
+    // Polar (phi): 0 = straight up, π/2 = horizon.
+    const currentPhi = Math.acos(Math.max(-1, Math.min(1, offset.y / r)));
+    // Azimuth (theta): around the y-axis.
+    const currentTheta = Math.atan2(offset.x, offset.z);
+
+    // Azimuth drift: monotonic ~0.045 rad/sec → full lap in ~140 s.
+    const nextTheta = currentTheta + dt * 0.045;
+
+    // Polar drift: linear at phiVelocityRef rad/sec, bouncing between
+    // PHI_MIN and PHI_MAX. The sign of the velocity carries direction
+    // across interaction pauses so resume continues smoothly from
+    // wherever the user left off, in whatever direction the wobble
+    // was going. ~0.012 rad/sec ≈ one full PHI_MIN→PHI_MAX traversal
+    // every ~100 s.
+    const PHI_MIN = Math.PI / 12;            // ~15°  (lifted, near top-down)
+    const PHI_MAX = Math.PI / 2 - 0.08;      // ~85°  (near horizon)
+    let nextPhi = currentPhi + phiVelocityRef.current * dt;
+    if (nextPhi > PHI_MAX) {
+      nextPhi = PHI_MAX;
+      phiVelocityRef.current = -Math.abs(phiVelocityRef.current);
+    } else if (nextPhi < PHI_MIN) {
+      nextPhi = PHI_MIN;
+      phiVelocityRef.current = Math.abs(phiVelocityRef.current);
+    }
+
+    // Convert spherical → cartesian. Three.js convention here:
+    //   x = r * sin(phi) * sin(theta)
+    //   y = r * cos(phi)
+    //   z = r * sin(phi) * cos(theta)
+    // Matches atan2(offset.x, offset.z) used above.
+    const sinPhi = Math.sin(nextPhi);
+    c.object.position.set(
+      c.target.x + r * sinPhi * Math.sin(nextTheta),
+      c.target.y + r * Math.cos(nextPhi),
+      c.target.z + r * sinPhi * Math.cos(nextTheta),
+    );
+    c.update();
   });
 
   // When focusTarget changes (search Enter or 3D click), kick off a smooth
@@ -175,6 +260,7 @@ export default function MainViewport({
   petMode = false,
   candyMode = false,
   onCandyClick,
+  onEmptyGroundClick,
   onCreatureHover,
   mobile = false,
 }: {
@@ -195,6 +281,10 @@ export default function MainViewport({
   /** Fires with world-space XZ when the user clicks the ground (or any
    *  open scene area) while candy mode is on. */
   onCandyClick?: (x: number, z: number) => void;
+  /** Fires on a tap (not drag) anywhere on empty ground when NO mode
+   *  is active. Used by the page to reset the camera back to default
+   *  — handy after deleting a creature you'd zoomed in on. */
+  onEmptyGroundClick?: () => void;
   /** Fires with the hovered creature on enter, null on leave. */
   onCreatureHover?: (creature: CreatureSpec | null) => void;
   /** When true, fill the parent container instead of using the fixed Figma
@@ -301,6 +391,9 @@ export default function MainViewport({
           <Suspense fallback={null}>
             <GroundPlane
               onCandyClick={candyMode ? onCandyClick : undefined}
+              onEmptyClick={
+                candyMode || petMode ? undefined : onEmptyGroundClick
+              }
             />
           </Suspense>
 
@@ -404,12 +497,18 @@ export default function MainViewport({
  */
 function GroundPlane({
   onCandyClick,
+  onEmptyClick,
 }: {
   /** Set by the parent only when candy mode is on. When defined, ground
    *  clicks fire this with the world-space XZ so the page can summon
    *  creatures to that point. When undefined the ground is a passive
    *  visual — clicks pass through to OrbitControls as usual. */
   onCandyClick?: (x: number, z: number) => void;
+  /** Set by the parent when no special mode is active. Fires on a TAP
+   *  (not drag) anywhere on the ground; used to reset the camera back
+   *  to default. r3f's onClick only fires when no pointer movement
+   *  happens between down + up, so OrbitControls drags still work. */
+  onEmptyClick?: () => void;
 } = {}) {
   const texture = useLoader(TextureLoader, "/assets/bg-grain.jpg");
   // Configure tiling once when the texture lands. 40×40 repeats over a
@@ -433,6 +532,16 @@ function GroundPlane({
               // drag from this same press. event.point is world space.
               e.stopPropagation();
               onCandyClick(e.point.x, e.point.z);
+            }
+          : undefined
+      }
+      // Tap-to-reset only when NOT in candy mode (candy mode owns
+      // pointerdown above; onClick on top of that would double-fire).
+      onClick={
+        !onCandyClick && onEmptyClick
+          ? (e) => {
+              e.stopPropagation();
+              onEmptyClick();
             }
           : undefined
       }

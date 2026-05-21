@@ -1082,6 +1082,79 @@ export function playCandyRustle(): void {
   });
 }
 
+// ---- Magnetic mouse-move ticks --------------------------------------
+// Plays short slices of /sounds/magnetic.mp3 as the cursor moves so the
+// page has a soft "magnetic shimmer" trail under the pointer. Each tick:
+//   • Random offset into the cached buffer (variety, no obvious repeat)
+//   • Short slice (~140 ms in sample time) at slight playbackRate
+//     jitter (±15 %) for additional variation
+//   • Soft attack / decay envelope so cutting mid-waveform doesn't click
+//   • Routed through masterGain so the global Sound Off toggle silences
+//     the mouse trail along with the rest of the UI audio
+// The trigger throttling (one tick every ~80 ms while moving, requires
+// minimum movement to filter micro-jitter) lives in the MouseSounds
+// component — this function just plays a single tick.
+
+const MAGNETIC_PATH = "/sounds/magnetic.mp3";
+const MAGNETIC_SLICE_SEC = 0.14; // ~140 ms per tick
+const MAGNETIC_GAIN = 0.08;       // very soft — cursor trail, not foreground
+
+let magneticBuffer: AudioBuffer | null = null;
+let magneticLoading: Promise<AudioBuffer | null> | null = null;
+function loadMagnetic(c: AudioContext): Promise<AudioBuffer | null> {
+  if (magneticBuffer) return Promise.resolve(magneticBuffer);
+  if (magneticLoading) return magneticLoading;
+  magneticLoading = fetch(MAGNETIC_PATH)
+    .then((r) => r.arrayBuffer())
+    .then((ab) => c.decodeAudioData(ab))
+    .then((buf) => {
+      magneticBuffer = buf;
+      return buf;
+    })
+    .catch((err) => {
+      console.error("[bokbok] magnetic mouse sound failed to load:", err);
+      magneticLoading = null;
+      return null;
+    });
+  return magneticLoading;
+}
+
+export function playMagneticTick(opts: { amp?: number } = {}): void {
+  const c = ensureCtx();
+  if (!c || !masterGain) return;
+  const amp = opts.amp ?? MAGNETIC_GAIN;
+  loadMagnetic(c).then((buf) => {
+    if (!buf) return;
+    const c2 = ensureCtx();
+    if (!c2 || !masterGain) return;
+    const now = c2.currentTime;
+    const sliceDur = MAGNETIC_SLICE_SEC;
+    const maxOffset = Math.max(0, buf.duration - sliceDur);
+    const offset = Math.random() * maxOffset;
+    // Slight pitch jitter so two adjacent ticks don't sound identical.
+    const rate = 0.85 + Math.random() * 0.3;
+    const realDur = sliceDur / rate;
+
+    const src = c2.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = rate;
+
+    const env = c2.createGain();
+    env.gain.setValueAtTime(0, now);
+    env.gain.linearRampToValueAtTime(amp, now + 0.01);
+    // Hold until the tail's quick fade so a clipped slice doesn't click.
+    const tailStart = Math.max(now + 0.012, now + realDur - 0.04);
+    env.gain.setValueAtTime(amp, tailStart);
+    env.gain.linearRampToValueAtTime(0.0001, now + realDur);
+
+    src.connect(env);
+    env.connect(masterGain);
+
+    src.start(now, offset, sliceDur);
+    src.stop(now + realDur + 0.02);
+  });
+}
+
 export function playDropletTick(pitchIndex?: number): void {
   const c = ensureCtx();
   if (!c || !masterGain) return;

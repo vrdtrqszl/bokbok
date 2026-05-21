@@ -145,6 +145,7 @@ const ENG: Dict = {
   "action.download": "Download",
   "action.edit": "Edit",
   "action.delete": "Delete",
+  "action.revive": "Revive",
 
   // Months (Calendar)
   "month.1": "January", "month.2": "February", "month.3": "March",
@@ -211,6 +212,7 @@ const ESP: Dict = {
   "action.download": "Descargar",
   "action.edit": "Editar",
   "action.delete": "Eliminar",
+  "action.revive": "Revivir",
 
   "month.1": "Enero",     "month.2": "Febrero",   "month.3": "Marzo",
   "month.4": "Abril",     "month.5": "Mayo",      "month.6": "Junio",
@@ -275,6 +277,7 @@ const KOR: Dict = {
   "action.download": "다운로드",
   "action.edit": "편집",
   "action.delete": "삭제",
+  "action.revive": "복구",
 
   "month.1": "1월",  "month.2": "2월",  "month.3": "3월",
   "month.4": "4월",  "month.5": "5월",  "month.6": "6월",

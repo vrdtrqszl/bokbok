@@ -59,6 +59,7 @@ function MonthGrid({
   id,
   creaturesByDate,
   onSelect,
+  onEmptyDateClick,
   selectedId,
   cycleTick,
   t,
@@ -68,6 +69,10 @@ function MonthGrid({
   id?: string;
   creaturesByDate: Map<string, CreatureSpec[]>;
   onSelect?: (c: CreatureSpec) => void;
+  /** Fired when the user clicks a day cell with no creature in it. The
+   *  parent routes to /create?date=YYYY-MM-DD so the user can create
+   *  one for that date. */
+  onEmptyDateClick?: (dateISO: string) => void;
   selectedId?: string | null;
   // Globally-incrementing counter that advances every 1.5s. Cells with
   // multiple creatures use `cycleTick % length` to rotate through them so
@@ -150,7 +155,7 @@ function MonthGrid({
                 {date}
               </span>
             </p>
-            {showCreature && (
+            {showCreature ? (
               <button
                 type="button"
                 onClick={() => onSelect?.(showCreature)}
@@ -163,6 +168,29 @@ function MonthGrid({
                 }}
               >
                 <CreatureThumbnail creature={showCreature} blockSize={48} />
+              </button>
+            ) : (
+              /* Empty day cell — clickable transparent button that
+                 routes to /create?date=YYYY-MM-DD so the user can
+                 start a creature for this date. Covers the same
+                 area the creature thumbnail would have taken so the
+                 tap target feels consistent across the grid. The
+                 + glyph is a subtle hint that fades in on hover. */
+              <button
+                type="button"
+                onClick={() => onEmptyDateClick?.(dateISO)}
+                aria-label={`Create a creature for ${dateISO}`}
+                className="group absolute cursor-pointer bg-transparent transition-transform active:scale-95"
+                style={{
+                  left: COL_X[weekday] + (CELL_WIDTH - THUMB_W) / 2,
+                  top: ROW_Y[weekIndex] + THUMB_TOP_OFFSET,
+                  width: THUMB_W,
+                  height: THUMB_H,
+                }}
+              >
+                <span className="flex h-full w-full items-center justify-center text-[40px] font-bold leading-none text-black/0 transition-colors group-hover:text-black/30">
+                  +
+                </span>
               </button>
             )}
           </Fragment>
@@ -486,6 +514,12 @@ function DesktopCalendarPage() {
                 unlockAudio();
                 playCreatureGiggle(c.blocks, { force: true });
                 setSelected(c);
+              }}
+              onEmptyDateClick={(dateISO) => {
+                // Empty day → jump to Create with the date pre-filled.
+                // The /create page reads ?date=YYYY-MM-DD on mount and
+                // seeds its date picker with that value.
+                router.push(`/create?date=${encodeURIComponent(dateISO)}`);
               }}
               selectedId={selected?.id ?? null}
               cycleTick={cycleTick}

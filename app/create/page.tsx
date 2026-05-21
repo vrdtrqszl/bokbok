@@ -52,12 +52,25 @@ function CreatePageInner() {
   const t = useT();
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
+  // Optional ?date=YYYY-MM-DD query param — set by the calendar page
+  // when the user clicks an empty day cell. Pre-fills the date picker
+  // so the new creature is dated to the chosen day.
+  const queryDate = searchParams.get("date");
 
   const [journalText, setJournalText] = useState("");
   const [creature, setCreature] = useState<CreatureSpec | null>(null);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploaded">("idle");
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    // Seed from ?date=YYYY-MM-DD if present and parseable; fall back
+    // to today otherwise. Editing mode (?edit=) overrides this later
+    // with the creature's stored dateISO via the hydration effect.
+    if (queryDate && /^\d{4}-\d{1,2}-\d{1,2}$/.test(queryDate)) {
+      const [y, m, d] = queryDate.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+    return new Date();
+  });
   // Tracks the creature id we're editing so Upload replaces it instead of
   // creating a new entry. null = new creation.
   const [editingId, setEditingId] = useState<string | null>(null);

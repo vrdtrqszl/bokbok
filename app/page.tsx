@@ -309,6 +309,19 @@ function DesktopMainPage() {
     if (!ok) return;
     deleteCreatureById(selected.id);
     setSelected(null);
+    // Camera was zoomed in on the now-gone creature — pull it back to
+    // the default bird's-eye view so the user isn't left staring at
+    // empty space where the creature used to be.
+    setResetTrigger({ ts: Date.now() });
+  };
+
+  // Click on empty 3D ground (i.e., not on any creature, not in candy
+  // or pet mode) → reset the camera to default. Catches the lingering
+  // "I deleted a creature and missed the auto-reset" case, plus any
+  // time the user has drifted the camera and wants to recenter.
+  const handleEmptyGroundClick = () => {
+    setSelected(null);
+    setResetTrigger({ ts: Date.now() });
   };
 
   return (
@@ -493,6 +506,7 @@ function DesktopMainPage() {
         petMode={petMode}
         candyMode={candyMode}
         onCandyClick={handleCandyClick}
+        onEmptyGroundClick={handleEmptyGroundClick}
         onCreatureHover={setHoveredCreature}
       />
 
