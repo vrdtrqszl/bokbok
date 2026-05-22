@@ -1082,109 +1082,161 @@ export function playCandyRustle(): void {
   });
 }
 
-// ---- Magnetic mouse-move ticks --------------------------------------
-// Procedural "magnetic shimmer" tick fired under the cursor as it moves.
-// Inspired by the first ~7 s of the user-supplied magnetic.mp3 reference
-// — bright high-register pings with a quick attack chirp, a long
-// crystalline tail, and lots of reverb wash. Not a direct sample replay
-// (so the texture varies subtly with every tick and the page doesn't
-// have to ship a 6 MB MP3); the recipe targets a similar character.
+// ---- Magnetic mouse-move sound --------------------------------------
+// Looping playback of the first 7.5 seconds of magnetic.mp3
+// (00:00:07:15 @ 30fps in the source timeline) while the cursor moves.
+// A SCHEDULER kicks off one pass at a time: each pass plays the full
+// sample, then rests for MAGNETIC_REST_S of silence ("한 템포 쉬고"),
+// then the next pass starts. Tiny anti-click fades (~12 ms) on the
+// edges of each pass prevent boundary pops; otherwise the pass plays
+// cleanly with no crossfading so you hear the actual tail of the
+// sample before the rest.
 //
-// Per-tick recipe:
-//   • Two close-detuned sine oscillators (±9 cents) = chorus shimmer
-//   • Snappy upward pitch chirp at attack (start × 0.75 → target over
-//     ~20 ms) — gives each tick a soft metallic "ping" onset
-//   • Bandpass filter centred around the pitch with high Q (≈ 12) so
-//     the harmonics ring like a struck tine
-//   • 8 ms attack + ~700 ms exponential decay — long crystalline tail
-//   • Generous reverb send (0.6) so successive ticks blend into a wash
-//   • Random base pitch within a pentatonic-ish scale up high (G5–E7)
-//     so the trail feels musical rather than tuned to one note
+// The audible output is gated by magneticGain, which the mouse-tick
+// "tops up": ramp to peak → hold briefly → fade out. While ticks
+// keep firing the fade-out keeps getting rescheduled = continuous
+// sound. When the cursor stops, the last scheduled fade-out runs and
+// the trail naturally dies.
 //
-// The trigger throttling (one tick every ~80 ms while moving, requires
-// minimum movement to filter micro-jitter) lives in the MouseSounds
-// component — this function just plays a single tick. Routed through
-// masterGain so the Sound Off toggle silences the trail.
+// Routed through masterGain so the Sound Off toggle silences it along
+// with the rest of the ambient audio.
 
-const MAGNETIC_GAIN = 0.10;
-const MAGNETIC_DURATION = 0.7; // total length of one chirp (with tail)
-// High-register pentatonic pool — every tick picks a random note. The
-// scale is loosely the same one the typing/droplet ticks use, two
-// octaves up, so the mouse trail layers musically with them.
-const MAGNETIC_NOTES_HZ: number[] = [
-  784.0,  // G5
-  880.0,  // A5
-  1046.5, // C6
-  1174.7, // D6
-  1396.9, // F6
-  1568.0, // G6
-  1760.0, // A6
-  2093.0, // C7
-  2349.3, // D7
-  2637.0, // E7
-];
+const MAGNETIC_PATH = "/sounds/magnetic.mp3";
+const MAGNETIC_LOOP_LEN_S = 7.5;     // length of one pass through the sample (00:00:07:15 @ 30fps)
+const MAGNETIC_REST_S = 0.15;        // silence between consecutive passes (한 템포)
+const MAGNETIC_EDGE_FADE_S = 0.012;  // anti-click fades on pass start/end
+const MAGNETIC_PEAK = 0.35;          // gain reached on each tick top-up
+const MAGNETIC_RAMP_UP_S = 0.04;     // gain ramp on top-up (fast = responsive)
+const MAGNETIC_HOLD_S = 0.18;        // hold at peak before fading
+const MAGNETIC_FADE_OUT_S = 0.45;    // fade tail after movement stops
+const MAGNETIC_LOOKAHEAD_S = 2.0;    // schedule passes this far ahead
+const MAGNETIC_SCHEDULER_MS = 1000;  // top up the schedule once per second
+
+let magneticBuffer: AudioBuffer | null = null;
+let magneticLoading: Promise<AudioBuffer | null> | null = null;
+// Long-lived gain node for the continuous loop. Created lazily on the
+// first successful tick; left running for the lifetime of the page.
+let magneticGain: GainNode | null = null;
+let magneticSchedulerTimer: number | null = null;
+let magneticNextStartTime = 0;
+
+function loadMagnetic(c: AudioContext): Promise<AudioBuffer | null> {
+  if (magneticBuffer) return Promise.resolve(magneticBuffer);
+  if (magneticLoading) return magneticLoading;
+  magneticLoading = fetch(MAGNETIC_PATH)
+    .then((r) => r.arrayBuffer())
+    .then((ab) => c.decodeAudioData(ab))
+    .then((buf) => {
+      magneticBuffer = buf;
+      return buf;
+    })
+    .catch((err) => {
+      // Don't crash if the file is missing / fails to decode — the
+      // cursor trail just stays silent.
+      console.error("[bokbok] magnetic sound failed to load:", err);
+      magneticLoading = null;
+      return null;
+    });
+  return magneticLoading;
+}
+
+/** Schedule ONE full pass through [0, LOOP_LEN] of the buffer. Tiny
+ *  anti-click fades on the edges; otherwise the pass plays cleanly so
+ *  the listener hears the full tail before the rest. */
+function scheduleMagneticPass(
+  c: AudioContext,
+  buf: AudioBuffer,
+  startTime: number,
+): void {
+  if (!magneticGain) return;
+  const passDur = Math.min(MAGNETIC_LOOP_LEN_S, buf.duration);
+  const edge = Math.min(MAGNETIC_EDGE_FADE_S, passDur / 4);
+
+  const src = c.createBufferSource();
+  src.buffer = buf;
+
+  const env = c.createGain();
+  env.gain.setValueAtTime(0, startTime);
+  env.gain.linearRampToValueAtTime(1, startTime + edge);
+  env.gain.setValueAtTime(1, startTime + passDur - edge);
+  env.gain.linearRampToValueAtTime(0.0001, startTime + passDur);
+
+  src.connect(env);
+  env.connect(magneticGain);
+
+  src.start(startTime, 0, passDur);
+  src.stop(startTime + passDur + 0.05);
+}
+
+function magneticSchedulerTick(): void {
+  const c = ctx;
+  if (!c || !magneticBuffer || !magneticGain) return;
+  const horizon = c.currentTime + MAGNETIC_LOOKAHEAD_S;
+  // Each cycle = full pass + rest. No overlap — the rest is meant to
+  // be heard between loops.
+  const stride = MAGNETIC_LOOP_LEN_S + MAGNETIC_REST_S;
+  while (magneticNextStartTime < horizon) {
+    scheduleMagneticPass(c, magneticBuffer, magneticNextStartTime);
+    magneticNextStartTime += stride;
+  }
+}
+
+function ensureMagneticLoop(c: AudioContext, buf: AudioBuffer): void {
+  if (magneticGain) return;
+  if (!masterGain) return;
+
+  const gain = c.createGain();
+  gain.gain.value = 0;
+  gain.connect(masterGain);
+  magneticGain = gain;
+
+  // Kick off the loop with one immediate pass, then let the periodic
+  // scheduler keep filling ahead of currentTime.
+  magneticNextStartTime = c.currentTime + 0.02;
+  magneticSchedulerTick();
+  if (magneticSchedulerTimer === null) {
+    magneticSchedulerTimer = window.setInterval(
+      magneticSchedulerTick,
+      MAGNETIC_SCHEDULER_MS,
+    );
+  }
+}
 
 export function playMagneticTick(opts: { amp?: number } = {}): void {
   const c = ensureCtx();
   if (!c || !masterGain) return;
-  const amp = opts.amp ?? MAGNETIC_GAIN;
-  const t0 = c.currentTime;
-  const baseNote =
-    MAGNETIC_NOTES_HZ[Math.floor(Math.random() * MAGNETIC_NOTES_HZ.length)];
-  // ±15-cent jitter so two same-note ticks still feel slightly off-grid.
-  const pitch = baseNote * Math.pow(2, ((Math.random() - 0.5) * 30) / 1200);
+  const peak = opts.amp ?? MAGNETIC_PEAK;
 
-  // Two-oscillator chorus.
-  const oscA = c.createOscillator();
-  oscA.type = "sine";
-  const oscB = c.createOscillator();
-  oscB.type = "sine";
-  oscB.detune.value = 9;
+  loadMagnetic(c).then((buf) => {
+    if (!buf) return;
+    const c2 = ensureCtx();
+    if (!c2 || !masterGain) return;
+    ensureMagneticLoop(c2, buf);
+    if (!magneticGain) return;
 
-  // Attack chirp: start ~75 % of target → rise to target over ~20 ms.
-  const pStart = pitch * 0.75;
-  for (const osc of [oscA, oscB]) {
-    osc.frequency.setValueAtTime(pStart, t0);
-    osc.frequency.exponentialRampToValueAtTime(pitch, t0 + 0.02);
-  }
+    const now = c2.currentTime;
+    const g = magneticGain.gain;
 
-  // Per-oscillator mix.
-  const mixA = c.createGain();
-  mixA.gain.value = 1.0;
-  const mixB = c.createGain();
-  mixB.gain.value = 0.55;
-
-  // Resonant bandpass centred on the pitch — gives the "tine" ring.
-  const filter = c.createBiquadFilter();
-  filter.type = "bandpass";
-  filter.frequency.value = pitch;
-  filter.Q.value = 12;
-
-  // Soft attack, long exponential decay.
-  const env = c.createGain();
-  env.gain.setValueAtTime(0, t0);
-  env.gain.linearRampToValueAtTime(amp, t0 + 0.008);
-  env.gain.exponentialRampToValueAtTime(0.0001, t0 + MAGNETIC_DURATION);
-
-  oscA.connect(mixA);
-  oscB.connect(mixB);
-  mixA.connect(filter);
-  mixB.connect(filter);
-  filter.connect(env);
-  env.connect(masterGain);
-
-  // Big reverb wash so the trail feels magnetic / floating.
-  if (reverbInput) {
-    const send = c.createGain();
-    send.gain.value = 0.6;
-    env.connect(send);
-    send.connect(reverbInput);
-  }
-
-  oscA.start(t0);
-  oscB.start(t0);
-  oscA.stop(t0 + MAGNETIC_DURATION + 0.05);
-  oscB.stop(t0 + MAGNETIC_DURATION + 0.05);
+    // "Top up" the envelope: cancel any pending fade, ramp from current
+    // value up to peak, hold briefly, then fade out. While the user
+    // keeps moving, every new tick replaces this schedule before the
+    // fade has a chance to complete → continuous sound. When movement
+    // stops, the last-scheduled fade-out runs uninterrupted and the
+    // loop naturally goes silent.
+    try {
+      g.cancelScheduledValues(now);
+      g.setValueAtTime(g.value, now);
+      g.linearRampToValueAtTime(peak, now + MAGNETIC_RAMP_UP_S);
+      g.setValueAtTime(peak, now + MAGNETIC_RAMP_UP_S + MAGNETIC_HOLD_S);
+      g.linearRampToValueAtTime(
+        0.0001,
+        now + MAGNETIC_RAMP_UP_S + MAGNETIC_HOLD_S + MAGNETIC_FADE_OUT_S,
+      );
+    } catch {
+      // cancelScheduledValues can throw in odd cases (e.g. context
+      // torn down mid-tick); silently swallow.
+    }
+  });
 }
 
 export function playDropletTick(pitchIndex?: number): void {
