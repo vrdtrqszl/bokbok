@@ -140,9 +140,17 @@ html, body {
    or Tailwind's cursor-pointer utility), which wins over the body cursor.
    Force them to inherit so the custom arrow cursor (or pet-mode hand
    cursor) propagates over interactive elements too. !important is needed
-   to beat Tailwind's class specificity. */
+   to beat Tailwind's class specificity.
+
+   `touch-action: manipulation` kills iOS Safari's 300 ms tap-zoom delay
+   AND prevents the browser from treating the first tap on a hover-styled
+   button as a hover state (and ignoring the click). Crucial on the main
+   page where ViewportFit shrinks the design to ~half-size on landscape
+   phones — buttons end up small, and without manipulation iOS routinely
+   loses the first tap on Pet/Candy/Sound/Zoom. */
 button, a, [role="button"], [type="button"], [type="submit"] {
   cursor: inherit !important;
+  touch-action: manipulation;
 }
 
 /* Custom hand-drawn text-input cursor (Figma 2129:156). Hotspot 4,11 = the
