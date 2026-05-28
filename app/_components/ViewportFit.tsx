@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useIsMobile } from "@/lib/useIsMobile";
+import { useIsPortraitMobile } from "@/lib/useIsMobile";
+import RotatePrompt from "./RotatePrompt";
 
 // All pages are designed at this fixed size. We scale the entire stage to fit
 // the window while preserving aspect ratio (letterboxed when the window has a
@@ -19,18 +20,19 @@ const DESIGN_H = 900;
  * - Uses `transform: scale()` (GPU-accelerated, no layout reflow).
  * - Letterboxes with the page background color when window aspect ≠ 16:10.
  *
- * MOBILE BYPASS: when the viewport is below the mobile breakpoint
- * (useIsMobile), the fixed-canvas transform is skipped entirely and
- * children render in a normal flow inside a full-viewport container.
- * Each page is responsible for branching on useIsMobile() and rendering
- * a mobile-friendly layout in that case.
+ * PORTRAIT-PHONE GATING: the dedicated Mobile* layouts are temporarily
+ * paused. On a narrow-viewport device in PORTRAIT orientation, the
+ * 1440×900 design becomes uncomfortably small after scaling, so we
+ * intercept and show <RotatePrompt /> asking the user to turn the phone
+ * sideways. On every other viewport — including the same phone in
+ * LANDSCAPE — the desktop layout renders normally, scaled to fit.
  */
 export default function ViewportFit({ children }: { children: React.ReactNode }) {
   // Start at 1 so SSR markup matches the un-scaled design; the real scale is
   // computed in the first effect tick after mount.
   const [scale, setScale] = useState(1);
   const [mounted, setMounted] = useState(false);
-  const isMobile = useIsMobile();
+  const portraitMobile = useIsPortraitMobile();
 
   useEffect(() => {
     const compute = () => {
@@ -44,27 +46,12 @@ export default function ViewportFit({ children }: { children: React.ReactNode })
     return () => window.removeEventListener("resize", compute);
   }, []);
 
-  // Mobile: skip the fixed-canvas transform. Children render directly in a
-  // full-viewport container with the same grain background. Allow native
-  // vertical scrolling because mobile layouts are designed to be longer
-  // than the viewport (stacked panels under the canvas, etc.).
-  if (isMobile) {
-    return (
-      <div
-        className="bg-grain"
-        style={{
-          position: "fixed",
-          inset: 0,
-          overflowY: "auto",
-          overflowX: "hidden",
-          // Disable touch-pan-x so swipes scroll vertically without
-          // accidentally triggering horizontal scroll on iOS.
-          touchAction: "pan-y",
-        }}
-      >
-        {children}
-      </div>
-    );
+  // Portrait phone → ask the user to rotate. Mobile* layouts are paused
+  // pending revival; landscape phones fall through to desktop scaling
+  // below (where the 1440×900 stage shrinks to fit phone-landscape
+  // viewports like ~932×430 cleanly).
+  if (portraitMobile) {
+    return <RotatePrompt />;
   }
 
   return (

@@ -21,8 +21,6 @@ import {
 import { playEnergyBlock } from "@/lib/audio";
 import { nameHighlightDataUrl } from "@/lib/nameHighlight";
 import { useT, emotionName, useLanguage } from "@/lib/i18n";
-import { useIsMobile } from "@/lib/useIsMobile";
-import MobileEnergyBlocksPage from "@/app/_components/MobileEnergyBlocksPage";
 import BokBokLogo from "@/app/_components/BokBokLogo";
 import CloseToHomeButton from "@/app/_components/CloseToHomeButton";
 
@@ -76,10 +74,8 @@ const PAD_RIGHT = 18;        // 974.69 − (33 + 162×5 + 28×4) ≈ 18
 const PAD_BOTTOM = 30;       // breathing room at the bottom of the scroll
 
 export default function EnergyBlocksPage() {
-  // Mobile branches to a dedicated single-column layout — the desktop 5-
-  // col grid + right-side viewfinder/info panels don't fit a phone.
-  const isMobile = useIsMobile();
-  if (isMobile) return <MobileEnergyBlocksPage />;
+  // Mobile layout paused — ViewportFit shows a rotate prompt on portrait
+  // phones; landscape phones see the desktop 5-col grid scaled down.
   return <DesktopEnergyBlocksPage />;
 }
 

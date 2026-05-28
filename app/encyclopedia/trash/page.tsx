@@ -25,16 +25,14 @@ import {
 import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
 import { nameHighlightDataUrl } from "@/lib/nameHighlight";
 import { useT } from "@/lib/i18n";
-import { useIsMobile } from "@/lib/useIsMobile";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
 import ViewportZoomControls from "@/app/_components/ViewportZoomControls";
 import BokBokLogo from "@/app/_components/BokBokLogo";
-import MobileTrashPage from "@/app/_components/MobileTrashPage";
 
 export default function TrashPage() {
-  const isMobile = useIsMobile();
-  if (isMobile) return <MobileTrashPage />;
+  // Mobile layout paused — ViewportFit shows a rotate prompt on portrait
+  // phones; landscape phones see the desktop trash grid scaled down.
   return <DesktopTrashPage />;
 }
 

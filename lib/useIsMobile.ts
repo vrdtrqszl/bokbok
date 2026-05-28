@@ -18,6 +18,12 @@ const MOBILE_MAX_W = 768;
  *
  * SSR-safe: returns `false` on the server so the initial HTML matches the
  * desktop layout, then re-renders to the correct value after mount.
+ *
+ * NOTE: The dedicated Mobile* page layouts are currently paused — every
+ * page renders the desktop 1440×900 layout regardless of viewport size,
+ * and ViewportFit scales it down. The mobile layouts remain in the
+ * codebase for a future revival; useIsPortraitMobile() (below) is what
+ * the live "please rotate" UX checks against.
  */
 export function useIsMobile(): boolean {
   const [isMobile, setIsMobile] = useState(false);
@@ -30,4 +36,43 @@ export function useIsMobile(): boolean {
   }, []);
 
   return isMobile;
+}
+
+/**
+ * True when the device is a narrow viewport (phone-class) AND currently
+ * in PORTRAIT orientation. We use this to gate the "rotate to landscape"
+ * prompt — the desktop design fits comfortably on a phone in landscape
+ * (after ViewportFit's scale-to-fit) but is too cramped in portrait, so
+ * we ask the user to rotate.
+ *
+ * Portrait detection uses window.matchMedia("(orientation: portrait)")
+ * for correctness across devices; falls back to a height>width check
+ * when matchMedia is unavailable.
+ *
+ * SSR-safe: returns `false` on the server so the initial HTML doesn't
+ * flash the rotate prompt.
+ */
+export function useIsPortraitMobile(): boolean {
+  const [portraitMobile, setPortraitMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => {
+      const narrow = window.innerWidth < MOBILE_MAX_W;
+      const portrait = typeof window.matchMedia === "function"
+        ? window.matchMedia("(orientation: portrait)").matches
+        : window.innerHeight > window.innerWidth;
+      setPortraitMobile(narrow && portrait);
+    };
+    check();
+    window.addEventListener("resize", check);
+    // Modern iOS Safari fires resize on rotate, but for belt-and-braces
+    // also listen to orientationchange.
+    window.addEventListener("orientationchange", check);
+    return () => {
+      window.removeEventListener("resize", check);
+      window.removeEventListener("orientationchange", check);
+    };
+  }, []);
+
+  return portraitMobile;
 }

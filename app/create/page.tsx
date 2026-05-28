@@ -8,10 +8,8 @@ import { generateCreature, emotionByKey, randomCreatureName, type CreatureSpec }
 import { uploadCreature, findCreatureById, deleteCreatureById } from "@/lib/ecosystem";
 import { playCreatureGiggle } from "@/lib/audio";
 import { useT } from "@/lib/i18n";
-import { useIsMobile } from "@/lib/useIsMobile";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import DatePicker from "@/app/_components/DatePicker";
-import MobileCreatePage from "@/app/_components/MobileCreatePage";
 import BokBokLogo from "@/app/_components/BokBokLogo";
 import CloseToHomeButton from "@/app/_components/CloseToHomeButton";
 
@@ -39,11 +37,8 @@ export default function CreatePage() {
 }
 
 function CreatePageRouter() {
-  // Mobile branches to a stacked single-column layout (textarea on top,
-  // creature preview below). Desktop keeps the wide journal-on-left,
-  // preview-on-right layout.
-  const isMobile = useIsMobile();
-  if (isMobile) return <MobileCreatePage />;
+  // Mobile layout paused — ViewportFit shows a rotate prompt on portrait
+  // phones; landscape phones see the desktop two-column layout scaled.
   return <CreatePageInner />;
 }
 

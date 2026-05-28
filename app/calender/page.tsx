@@ -7,12 +7,10 @@ import { downloadCreaturePng } from "@/lib/downloadCreature";
 import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
 import { nameHighlightDataUrl, creatureHighlightColor } from "@/lib/nameHighlight";
 import { useT, type TranslationKey } from "@/lib/i18n";
-import { useIsMobile } from "@/lib/useIsMobile";
 import type { CreatureSpec } from "@/lib/creature";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import ViewportZoomControls from "@/app/_components/ViewportZoomControls";
-import MobileCalendarPage from "@/app/_components/MobileCalendarPage";
 import BokBokLogo from "@/app/_components/BokBokLogo";
 import CloseToHomeButton from "@/app/_components/CloseToHomeButton";
 
@@ -201,9 +199,8 @@ function MonthGrid({
 }
 
 export default function CalendarPage() {
-  // Mobile branches to a single-month grid + bottom sheet.
-  const isMobile = useIsMobile();
-  if (isMobile) return <MobileCalendarPage />;
+  // Mobile layout paused — ViewportFit handles portrait phones with a
+  // rotate prompt. Landscape phones see the desktop grid scaled down.
   return <DesktopCalendarPage />;
 }
 

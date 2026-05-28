@@ -7,18 +7,15 @@ import { downloadCreaturePng } from "@/lib/downloadCreature";
 import { playCreatureGiggle, unlockAudio } from "@/lib/audio";
 import { nameHighlightDataUrl, creatureHighlightColor } from "@/lib/nameHighlight";
 import { useT } from "@/lib/i18n";
-import { useIsMobile } from "@/lib/useIsMobile";
 import { emotionByKey, type CreatureSpec } from "@/lib/creature";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
-import MobileEncyclopediaPage from "@/app/_components/MobileEncyclopediaPage";
 import BokBokLogo from "@/app/_components/BokBokLogo";
 import CloseToHomeButton from "@/app/_components/CloseToHomeButton";
 
 export default function BokBokpediaPage() {
-  // Mobile branches to a 2-col grid + bottom-sheet creature detail.
-  const isMobile = useIsMobile();
-  if (isMobile) return <MobileEncyclopediaPage />;
+  // Mobile layout paused — ViewportFit shows a rotate prompt on portrait
+  // phones; landscape phones see the desktop 4-col grid scaled down.
   return <DesktopBokBokpediaPage />;
 }
 

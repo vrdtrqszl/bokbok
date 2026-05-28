@@ -3,12 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import MainViewport, { type FocusTarget, type ResetTrigger } from "./_components/MainViewport";
-import MobileMainPage from "./_components/MobileMainPage";
 import BokBokLogo from "./_components/BokBokLogo";
 import CandyButton from "./_components/CandyButton";
 import { creaturePositions } from "./_components/EcosystemCreatures";
 import { useT } from "@/lib/i18n";
-import { useIsMobile } from "@/lib/useIsMobile";
 import { deleteCreatureById, loadEcosystem, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { creatureFocusBox, emotionByKey, type CreatureSpec } from "@/lib/creature";
 import {
@@ -22,13 +20,11 @@ import { ambientChatter } from "@/lib/ambientChatter";
 import { triggerEcosystemGather } from "./_components/EcosystemCreatures";
 
 export default function MainPage() {
-  // Mobile branches to a completely separate layout (MobileMainPage). The
-  // desktop layout below assumes a fixed 1440×900 design canvas with side
-  // panels — it can't be reflowed into a portrait viewport. ViewportFit
-  // also bypasses its scale transform on mobile so the mobile layout uses
-  // the natural device viewport directly.
-  const isMobile = useIsMobile();
-  if (isMobile) return <MobileMainPage />;
+  // The dedicated mobile layout (MobileMainPage) is currently paused.
+  // Every viewport renders the desktop 1440×900 layout; ViewportFit
+  // scales it to fit and shows a "rotate your phone" prompt instead on
+  // portrait-phone viewports where the design becomes uncomfortably
+  // cramped.
   return <DesktopMainPage />;
 }
 

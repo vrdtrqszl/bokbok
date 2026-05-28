@@ -23,8 +23,6 @@
 // pattern here.
 
 import { useT } from "@/lib/i18n";
-import { useIsMobile } from "@/lib/useIsMobile";
-import MobileAboutPage from "@/app/_components/MobileAboutPage";
 import BokBokLogo from "@/app/_components/BokBokLogo";
 import CloseToHomeButton from "@/app/_components/CloseToHomeButton";
 
@@ -32,10 +30,8 @@ const INSTAGRAM_URL =
   "https://www.instagram.com/bokbok.meee?igsh=aThxYnVscHV1MHNh&utm_source=qr";
 
 export default function AboutPage() {
-  // Mobile branches to a stacked single-column narrative — the desktop
-  // comic-collage with rotated SVG overlays doesn't reflow.
-  const isMobile = useIsMobile();
-  if (isMobile) return <MobileAboutPage />;
+  // Mobile layout paused — ViewportFit shows a rotate prompt on portrait
+  // phones; landscape phones see the desktop comic-collage scaled down.
   return <DesktopAboutPage />;
 }
 

@@ -7,12 +7,10 @@ import { EMOTION_LIST } from "@/lib/emotions";
 import { uploadCreature, findCreatureById, deleteCreatureById } from "@/lib/ecosystem";
 import { playCreatureGiggle } from "@/lib/audio";
 import { useT, emotionName, useLanguage } from "@/lib/i18n";
-import { useIsMobile } from "@/lib/useIsMobile";
 import { type CreatureSpec } from "@/lib/creature";
 import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import ManualCanvas, { type ManualCanvasHandle } from "@/app/_components/ManualCanvas";
 import DatePicker from "@/app/_components/DatePicker";
-import MobileCreateManuallyPage from "@/app/_components/MobileCreateManuallyPage";
 import BokBokLogo from "@/app/_components/BokBokLogo";
 import CloseToHomeButton from "@/app/_components/CloseToHomeButton";
 
@@ -38,13 +36,8 @@ export default function CreateManuallyPage() {
 }
 
 function CreateManuallyRouter() {
-  // Mobile branches to a stacked single-column layout. The ManualCanvas
-  // drawing area is preserved (tap-to-add emotion blocks works without
-  // touch event conversion); full block-manipulation gestures still
-  // assume mouse events but iOS/Android touch-to-mouse emulation gives
-  // most of it for free.
-  const isMobile = useIsMobile();
-  if (isMobile) return <MobileCreateManuallyPage />;
+  // Mobile layout paused — ViewportFit shows a rotate prompt on portrait
+  // phones; landscape phones see the desktop drag-canvas scaled down.
   return <CreateManuallyPageInner />;
 }
 
