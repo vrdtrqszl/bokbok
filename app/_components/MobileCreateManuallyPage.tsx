@@ -142,6 +142,11 @@ function MobileCreateManuallyInner() {
     uploadCreature(enriched);
     setUploadStatus("uploaded");
     if (!editingId) playCreatureGiggle(enriched.blocks);
+    // EDIT-mode shortcut: hop straight back to the main 3D world with
+    // the camera zoomed onto the saved creature. Mirrors desktop.
+    if (editingId) {
+      router.push(`/?focus=${encodeURIComponent(enriched.id)}`);
+    }
   };
 
   const handleDelete = () => {

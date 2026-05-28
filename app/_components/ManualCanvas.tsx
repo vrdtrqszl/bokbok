@@ -197,9 +197,18 @@ export default function ManualCanvas({
   // Props for any of the rotate/scale handles. Hover shows the rotating
   // cursor, mousedown locks it so a drag-out doesn't lose it, mouseleave
   // hides it (unless still locked from an active drag).
+  //
+  // onMouseEnter MUST preserve the `locked` flag if it was already
+  // locked — otherwise this happens:
+  //   1. User mousedowns on handle → locked = true
+  //   2. Drags off + back onto the handle mid-rotation
+  //   3. onMouseEnter re-fires and (previously) reset locked → false
+  //   4. mouseup global handler only clears when locked === true, so
+  //      the cursor survived release and "followed the mouse around".
+  // Carrying locked through fixes that stuck-cursor bug.
   const cursorHandleProps = (kind: "rotate" | "scale", rotation: number) => ({
     onMouseEnter: (e: React.MouseEvent) => {
-      setCustomCursor({ kind, rotation });
+      setCustomCursor((c) => ({ kind, rotation, locked: c?.locked === true }));
       snapCursorTo(e.clientX, e.clientY);
     },
     onMouseLeave: () =>
@@ -209,6 +218,17 @@ export default function ManualCanvas({
       snapCursorTo(e.clientX, e.clientY);
     },
   });
+
+  // Safety net: when the selection clears (or no blocks remain), the
+  // rotate/scale handles unmount. If the cursor was in hover state
+  // (locked=false) at that moment, onMouseLeave never fires — the
+  // element just disappears — and the custom cursor would otherwise
+  // stay on screen forever. Force-clear it here.
+  useEffect(() => {
+    if (selectedIds.length === 0) {
+      setCustomCursor((c) => (c?.locked ? c : null));
+    }
+  }, [selectedIds]);
   // Marquee (rubber-band) selection. Stored in canvas-local design pixels
   // (same coord space the right-click context menu uses). null when not
   // dragging; while dragging, currentX/Y track the pointer.

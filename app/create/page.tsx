@@ -162,6 +162,15 @@ function CreatePageInner() {
     };
     uploadCreature(enriched);
     setUploadStatus("uploaded");
+    // EDIT-mode shortcut: the user came in via /encyclopedia (or
+    // /calender) Edit, so after saving they expect to land back on the
+    // main 3D world with the camera zoomed onto their just-edited
+    // creature — not on a "Uploaded" confirmation card with a tiny
+    // arrow they have to click. NEW-creation mode keeps the
+    // confirmation card so users can savor the fresh creature first.
+    if (editingId) {
+      router.push(`/?focus=${encodeURIComponent(enriched.id)}`);
+    }
   };
 
   return (

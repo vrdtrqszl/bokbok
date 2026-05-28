@@ -84,7 +84,13 @@ export const EMOTIONS: Record<EmotionKey, Emotion> = {
     keywords: [
       "happy", "happiness", "content", "contentment", "cheerful", "cheer",
       "smile", "smiled", "smiling", "good day", "great day",
-      "행복", "행복해", "행복하", "좋은", "흐뭇",
+      // "좋은" only matches that exact form — added the common
+      // conjugations ("좋다", "좋아", "좋지", "좋네", "좋겠") so casual
+      // journal phrases like "여름이 훨씬 좋지" register as happiness
+      // instead of falling through to filler.
+      "행복", "행복해", "행복하",
+      "좋은", "좋다", "좋아", "좋지", "좋네", "좋겠",
+      "흐뭇",
     ],
     description:
       "Happiness is a steady, warm sense of well-being that settles in when life feels good as it is.",
@@ -124,7 +130,9 @@ export const EMOTIONS: Record<EmotionKey, Emotion> = {
     keywords: [
       "anticipate", "anticipation", "looking forward", "can't wait", "eager",
       "expecting", "expectation",
-      "기대", "설레",
+      // "오려나" / "올 것 같" cover the very common "looks like X is on
+      // the way" anticipation pattern in Korean journals.
+      "기대", "설레", "오려나", "올 것 같", "기다려",
     ],
   },
   hope: {
@@ -290,7 +298,10 @@ export const EMOTIONS: Record<EmotionKey, Emotion> = {
     keywords: [
       "sad", "sadness", "cry", "crying", "tear", "tears", "wept", "weep",
       "sorrow", "miserable", "down", "blue",
-      "슬프", "슬픔", "울", "눈물", "서글", "쓸쓸",
+      // Bare "울" was matching unrelated nouns like 겨울 (winter) / 가을
+      // (autumn) / 노을 (sunset). Use verb-form fragments only.
+      "슬프", "슬픔", "울었", "울며", "울고", "울다", "울먹", "운다",
+      "눈물", "서글", "쓸쓸",
     ],
     description:
       "Sadness is a low, heavy emotion that arises when something loved is lost or out of reach.",
@@ -950,6 +961,10 @@ function isEnglishNegated(text: string, start: number): boolean {
 // breaks (마침표/쉼표/. ,) inside the check window cancel the negation.
 const KOREAN_NEG_PREFIX = /(?:^|[\s.,!?])(?:안|못)\s?$/u;
 const KOREAN_NEG_SUFFIX_FOLLOWING = /^[가-힣]{0,4}지\s?(?:않|못)/u;
+// When the matched keyword ITSELF ends in "지" (e.g. "좋지"), the
+// connective is already consumed — so a direct "않/못" right after the
+// keyword (no extra 지 between) is still a negation. "좋지 않다" → negate.
+const KOREAN_NEG_AFTER_JI = /^\s?(?:않|못)/u;
 const KOREAN_CLAUSE_BREAK = /[.,;!?]|그런데|하지만|그래도|그러나|근데/u;
 const KOREAN_LOOKBACK_CHARS = 10;
 const KOREAN_LOOKAHEAD_CHARS = 10;
@@ -963,6 +978,11 @@ function isKoreanNegated(text: string, start: number, end: number): boolean {
   const breakMatch = KOREAN_CLAUSE_BREAK.exec(after);
   const sufWindow = breakMatch ? after.slice(0, breakMatch.index) : after;
   if (KOREAN_NEG_SUFFIX_FOLLOWING.test(sufWindow)) return true;
+  // Keyword already ends in "지" → check for bare 않/못 right after.
+  const matched = text.slice(start, end);
+  if (matched.endsWith("지") && KOREAN_NEG_AFTER_JI.test(sufWindow)) {
+    return true;
+  }
   return false;
 }
 

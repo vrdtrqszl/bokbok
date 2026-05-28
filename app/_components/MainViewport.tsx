@@ -83,6 +83,60 @@ function ControlsBridge({
   // interaction pauses, no phase reset / snap.
   const phiVelocityRef = useRef(0.012);
 
+  // WASD / arrow-key pan — translates the OrbitControls target AND
+  // the camera together along the ground plane (XZ). Forward is the
+  // camera→target direction projected to XZ, so the keys move "into
+  // the scene" regardless of how the user has rotated the view. Speed
+  // scales with current zoom distance so panning feels equally
+  // responsive whether you're zoomed in tight on a creature or pulled
+  // way out to see the whole ecosystem.
+  //
+  // The Set holds normalised direction names ("forward" / "backward" /
+  // "left" / "right") rather than raw keys, so W and ArrowUp share a
+  // slot — pressing both doesn't double-count.
+  const keysDownRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const isTypingTarget = (el: EventTarget | null): boolean => {
+      if (!(el instanceof HTMLElement)) return false;
+      if (el.tagName === "INPUT" || el.tagName === "TEXTAREA") return true;
+      if (el.isContentEditable) return true;
+      return false;
+    };
+    const directionOf = (e: KeyboardEvent): string | null => {
+      const k = e.key.toLowerCase();
+      if (k === "w" || k === "arrowup") return "forward";
+      if (k === "s" || k === "arrowdown") return "backward";
+      if (k === "a" || k === "arrowleft") return "left";
+      if (k === "d" || k === "arrowright") return "right";
+      return null;
+    };
+    const onDown = (e: KeyboardEvent) => {
+      if (isTypingTarget(e.target)) return;
+      // Skip shortcuts (Cmd+S, Ctrl+A, ...) so we don't fight the OS.
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const d = directionOf(e);
+      if (!d) return;
+      keysDownRef.current.add(d);
+    };
+    const onUp = (e: KeyboardEvent) => {
+      const d = directionOf(e);
+      if (!d) return;
+      keysDownRef.current.delete(d);
+    };
+    // Window blur (alt-tab, focus to another app) can swallow the
+    // keyup, leaving a key "stuck" pressed forever. Clear everything
+    // on blur as a safety net.
+    const onBlur = () => keysDownRef.current.clear();
+    window.addEventListener("keydown", onDown);
+    window.addEventListener("keyup", onUp);
+    window.addEventListener("blur", onBlur);
+    return () => {
+      window.removeEventListener("keydown", onDown);
+      window.removeEventListener("keyup", onUp);
+      window.removeEventListener("blur", onBlur);
+    };
+  }, []);
+
   useEffect(() => {
     const c = controlsRef.current;
     if (!c) return;
@@ -123,19 +177,61 @@ function ControlsBridge({
 
     const a = animRef.current;
     if (a && c) {
-      c.target.lerp(a.target, 0.12);
-      c.object.position.lerp(a.position, 0.12);
-      c.update();
-      if (
-        c.target.distanceTo(a.target) < 0.005 &&
-        c.object.position.distanceTo(a.position) < 0.005
-      ) {
-        c.target.copy(a.target);
-        c.object.position.copy(a.position);
+      // WASD overrides any in-flight focus / reset tween — the user
+      // is taking manual control, don't fight them.
+      if (keysDownRef.current.size > 0) {
         animRef.current = null;
+      } else {
+        c.target.lerp(a.target, 0.12);
+        c.object.position.lerp(a.position, 0.12);
+        c.update();
+        if (
+          c.target.distanceTo(a.target) < 0.005 &&
+          c.object.position.distanceTo(a.position) < 0.005
+        ) {
+          c.target.copy(a.target);
+          c.object.position.copy(a.position);
+          animRef.current = null;
+        }
+        // While the focus/reset tween is running, skip ambient drift.
+        return;
       }
-      // While the focus/reset tween is running, skip ambient drift.
-      return;
+    }
+
+    // WASD / arrow-key pan. Runs every frame; if any direction key is
+    // held, translate the camera + target together along the ground
+    // plane. Cancels any in-flight tween (user is taking control) and
+    // bumps the interaction timestamp so ambient drift stays paused
+    // for ~30 s after the last key release.
+    if (c && keysDownRef.current.size > 0) {
+      // Camera→target direction projected onto the ground plane = forward.
+      const camOffset = c.object.position.clone().sub(c.target);
+      const forward = new Vector3(-camOffset.x, 0, -camOffset.z);
+      if (forward.lengthSq() > 1e-8) {
+        forward.normalize();
+        // right = forward × worldUp = (-forward.z, 0, forward.x).
+        const right = new Vector3(-forward.z, 0, forward.x);
+
+        const delta = new Vector3();
+        const k = keysDownRef.current;
+        if (k.has("forward")) delta.add(forward);
+        if (k.has("backward")) delta.sub(forward);
+        if (k.has("right")) delta.add(right);
+        if (k.has("left")) delta.sub(right);
+
+        if (delta.lengthSq() > 1e-8) {
+          // Speed scales with zoom — panning feels the same near and
+          // far. Floor at 2 u/s so even tight zooms move noticeably.
+          const distance = camOffset.length();
+          const speedPerSec = Math.max(2, distance * 0.6);
+          delta.normalize().multiplyScalar(speedPerSec * dt);
+          c.target.add(delta);
+          c.object.position.add(delta);
+          c.update();
+          lastInteractionMsRef.current = performance.now();
+          return; // skip ambient drift while panning
+        }
+      }
     }
 
     // Ambient drift — only when the user isn't dragging AND it's been

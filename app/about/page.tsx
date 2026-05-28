@@ -175,7 +175,7 @@ function DesktopAboutPage() {
           className="absolute flex h-[37px] w-[354px] flex-col justify-center text-center text-[16px] font-bold leading-[0] text-black uppercase"
           style={{ left: "198px", top: "351.5px", transform: "translate(-50%, -50%)" }}
         >
-          <p className="leading-[normal] mb-0">:a Korean onomatopoeic word describing</p>
+          <p className="leading-[normal] mb-0">.a Korean onomatopoeic word describing</p>
           <p className="leading-[normal] m-0">the gentle act of petting an animal</p>
         </div>
       </div>

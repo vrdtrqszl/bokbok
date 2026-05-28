@@ -132,6 +132,11 @@ function MobileCreateInner() {
     };
     uploadCreature(enriched);
     setUploadStatus("uploaded");
+    // EDIT-mode shortcut: navigate straight back to the main 3D world
+    // with the camera zoomed onto the edited creature. Mirrors desktop.
+    if (editingId) {
+      router.push(`/?focus=${encodeURIComponent(enriched.id)}`);
+    }
   };
 
   const handleReset = () => {

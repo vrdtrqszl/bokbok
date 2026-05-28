@@ -96,13 +96,14 @@ export default function MobileEncyclopediaPage() {
     <div className="relative min-h-screen w-full font-(family-name:--font-casual)">
       <MobileTopBar active="encyclopedia" />
 
-      {/* Search input — reuses the hand-drawn search-box-icon SVG so the
-          magnifying-glass + outlined input look matches desktop. The icon
-          (viewBox x≈7–26) renders at ~10–40 px on a 375-wide phone after
-          the 1.54× horizontal stretch — input left:56 leaves a ~16 px gap
-          between the magnifier's right edge and the first glyph. */}
-      <div className="px-4 pb-2 pt-5">
-        <div className="relative h-[44px] w-full">
+      {/* Search row + trash entry. The search input reuses the hand-
+          drawn search-box-icon SVG so it matches desktop. The trash
+          icon sits to its right at a 36×36 footprint — small enough to
+          read as a secondary affordance, big enough to comfortably tap.
+          Tapping routes to /encyclopedia/trash where MobileTrashPage
+          handles the soft-deleted archive. */}
+      <div className="flex items-center gap-2 px-4 pb-2 pt-5">
+        <div className="relative h-[44px] flex-1">
           <img
             alt=""
             src="/assets/search-box-icon.svg"
@@ -116,6 +117,19 @@ export default function MobileEncyclopediaPage() {
             className="absolute left-[56px] top-[10px] block h-[24px] w-[calc(100%-72px)] bg-transparent text-[18px] font-bold text-black outline-none placeholder:text-black/35"
           />
         </div>
+        <a
+          href="/encyclopedia/trash"
+          aria-label="View deleted creatures"
+          title="Trash"
+          className="block h-9 w-9 shrink-0 cursor-pointer transition-transform active:scale-95"
+        >
+          <img
+            alt=""
+            src="/assets/trash-button.svg"
+            className="block size-full max-w-none"
+            draggable={false}
+          />
+        </a>
       </div>
 
       {/* 2-col creature grid. Each tile keeps the hand-drawn creature-box-N

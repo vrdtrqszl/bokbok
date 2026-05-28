@@ -30,24 +30,11 @@ import CreatureCanvas from "@/app/_components/CreatureCanvas";
 import CreatureThumbnail from "@/app/_components/CreatureThumbnail";
 import ViewportZoomControls from "@/app/_components/ViewportZoomControls";
 import BokBokLogo from "@/app/_components/BokBokLogo";
+import MobileTrashPage from "@/app/_components/MobileTrashPage";
 
 export default function TrashPage() {
-  // For mobile, the encyclopedia's mobile layout doesn't have a trash
-  // equivalent yet — fall back to a simple placeholder. (Same fallback
-  // we use for other secondary pages on mobile.) Mobile users still
-  // see the trash button absent on the mobile encyclopedia screen
-  // because the mobile encyclopedia layout doesn't render the trash
-  // affordance currently.
   const isMobile = useIsMobile();
-  if (isMobile) {
-    return (
-      <div className="relative min-h-screen w-full px-6 py-10 text-center font-(family-name:--font-casual) text-black">
-        <p className="text-[18px] font-bold">
-          Open this page on desktop to view the trash.
-        </p>
-      </div>
-    );
-  }
+  if (isMobile) return <MobileTrashPage />;
   return <DesktopTrashPage />;
 }
 

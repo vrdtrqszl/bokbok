@@ -177,7 +177,7 @@ export default function MobileAboutPage() {
               BokBok
             </span>
             <div className="mt-1 px-4 text-center text-[13px] font-bold leading-snug text-black">
-              <p className="m-0">:a Korean onomatopoeic word describing</p>
+              <p className="m-0">.a Korean onomatopoeic word describing</p>
               <p className="m-0">the gentle act of petting an animal</p>
             </div>
           </div>

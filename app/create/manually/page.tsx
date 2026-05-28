@@ -155,6 +155,12 @@ function CreateManuallyPageInner() {
     // the giggle when editing an existing creature — that's a save, not
     // a birth.
     if (!editingId) playCreatureGiggle(enriched.blocks);
+    // EDIT-mode shortcut: hop straight back to the main 3D world with
+    // the camera zoomed onto the saved creature. NEW-creation keeps
+    // the "Uploaded" confirmation card so users can savor the result.
+    if (editingId) {
+      router.push(`/?focus=${encodeURIComponent(enriched.id)}`);
+    }
   };
 
   const handleDelete = () => {
