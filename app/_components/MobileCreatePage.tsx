@@ -104,7 +104,7 @@ function MobileCreateInner() {
     playCreatureGiggle(c.blocks);
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
       alert(t("create.alert_creature_name"));
@@ -130,7 +130,8 @@ function MobileCreateInner() {
       dateISO: toISO(selectedDate),
       source: "generate",
     };
-    uploadCreature(enriched);
+    // AWAIT — see desktop create page for why this matters.
+    await uploadCreature(enriched);
     setUploadStatus("uploaded");
     // EDIT-mode shortcut: navigate straight back to the main 3D world
     // with the camera zoomed onto the edited creature. Mirrors desktop.

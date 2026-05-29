@@ -122,7 +122,7 @@ function CreatePageInner() {
     playCreatureGiggle(c.blocks);
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
       alert(t("create.alert_creature_name"));
@@ -155,7 +155,13 @@ function CreatePageInner() {
       dateISO: toISO(selectedDate),
       source: "generate",
     };
-    uploadCreature(enriched);
+    // AWAIT so the new row is in the ecosystem BEFORE we navigate. The
+    // main page's focus polling used to race against the in-flight
+    // Supabase write — meaning the new creature was sometimes invisible
+    // on arrival (camera didn't move because the polling timed out
+    // before the write landed) and the polling itself spammed loadEco-
+    // system every 100 ms, causing visible lag.
+    await uploadCreature(enriched);
     setUploadStatus("uploaded");
     // EDIT-mode shortcut: the user came in via /encyclopedia (or
     // /calender) Edit, so after saving they expect to land back on the

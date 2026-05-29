@@ -18,6 +18,21 @@ const TEXTURE_PATHS = EMOTION_LIST.map((e) => e.imagePath);
 // creature actually IS at any given moment.
 export const creaturePositions = new Map<string, [number, number, number]>();
 
+// Pinset (tweezers) target — the cursor's world-XZ projection onto the
+// ground plane. Updated by MainViewport's PinsetCursorTracker on every
+// pointermove while a creature is held. The held EnergyCreature reads
+// this on each useFrame tick and snaps to it, so the grabbed creature
+// follows the cursor in real time without per-frame React state churn.
+//
+// `active` flips true only while a creature is held; clears any stale
+// target state and lets EnergyCreature skip the snap branch cheaply
+// when nothing is being dragged.
+export const pinsetTarget: { x: number; z: number; active: boolean } = {
+  x: 0,
+  z: 0,
+  active: false,
+};
+
 // ---- Ecosystem-level "gather" command --------------------------------
 // When the candy button on the main page is pressed, the flock cycles
 // through three phases:
@@ -52,6 +67,171 @@ export function triggerEcosystemGather(target?: { x: number; z: number }): void 
   gatherUntilMs = now + GATHER_DURATION_SEC * 1000;
   scatterUntilMs = gatherUntilMs + SCATTER_DURATION_SEC * 1000;
   gatherCenter = target ? { x: target.x, z: target.z } : { x: 0, z: 0 };
+}
+
+// ---- Candy sprinkle particles ---------------------------------------
+// The candy button (treats mode) sprinkles a handful of small candy
+// objects around the clicked world-XZ. Each particle sits on the
+// ground until a creature reaches it; on contact the particle is
+// "eaten" (removed from the list, listeners refresh the React render).
+//
+// Creatures detect nearby candies inside their wander pick — if a
+// candy is within ATTRACT_RADIUS the next hop targets it instead of
+// the random direction. The closest creature wins each tick (no
+// shared targeting because every creature picks independently); the
+// candy disappears the moment one creature is within EAT_RADIUS.
+//
+// State lives at module scope so creature useFrames + the React
+// <CandyParticles> mesh both read from the same source of truth
+// without prop drilling.
+
+export type CandyParticle = { id: string; x: number; z: number };
+const candyParticles: CandyParticle[] = [];
+const candyListeners = new Set<() => void>();
+let candyCounter = 0;
+const CANDY_SPRINKLE_COUNT_MIN = 6;
+const CANDY_SPRINKLE_COUNT_MAX = 9;
+const CANDY_SPRINKLE_RADIUS = 1.4;
+const CANDY_ATTRACT_RADIUS = 4.5; // creatures within this aim for the nearest candy
+const CANDY_EAT_RADIUS = 0.35;    // when a creature lands within this, the candy is eaten
+
+/** Drop a small cluster of candies on the ground at (cx, cz). Used by
+ *  the candy button's "sprinkle treats" click. */
+export function triggerCandySprinkle(cx: number, cz: number): void {
+  const count =
+    CANDY_SPRINKLE_COUNT_MIN +
+    Math.floor(Math.random() * (CANDY_SPRINKLE_COUNT_MAX - CANDY_SPRINKLE_COUNT_MIN + 1));
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const r = Math.sqrt(Math.random()) * CANDY_SPRINKLE_RADIUS;
+    candyParticles.push({
+      id: `c${candyCounter++}`,
+      x: cx + Math.cos(angle) * r,
+      z: cz + Math.sin(angle) * r,
+    });
+  }
+  candyListeners.forEach((l) => l());
+}
+
+function findNearestCandy(x: number, z: number, maxRadius: number): CandyParticle | undefined {
+  let best: CandyParticle | undefined;
+  let bestDist = maxRadius;
+  for (const c of candyParticles) {
+    const dx = c.x - x;
+    const dz = c.z - z;
+    const d = Math.hypot(dx, dz);
+    if (d < bestDist) {
+      best = c;
+      bestDist = d;
+    }
+  }
+  return best;
+}
+
+function consumeCandy(id: string): void {
+  const idx = candyParticles.findIndex((c) => c.id === id);
+  if (idx >= 0) {
+    candyParticles.splice(idx, 1);
+    candyListeners.forEach((l) => l());
+  }
+}
+
+function useCandyParticles(): CandyParticle[] {
+  const [list, setList] = useState<CandyParticle[]>(() => candyParticles.slice());
+  useEffect(() => {
+    const update = () => setList(candyParticles.slice());
+    candyListeners.add(update);
+    return () => {
+      candyListeners.delete(update);
+    };
+  }, []);
+  return list;
+}
+
+// ---- Fetch ball ------------------------------------------------------
+// The ball button throws a ball into the scene. The ball arcs in from
+// above the click point (bouncing phase) and lands at (x, z). At spawn
+// time a random visible creature is chosen as the "fetcher" — they
+// stop wandering, head to the ball, pick it up, then carry it back
+// toward the world origin (the camera's gaze when at default zoom).
+// On delivery the ball + assignment clear and the creature resumes
+// normal wandering.
+//
+// Phases:
+//   • 'bouncing'  (0..0.9 s)   — ball arcs from sky down to ground
+//   • 'sitting'                 — fetcher creature en route to it
+//   • 'carrying'                — fetcher has it, walking back
+//   • 'delivered'               — at origin, ball + state cleared next tick
+
+export type BallPhase = 'bouncing' | 'sitting' | 'carrying' | 'delivered';
+export type BallState = {
+  x: number;
+  z: number;
+  // y is computed each frame by FetchBall component (bounce arc).
+  phase: BallPhase;
+  carrierId: string | null;
+  spawnMs: number;
+};
+let ballState: BallState | null = null;
+const ballListeners = new Set<() => void>();
+const BALL_BOUNCE_MS = 900;
+const BALL_PICKUP_RADIUS = 0.45;
+const BALL_DELIVER_RADIUS = 1.4;
+const BALL_DELIVER_TARGET = { x: 0, z: 0 }; // origin — camera looks here at default zoom
+
+/** Throw a ball into the scene at (cx, cz). Picks a random `availableIds`
+ *  creature as the fetcher. Replaces any in-flight ball. */
+export function triggerBallThrow(
+  cx: number,
+  cz: number,
+  availableIds: string[],
+): void {
+  if (availableIds.length === 0) return;
+  const fetcherId = availableIds[Math.floor(Math.random() * availableIds.length)];
+  ballState = {
+    x: cx,
+    z: cz,
+    phase: 'bouncing',
+    carrierId: fetcherId,
+    spawnMs: performance.now(),
+  };
+  ballListeners.forEach((l) => l());
+}
+
+/** Read current ball state. Returns null if no ball is active. */
+export function getBallState(): BallState | null {
+  return ballState;
+}
+
+function setBallPhase(next: BallPhase): void {
+  if (!ballState) return;
+  ballState.phase = next;
+  ballListeners.forEach((l) => l());
+}
+
+function setBallPosition(x: number, z: number): void {
+  if (!ballState) return;
+  ballState.x = x;
+  ballState.z = z;
+  // Don't broadcast — high-frequency position changes are read
+  // directly each frame by consumers without re-renders.
+}
+
+function clearBall(): void {
+  ballState = null;
+  ballListeners.forEach((l) => l());
+}
+
+function useBallState(): BallState | null {
+  const [state, setState] = useState<BallState | null>(() => ballState);
+  useEffect(() => {
+    const update = () => setState(ballState ? { ...ballState } : null);
+    ballListeners.add(update);
+    return () => {
+      ballListeners.delete(update);
+    };
+  }, []);
+  return state;
 }
 
 // No hard radius wall — creatures hop freely on the flat ground plane.
@@ -142,6 +322,10 @@ export function EnergyCreature({
   selected,
   petMode,
   candyMode,
+  pinsetMode,
+  held,
+  onPinsetGrab,
+  onPetComplete,
   onCandyClick,
   onHover,
 }: {
@@ -156,6 +340,17 @@ export function EnergyCreature({
    *  the candy cursor). */
   candyMode?: boolean;
   onCandyClick?: (x: number, z: number) => void;
+  /** When true, the tweezers are active. A click on the creature fires
+   *  onPinsetGrab to take it into hand. */
+  pinsetMode?: boolean;
+  /** True iff THIS creature is currently held by the tweezers. Its
+   *  wander is overridden to follow the cursor's world-XZ via
+   *  `pinsetTarget` each frame. */
+  held?: boolean;
+  onPinsetGrab?: (id: string) => void;
+  /** Fires once the shake has been triggered (pet mode click). Page
+   *  auto-exits pet mode in response. */
+  onPetComplete?: () => void;
   /** Fires when the pointer enters/leaves a creature. Pass null on leave. */
   onHover?: (creature: CreatureSpec | null) => void;
 }) {
@@ -231,7 +426,22 @@ export function EnergyCreature({
     const phase = seedPhase * Math.PI * 2;
     const w = wander.current;
 
-    if (selected) {
+    if (held && pinsetTarget.active) {
+      // Pinset-held: snap the wander position to the cursor's world-XZ
+      // projection. We tween toward the target rather than hard-set so
+      // a fast cursor sweep doesn't feel teleport-y. Y settles to 0 so
+      // the creature reads as "pinched" — no lift-off arc.
+      const snap = 0.4; // 0..1; higher = stickier to cursor
+      w.pos.x += (pinsetTarget.x - w.pos.x) * snap;
+      w.pos.z += (pinsetTarget.z - w.pos.z) * snap;
+      w.pos.y += (0 - w.pos.y) * 0.25;
+      w.from.copy(w.pos);
+      w.to.copy(w.pos);
+      w.progress = 1;
+      // Reset jump timer so the moment the user drops the creature, it
+      // doesn't immediately spring off in some stale direction.
+      w.nextJumpAt = t + 0.5 + Math.random() * 0.8;
+    } else if (selected) {
       // Selected creature pauses in place so the focused camera can stay on
       // it. Settle gently to the ground if mid-air.
       w.pos.y += (0 - w.pos.y) * 0.15;
@@ -244,6 +454,56 @@ export function EnergyCreature({
         const dist = Math.hypot(w.pos.x, w.pos.z);
         let dir: number;
         let step: number;
+        // Hoisted so the separation step below (line ~580) can see them.
+        // Only the normal-wander branch sets these to true.
+        let gathering = false;
+        let scattering = false;
+
+        // Fetch-ball override (takes priority over everything else).
+        //   • If I'm the chosen fetcher AND the ball is sitting → aim
+        //     hops at the ball's XZ.
+        //   • If carrying → aim hops at BALL_DELIVER_TARGET (origin).
+        // The FetchBall component's useFrame handles phase transitions
+        // (sitting→carrying when I touch the ball; carrying→delivered
+        // when I reach the deliver target).
+        const ball = ballState;
+        const amCarrier = ball && ball.carrierId === creature.id;
+        if (amCarrier && ball && ball.phase === 'sitting') {
+          const dxB = ball.x - w.pos.x;
+          const dzB = ball.z - w.pos.z;
+          const distB = Math.hypot(dxB, dzB);
+          dir =
+            Math.atan2(dzB, dxB) + (Math.random() - 0.5) * Math.PI * 0.08;
+          step = Math.min(distB, HOP_MAX_STEP * 1.4);
+        } else if (amCarrier && ball && ball.phase === 'carrying') {
+          const dxD = BALL_DELIVER_TARGET.x - w.pos.x;
+          const dzD = BALL_DELIVER_TARGET.z - w.pos.z;
+          const distD = Math.hypot(dxD, dzD);
+          dir =
+            Math.atan2(dzD, dxD) + (Math.random() - 0.5) * Math.PI * 0.08;
+          step = Math.min(distD, HOP_MAX_STEP * 1.4);
+        } else {
+        // Candy treat attract — if a candy particle is within
+        // CANDY_ATTRACT_RADIUS of me, head to it (overriding the
+        // random wander but BELOW the ball-fetch + gather priorities).
+        const candy = findNearestCandy(w.pos.x, w.pos.z, CANDY_ATTRACT_RADIUS);
+        if (candy) {
+          const dxC = candy.x - w.pos.x;
+          const dzC = candy.z - w.pos.z;
+          const distC = Math.hypot(dxC, dzC);
+          if (distC < CANDY_EAT_RADIUS) {
+            // Already on top of it — eat in place. Tiny celebration hop.
+            consumeCandy(candy.id);
+            dir = Math.random() * Math.PI * 2;
+            step = 0.08 + Math.random() * 0.15;
+          } else {
+            dir =
+              Math.atan2(dzC, dxC) +
+              (Math.random() - 0.5) * Math.PI * 0.15;
+            // Stride toward the candy; don't overshoot.
+            step = Math.min(distC, HOP_MAX_STEP * 1.3);
+          }
+        } else {
 
         // Candy-button gather/scatter override.
         //   • While `gatherUntilMs` is in the future → aim at the
@@ -254,8 +514,8 @@ export function EnergyCreature({
         // After both windows close, fall through to the normal wander
         // pick below.
         const now = performance.now();
-        const gathering = now < gatherUntilMs;
-        const scattering = !gathering && now < scatterUntilMs;
+        gathering = now < gatherUntilMs;
+        scattering = !gathering && now < scatterUntilMs;
         if (gathering) {
           // Translate the creature's personal annulus spot to whatever
           // centre the gather was fired against (origin by default,
@@ -308,6 +568,8 @@ export function EnergyCreature({
           step =
             HOP_MIN_STEP + Math.random() * (HOP_MAX_STEP - HOP_MIN_STEP);
         }
+        } // end candy-attract else branch
+        } // end ball-fetch else branch
         let nx = w.pos.x + Math.cos(dir) * step;
         let nz = w.pos.z + Math.sin(dir) * step;
 
@@ -464,6 +726,14 @@ export function EnergyCreature({
       onPointerUp={(e) => e.stopPropagation()}
       onClick={(e) => {
         e.stopPropagation();
+        if (pinsetMode) {
+          // Pinset (tweezers) — grab this creature. If something else
+          // is already held the parent state machine will replace it.
+          // Releasing happens via an empty-ground click or Escape (both
+          // handled at the page level) so we don't toggle here.
+          onPinsetGrab?.(creature.id);
+          return;
+        }
         if (candyMode) {
           // Candy cursor — clicking a creature is treated the same as
           // clicking the ground at that creature's XZ: the flock will
@@ -476,9 +746,10 @@ export function EnergyCreature({
           return;
         }
         if (petMode) {
-          // Pet the creature — shake for ~1.4 seconds. Click again to
-          // re-shake (the timestamp just gets bumped).
+          // Pet the creature — shake for ~1.4 seconds, then notify the
+          // page so it can auto-exit pet mode (single-shot UX).
           shakeUntilRef.current = performance.now() / 1000 + 1.4;
+          onPetComplete?.();
           return;
         }
         const g = groupRef.current;
@@ -519,6 +790,10 @@ export default function EcosystemCreatures({
   query,
   petMode,
   candyMode,
+  pinsetMode,
+  heldId,
+  onPinsetGrab,
+  onPetComplete,
   onCandyClick,
   onHover,
 }: {
@@ -531,6 +806,16 @@ export default function EcosystemCreatures({
    *  instead of focusing the camera. */
   candyMode?: boolean;
   onCandyClick?: (x: number, z: number) => void;
+  /** When true, the tweezers are active — clicking a creature grabs it
+   *  (fires onPinsetGrab); the held creature snaps to pinsetTarget on
+   *  every frame instead of wandering. */
+  pinsetMode?: boolean;
+  /** Id of the creature currently held by the tweezers (if any). */
+  heldId?: string | null;
+  onPinsetGrab?: (id: string) => void;
+  /** Fires once a creature has been pet (shake initiated). The page
+   *  uses this to auto-exit pet mode for single-shot UX. */
+  onPetComplete?: () => void;
   /** Fires with the hovered creature on enter, null on leave. */
   onHover?: (creature: CreatureSpec | null) => void;
 } = {}) {
@@ -617,11 +902,114 @@ export default function EcosystemCreatures({
             selected={selectedId === c.id}
             petMode={petMode}
             candyMode={candyMode}
+            pinsetMode={pinsetMode}
+            held={heldId === c.id}
+            onPinsetGrab={onPinsetGrab}
+            onPetComplete={onPetComplete}
             onCandyClick={onCandyClick}
             onHover={onHover}
           />
         );
       })}
+      {/* Candy treats sitting on the ground until a creature eats them.
+          Re-rendered when the candy list changes (spawn / consume). */}
+      <CandyParticles />
+      {/* Active fetch-ball (zero or one). Animates the bounce-in arc
+          + carries with the assigned fetcher creature. */}
+      <FetchBall />
     </Suspense>
+  );
+}
+
+// ---- Candy + Ball meshes --------------------------------------------
+
+/** Renders the current candy particle list as small ground-hugging
+ *  spheres. Position is static per-particle — creatures move to them,
+ *  not vice versa. Sphere segments kept low (8/6) since dozens may
+ *  spawn at once. */
+function CandyParticles() {
+  const candies = useCandyParticles();
+  return (
+    <>
+      {candies.map((c) => (
+        <mesh key={c.id} position={[c.x, 0.18, c.z]}>
+          <sphereGeometry args={[0.16, 8, 6]} />
+          <meshBasicMaterial color="#ff5b88" />
+        </mesh>
+      ))}
+    </>
+  );
+}
+
+/** Renders the fetch ball (when present). Handles the bounce-in arc
+ *  in the `bouncing` phase, then sits on the ground in `sitting`,
+ *  follows the fetcher creature in `carrying`, then despawns in
+ *  `delivered`. */
+function FetchBall() {
+  const state = useBallState();
+  const meshRef = useRef<import("three").Mesh | null>(null);
+
+  useFrame(() => {
+    if (!ballState || !meshRef.current) return;
+    const m = meshRef.current;
+    const phase = ballState.phase;
+    const t = (performance.now() - ballState.spawnMs) / 1000;
+
+    if (phase === 'bouncing') {
+      // Parabolic arc from y=6 down to y=0.25 (ball radius). Two small
+      // bounces give it cartoon weight before settling.
+      const dur = BALL_BOUNCE_MS / 1000;
+      const u = Math.min(1, t / dur);
+      // Composite curve: drops down (1-u) + sin overlay for two pop-ups.
+      const dropY = 6 * (1 - u) * (1 - u);
+      const bounce = 0.6 * Math.max(0, Math.sin(u * Math.PI * 2));
+      m.position.set(ballState.x, 0.25 + dropY + bounce, ballState.z);
+      if (t >= dur) {
+        setBallPhase('sitting');
+      }
+    } else if (phase === 'sitting') {
+      m.position.set(ballState.x, 0.25, ballState.z);
+      // Transition to carrying when the fetcher actually touches the
+      // ball. Watch the live creature position; flip on contact.
+      const carrierId = ballState.carrierId;
+      const pos = carrierId ? creaturePositions.get(carrierId) : undefined;
+      if (pos) {
+        const dx = pos[0] - ballState.x;
+        const dz = pos[2] - ballState.z;
+        if (Math.hypot(dx, dz) < BALL_PICKUP_RADIUS) {
+          setBallPhase('carrying');
+        }
+      }
+    } else if (phase === 'carrying') {
+      // Hover slightly above the carrier's wander position. The carrier
+      // creature writes its world position into creaturePositions each
+      // frame — read from there so the ball tracks the held creature.
+      const carrierId = ballState.carrierId;
+      const pos = carrierId ? creaturePositions.get(carrierId) : undefined;
+      if (pos) {
+        // Lift the ball above the creature's head (rough height).
+        m.position.set(pos[0], pos[1] + 1.0, pos[2]);
+        // Mirror the live position back into ballState so external
+        // checks know where the ball currently is while in transit.
+        setBallPosition(pos[0], pos[2]);
+        // Delivered when the carrier reaches the deliver target.
+        const dx = pos[0] - BALL_DELIVER_TARGET.x;
+        const dz = pos[2] - BALL_DELIVER_TARGET.z;
+        if (Math.hypot(dx, dz) < BALL_DELIVER_RADIUS) {
+          setBallPhase('delivered');
+        }
+      }
+    } else if (phase === 'delivered') {
+      // Frame-after-delivery: clear so the mesh unmounts cleanly.
+      clearBall();
+    }
+  });
+
+  if (!state) return null;
+  return (
+    <mesh ref={meshRef} position={[state.x, 0.25, state.z]}>
+      <sphereGeometry args={[0.28, 14, 12]} />
+      <meshBasicMaterial color="#ffe28a" />
+    </mesh>
   );
 }

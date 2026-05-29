@@ -1,10 +1,10 @@
 "use client";
 
-import { Canvas, useFrame, useLoader } from "@react-three/fiber";
+import { Canvas, useFrame, useLoader, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { RepeatWrapping, TextureLoader, Vector3 } from "three";
-import EcosystemCreatures, { setEcosystemZoomDistance } from "./EcosystemCreatures";
+import { Plane, Raycaster, RepeatWrapping, TextureLoader, Vector2, Vector3 } from "three";
+import EcosystemCreatures, { setEcosystemZoomDistance, pinsetTarget } from "./EcosystemCreatures";
 import CreaturesErrorBoundary from "./CreaturesErrorBoundary";
 import SoundToggle from "./SoundToggle";
 import type { CreatureSpec } from "@/lib/creature";
@@ -364,6 +364,13 @@ export default function MainViewport({
   fullscreen = false,
   petMode = false,
   candyMode = false,
+  pinsetMode = false,
+  heldId = null,
+  ballMode = false,
+  whistleMode = false,
+  onPinsetGrab,
+  onPinsetRelease: _onPinsetRelease,
+  onPetComplete,
   onCandyClick,
   onEmptyGroundClick,
   onCreatureHover,
@@ -383,6 +390,32 @@ export default function MainViewport({
   /** When true, clicking the ground plane fires onCandyClick(x, z) so
    *  the page can summon creatures to that point + play the candy rustle. */
   candyMode?: boolean;
+  /** When true, the pinset (tweezers) is active. Clicking a creature
+   *  fires onPinsetGrab; the cursor follows it and the creature snaps to
+   *  the cursor's world-XZ until released. */
+  pinsetMode?: boolean;
+  /** Id of the currently-held creature (only meaningful while
+   *  pinsetMode). Passed to EcosystemCreatures so the held creature
+   *  overrides its wander to follow the cursor. */
+  heldId?: string | null;
+  /** Fires when a creature is tapped while pinsetMode is on AND no
+   *  creature is currently held — i.e. the "grab" action. */
+  onPinsetGrab?: (id: string) => void;
+  /** Fires when the user releases (taps empty ground / presses Escape).
+   *  Currently page-level state handles release directly; kept here for
+   *  future per-frame release affordances. */
+  onPinsetRelease?: () => void;
+  /** Ball-throw mode — clicking the ground fires `onCandyClick(x, z)`
+   *  (re-used as a generic scene-tap channel) so the page can throw
+   *  the ball at that point. */
+  ballMode?: boolean;
+  /** Whistle mode — clicking the ground fires `onCandyClick(x, z)` so
+   *  the page can summon the whole flock to that point. */
+  whistleMode?: boolean;
+  /** Fires after the user pets a creature (pet mode click). Lets the
+   *  page auto-exit pet mode so the cursor returns to default — same
+   *  single-shot UX as the candy/whistle/ball tools. */
+  onPetComplete?: () => void;
   /** Fires with world-space XZ when the user clicks the ground (or any
    *  open scene area) while candy mode is on. */
   onCandyClick?: (x: number, z: number) => void;
@@ -495,9 +528,13 @@ export default function MainViewport({
               transparent for the one frame before the image lands. */}
           <Suspense fallback={null}>
             <GroundPlane
-              onCandyClick={candyMode ? onCandyClick : undefined}
+              onCandyClick={
+                candyMode || ballMode || whistleMode ? onCandyClick : undefined
+              }
               onEmptyClick={
-                candyMode || petMode ? undefined : onEmptyGroundClick
+                candyMode || petMode || ballMode || whistleMode
+                  ? undefined
+                  : onEmptyGroundClick
               }
             />
           </Suspense>
@@ -516,6 +553,10 @@ export default function MainViewport({
                 query={query}
                 petMode={petMode}
                 candyMode={candyMode}
+                pinsetMode={pinsetMode}
+                heldId={heldId}
+                onPinsetGrab={onPinsetGrab}
+                onPetComplete={onPetComplete}
                 onCandyClick={onCandyClick}
                 onHover={onCreatureHover}
               />
@@ -526,6 +567,13 @@ export default function MainViewport({
             focusTarget={focusTarget}
             resetTrigger={resetTrigger}
           />
+          {/* Mouse-to-ground tracker — when pinsetMode is on, each
+              pointermove projects the cursor onto the y=0 ground plane
+              and stores the world XZ in `pinsetTarget`. The held
+              creature reads from that ref in its useFrame and snaps to
+              the cursor every frame, giving a "pick up + move with
+              tweezers" feel without any per-frame React state churn. */}
+          <PinsetCursorTracker active={pinsetMode && !!heldId} />
         </Canvas>
       </div>
 
@@ -583,6 +631,64 @@ export default function MainViewport({
       )}
     </div>
   );
+}
+
+/**
+ * Listens for window pointermove while pinset-mode is "holding" a
+ * creature. On each move, raycast from the camera through the cursor
+ * into the y=0 ground plane and write the world XZ into the shared
+ * `pinsetTarget` ref so the held creature's useFrame can snap to it.
+ *
+ * Lives INSIDE the <Canvas> so useThree() gives us the actual r3f
+ * camera + canvas element (not the OrbitControls camera, which can
+ * lag). Doing the math here per-pointer-move (rather than per-frame)
+ * keeps the held creature's cursor-tracking instant without burning
+ * cycles when the cursor isn't moving.
+ */
+function PinsetCursorTracker({ active }: { active: boolean }) {
+  const { camera, gl, pointer } = useThree();
+  // Stable scratch objects — avoid allocating per pointermove.
+  const ndc = useRef(new Vector2()).current;
+  const raycaster = useRef(new Raycaster()).current;
+  const ground = useRef(new Plane(new Vector3(0, 1, 0), 0)).current;
+  const out = useRef(new Vector3()).current;
+
+  useEffect(() => {
+    if (!active) {
+      pinsetTarget.active = false;
+      return;
+    }
+    pinsetTarget.active = true;
+
+    // Initial projection from r3f's current pointer NDC so the
+    // grabbed creature snaps to wherever the cursor IS right now,
+    // not (0, 0), before the first pointermove fires.
+    raycaster.setFromCamera(pointer, camera);
+    if (raycaster.ray.intersectPlane(ground, out)) {
+      pinsetTarget.x = out.x;
+      pinsetTarget.z = out.z;
+    }
+
+    const canvas = gl.domElement;
+    const onMove = (e: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(ndc, camera);
+      if (raycaster.ray.intersectPlane(ground, out)) {
+        pinsetTarget.x = out.x;
+        pinsetTarget.z = out.z;
+      }
+    };
+    window.addEventListener("pointermove", onMove);
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      pinsetTarget.active = false;
+    };
+  }, [active, camera, gl, pointer]);
+
+  return null;
 }
 
 /**

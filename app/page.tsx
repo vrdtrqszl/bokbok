@@ -5,7 +5,12 @@ import { useEffect, useRef, useState } from "react";
 import MainViewport, { type FocusTarget, type ResetTrigger } from "./_components/MainViewport";
 import BokBokLogo from "./_components/BokBokLogo";
 import CandyButton from "./_components/CandyButton";
-import { creaturePositions } from "./_components/EcosystemCreatures";
+import {
+  creaturePositions,
+  triggerEcosystemGather,
+  triggerCandySprinkle,
+  triggerBallThrow,
+} from "./_components/EcosystemCreatures";
 import { useT } from "@/lib/i18n";
 import { deleteCreatureById, loadEcosystem, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { creatureFocusBox, emotionByKey, type CreatureSpec } from "@/lib/creature";
@@ -17,7 +22,6 @@ import {
 import { downloadCreaturePng } from "@/lib/downloadCreature";
 import { playCandyRustle, unlockAudio } from "@/lib/audio";
 import { ambientChatter } from "@/lib/ambientChatter";
-import { triggerEcosystemGather } from "./_components/EcosystemCreatures";
 
 export default function MainPage() {
   // The dedicated mobile layout (MobileMainPage) is currently paused.
@@ -43,6 +47,20 @@ function DesktopMainPage() {
   // point + replays the plastic-bag rustle. Mutually exclusive with
   // pet mode (activating one exits the other).
   const [candyMode, setCandyMode] = useState(false);
+  // Pinset mode: cursor becomes the hand-drawn tweezers. Clicking a
+  // creature "grabs" it (heldId set, cursor swaps to pinset-close,
+  // creature snaps to the cursor's world-XZ each frame). Another click
+  // (or Escape) releases. Mutually exclusive with pet / candy modes.
+  const [pinsetMode, setPinsetMode] = useState(false);
+  const [heldId, setHeldId] = useState<string | null>(null);
+  // Ball mode: cursor becomes the ball icon. Clicking the ground throws
+  // the ball at that XZ (bounces in, random creature fetches it and
+  // brings it back to origin). Mutually exclusive with other modes.
+  const [ballMode, setBallMode] = useState(false);
+  // Whistle mode: cursor becomes the whistle icon. Clicking the ground
+  // makes the WHOLE flock gather to that point — the previous "candy
+  // button" behaviour now lives under the whistle. Mutually exclusive.
+  const [whistleMode, setWhistleMode] = useState(false);
   // Search query — filters which creatures render in the 3D scene
   // (via EcosystemCreatures' `query` prop, which already supports
   // matchesCreatureQuery). Empty string = show everything.
@@ -139,37 +157,139 @@ function DesktopMainPage() {
     ambientChatter.setSelected(selected?.id ?? null);
   }, [selected?.id]);
 
-  // Exit pet / candy mode on Escape — feels natural for "I'm done".
+  // Exit any active mode on Escape — feels natural for "I'm done".
+  // Pinset Escape also drops any held creature so the user isn't stuck
+  // with a stranded creature glued to a hidden cursor.
   useEffect(() => {
-    if (!petMode && !candyMode) return;
+    if (!petMode && !candyMode && !pinsetMode && !ballMode && !whistleMode) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (petMode) setPetMode(false);
       if (candyMode) setCandyMode(false);
+      if (pinsetMode) {
+        setPinsetMode(false);
+        setHeldId(null);
+      }
+      if (ballMode) setBallMode(false);
+      if (whistleMode) setWhistleMode(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [petMode, candyMode]);
+  }, [petMode, candyMode, pinsetMode, ballMode, whistleMode]);
 
-  // Activating one mode exits the other so we never have two custom
+  // While holding a creature with the pinset, ANY click that lands
+  // outside the 3D canvas drops the creature AND exits pinset mode —
+  // clicking the info panel, a nav link, the search box, the Pet/
+  // Candy/Ball/Whistle buttons, anywhere off-scene all count as "I'm
+  // done holding this" and end the pinset operation. Clicks INSIDE
+  // the canvas are handled by r3f directly (GroundPlane onEmptyClick
+  // releases + exits; tapping a different creature swaps the grab to
+  // that one without ending the mode) so we skip those here.
+  useEffect(() => {
+    if (!pinsetMode || !heldId) return;
+    const onWindowClick = (e: MouseEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && t.closest("canvas")) return;
+      setHeldId(null);
+      setPinsetMode(false);
+    };
+    window.addEventListener("click", onWindowClick);
+    return () => window.removeEventListener("click", onWindowClick);
+  }, [pinsetMode, heldId]);
+
+  // Activating one mode exits the others so we never have two custom
   // cursors fighting for the click.
-  const toggleCandyMode = () => {
-    setCandyMode((on) => !on);
+  const exitAllModes = () => {
     setPetMode(false);
+    setCandyMode(false);
+    setPinsetMode(false);
+    setHeldId(null);
+    setBallMode(false);
+    setWhistleMode(false);
+  };
+  const toggleCandyMode = () => {
+    const next = !candyMode;
+    exitAllModes();
+    setCandyMode(next);
   };
   const togglePetMode = () => {
-    setPetMode((on) => !on);
-    setCandyMode(false);
+    const next = !petMode;
+    exitAllModes();
+    setPetMode(next);
+  };
+  const togglePinsetMode = () => {
+    const next = !pinsetMode;
+    exitAllModes();
+    setPinsetMode(next);
+  };
+  const toggleBallMode = () => {
+    const next = !ballMode;
+    exitAllModes();
+    setBallMode(next);
+  };
+  const toggleWhistleMode = () => {
+    const next = !whistleMode;
+    exitAllModes();
+    setWhistleMode(next);
   };
 
-  // Candy mode: a click anywhere on the ground (world XZ) summons the
-  // flock to that point and replays the plastic-bag cue. The actual
-  // pointer event is captured by the ground plane mesh inside
-  // MainViewport (see onCandyClick prop below).
-  const handleCandyClick = (x: number, z: number) => {
+  // Called by EcosystemCreatures when a creature is clicked while in
+  // pinset mode AND nothing is currently held. The creature becomes
+  // "grabbed": its wander logic is overridden to follow the cursor's
+  // world-XZ projection until released.
+  const handlePinsetGrab = (id: string) => {
+    setHeldId(id);
+  };
+  // Click on empty ground (or pinset button again, or Escape) releases.
+  const handlePinsetRelease = () => {
+    setHeldId(null);
+  };
+
+  // The single shared "ground tap with a mode" dispatcher — MainViewport
+  // forwards GroundPlane clicks here, and we dispatch based on which
+  // mode is currently active. Each mode does something different at the
+  // tapped world-XZ AND auto-exits the mode after firing once, so the
+  // cursor returns to default. Re-press the button to use the tool
+  // again — feels more game-like and prevents accidental re-triggers.
+  //   • Candy   — sprinkle a small cluster of treats; creatures within
+  //               attract radius come over and eat them.
+  //   • Whistle — summon the WHOLE flock to that point (the legacy
+  //               candy gather behaviour).
+  //   • Ball    — throw the ball there; a random creature fetches it
+  //               and brings it back to origin.
+  const handleSceneClick = (x: number, z: number) => {
     unlockAudio();
-    playCandyRustle();
-    triggerEcosystemGather({ x, z });
+    if (candyMode) {
+      playCandyRustle();
+      triggerCandySprinkle(x, z);
+      setCandyMode(false);
+      return;
+    }
+    if (whistleMode) {
+      playCandyRustle();
+      triggerEcosystemGather({ x, z });
+      setWhistleMode(false);
+      return;
+    }
+    if (ballMode) {
+      playCandyRustle();
+      // Eligible fetchers = whatever's currently rendered (a creature
+      // outside the viewport could still pick up the ball but the user
+      // wouldn't see them; restricting to known positions keeps the
+      // delivery legible). Falls back to no-op if scene is empty.
+      const ids = Array.from(creaturePositions.keys());
+      triggerBallThrow(x, z, ids);
+      setBallMode(false);
+      return;
+    }
+  };
+
+  // Called by EcosystemCreatures right after a creature shake completes
+  // in pet mode. Lets us auto-exit pet mode after one pet so the cursor
+  // returns to default — same single-shot UX the candy/whistle/ball
+  // tools use.
+  const handlePetComplete = () => {
+    setPetMode(false);
   };
 
   // Track cursor position in DESIGN pixels (relative to the 1440×900 page)
@@ -236,10 +356,26 @@ function DesktopMainPage() {
   };
 
   // Optional focus from /?focus=<id> — set when the user clicks "Go to
-  // Ecosystem" on the Create page after upload. Polls briefly until the
-  // creature registers a 3D world position via `creaturePositions`, then
-  // runs the same focus math as a click selection. The URL is then
-  // cleaned so a refresh doesn't re-fire the zoom.
+  // Ecosystem" on the Create page after upload (or when edit-mode auto-
+  // navigates back). Two-stage wait:
+  //
+  //   1. WAIT FOR THE CREATURE TO LAND IN THE ECOSYSTEM.
+  //      Previously this re-fetched loadEcosystem every 100 ms up to
+  //      60 times — in shared mode each fetch is a Supabase round-trip,
+  //      so 60 polls = up to 30 s of network spam and a visibly laggy
+  //      arrival. Now: subscribe to the `ecosystem:changed` event the
+  //      upload + realtime channels dispatch, AND do a single immediate
+  //      check (covers the common case where the creature is already
+  //      in the page's main load on arrival).
+  //
+  //   2. WAIT FOR THE 3D POSITION TO REGISTER.
+  //      Once the creature is in the list, EcosystemCreatures renders
+  //      it and the wander useFrame writes into `creaturePositions`
+  //      within ~1-2 frames. Polling that Map is essentially free —
+  //      no network — so we tick every 60 ms until it's there.
+  //
+  //   3. STILL nothing after 8 s total → give up silently. The URL gets
+  //      stripped either way so a refresh starts clean.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
@@ -247,28 +383,10 @@ function DesktopMainPage() {
     if (!focusId) return;
 
     let cancelled = false;
-    let attempts = 0;
-    const tryFocus = async () => {
-      if (cancelled) return;
-      const list = await loadEcosystem();
-      const c = list.find((x) => x.id === focusId);
-      if (!c) {
-        // Creature isn't in the store yet (shared-mode write hasn't
-        // landed) — give it a moment.
-        attempts++;
-        if (attempts > 60) return;
-        window.setTimeout(tryFocus, 100);
-        return;
-      }
-      const pos = creaturePositions.get(focusId);
-      if (!pos) {
-        // EcosystemCreatures hasn't registered this creature's world
-        // position yet — wait a tick.
-        attempts++;
-        if (attempts > 60) return;
-        window.setTimeout(tryFocus, 100);
-        return;
-      }
+    let positionPollId: number | null = null;
+    let giveUpTimerId: number | null = null;
+
+    const finishFocus = (c: CreatureSpec, pos: [number, number, number]) => {
       if (cancelled) return;
       setSelected(c);
       const bbox = creatureFocusBox(c);
@@ -282,12 +400,64 @@ function DesktopMainPage() {
         bbox.centerY * -0.919,
       ];
       setFocusTarget({ position: pos, ts: Date.now(), distance, targetOffset });
-      // Strip the query so a refresh starts clean.
       window.history.replaceState(null, "", "/");
     };
-    tryFocus();
+
+    const waitForPosition = (c: CreatureSpec) => {
+      if (cancelled) return;
+      const pos = creaturePositions.get(focusId);
+      if (pos) {
+        finishFocus(c, pos);
+        return;
+      }
+      // Cheap Map lookup — poll every 60 ms until r3f has rendered
+      // the creature and its useFrame has written the position.
+      positionPollId = window.setTimeout(() => waitForPosition(c), 60);
+    };
+
+    const tryFocusWithList = (list: CreatureSpec[]) => {
+      if (cancelled) return false;
+      const c = list.find((x) => x.id === focusId);
+      if (!c) return false;
+      waitForPosition(c);
+      return true;
+    };
+
+    const onEcosystemChanged = () => {
+      loadEcosystem().then((list) => {
+        if (cancelled) return;
+        if (tryFocusWithList(list)) {
+          window.removeEventListener("ecosystem:changed", onEcosystemChanged);
+        }
+      });
+    };
+
+    // Phase 1: try immediately with whatever the ecosystem currently
+    // holds (most edit flows have already awaited the upload by the
+    // time we mount, so this catches them on the first call).
+    loadEcosystem().then((list) => {
+      if (cancelled) return;
+      if (tryFocusWithList(list)) return;
+      // Not there yet → listen for the next change event.
+      window.addEventListener("ecosystem:changed", onEcosystemChanged);
+    });
+
+    // Hard ceiling — bail and clean up even if the creature never lands.
+    giveUpTimerId = window.setTimeout(() => {
+      window.removeEventListener("ecosystem:changed", onEcosystemChanged);
+      if (positionPollId !== null) {
+        clearTimeout(positionPollId);
+        positionPollId = null;
+      }
+      // Strip the now-stale focus URL so a refresh doesn't re-attempt.
+      window.history.replaceState(null, "", "/");
+    }, 8000);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("ecosystem:changed", onEcosystemChanged);
+      if (positionPollId !== null) clearTimeout(positionPollId);
+      if (giveUpTimerId !== null) clearTimeout(giveUpTimerId);
     };
   }, []);
 
@@ -311,11 +481,22 @@ function DesktopMainPage() {
     setResetTrigger({ ts: Date.now() });
   };
 
-  // Click on empty 3D ground (i.e., not on any creature, not in candy
-  // or pet mode) → reset the camera to default. Catches the lingering
-  // "I deleted a creature and missed the auto-reset" case, plus any
-  // time the user has drifted the camera and wants to recenter.
+  // Click on empty 3D ground.
+  //   • In PINSET mode, an empty-ground click DROPS whatever's held
+  //     and ALSO exits pinset mode (the grab+drop counts as one
+  //     pinset "operation" → single-shot UX). If nothing was held,
+  //     the tap is a no-op; we stay in pinset mode so the user can
+  //     keep aiming.
+  //   • Otherwise: clear selection + reset the camera back to default.
+  //     Catches the lingering "I deleted a creature and missed the
+  //     auto-reset" case, plus any time the user has drifted the
+  //     camera and wants to recenter.
   const handleEmptyGroundClick = () => {
+    if (pinsetMode) {
+      if (heldId) setPinsetMode(false);
+      setHeldId(null);
+      return;
+    }
     setSelected(null);
     setResetTrigger({ ts: Date.now() });
   };
@@ -329,15 +510,28 @@ function DesktopMainPage() {
         isFullscreen ? "overflow-visible" : "overflow-hidden"
       }`}
       // Custom cursor per active mode:
-      //  • Pet mode: hand cursor (16,16 hotspot ≈ index-finger area).
-      //  • Candy mode: wrapped-candy cursor (33,18 hotspot ≈ middle
-      //    of the artwork so the candy "drops" where you click).
-      // Both modes are mutually exclusive so we just check pet first.
+      //  • Pet     — hand cursor (16,16 hotspot ≈ index-finger area).
+      //  • Candy   — wrapped-candy cursor (sprinkle treats).
+      //  • Pinset  — tweezers; open by default, closed while holding.
+      //              Hotspot at the pinch point.
+      //  • Ball    — ball icon; hotspot ≈ centre so the throw lands
+      //              where you click.
+      //  • Whistle — whistle icon; same gather behaviour candy used to
+      //              have. Hotspot ≈ the bell of the whistle.
+      // Modes are mutually exclusive so the first match wins.
       style={
         petMode
           ? { cursor: "url(/assets/hand-cursor.svg) 16 16, pointer" }
           : candyMode
           ? { cursor: "url(/assets/candy-cursor.svg) 33 18, crosshair" }
+          : pinsetMode
+          ? heldId
+            ? { cursor: "url(/assets/pinset-close.svg) 13 46, grabbing" }
+            : { cursor: "url(/assets/pinset-open.svg) 20 46, grab" }
+          : ballMode
+          ? { cursor: "url(/assets/ball-button.svg) 22 23, crosshair" }
+          : whistleMode
+          ? { cursor: "url(/assets/whistle-button.svg) 18 21, crosshair" }
           : undefined
       }
     >
@@ -453,18 +647,21 @@ function DesktopMainPage() {
               Toggles "pet mode": when on, the cursor becomes a hand and
               clicking a creature makes it shake wildly. Press again (or
               Escape) to exit pet mode.
-              Position/size/inner-text inset come straight from Figma. */}
+              Position/size/inner-text inset come straight from Figma:
+              frame (131, 813), 52 × 49, BokBok text 13 px in the lower
+              half (40.24% from top). Lives in the bottom-left button
+              row alongside Candy + Pinset. */}
           <button
             type="button"
             onClick={togglePetMode}
             aria-pressed={petMode}
-            className="absolute left-[469px] top-[766px] z-[20] block h-[92.03px] w-[97.29px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
+            className="absolute left-[131px] top-[813px] z-[20] block h-[49px] w-[52px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
           >
-            {/* The vector slightly overflows the frame by -0.54%/-0.51% so the
-                stroke isn't clipped. */}
+            {/* The vector slightly overflows the frame by -1.02%/-0.96%
+                (Figma 2127:147 export) so the stroke isn't clipped. */}
             <div
               className="absolute"
-              style={{ inset: "-0.54% -0.51%" }}
+              style={{ inset: "-1.02% -0.96%" }}
             >
               <img
                 alt=""
@@ -473,17 +670,82 @@ function DesktopMainPage() {
               />
             </div>
             <span
-              className="absolute flex items-center justify-center text-center text-[24px] font-bold leading-[normal] text-black"
+              className="absolute flex items-center justify-center text-center text-[13px] font-bold leading-[normal] text-black"
               style={{ inset: "40.24% 3.83% 21.04% 5.15%" }}
             >
               {t("main.bokbok_button")}
             </span>
           </button>
 
+          {/* Pinset button (Figma 2379:16 open / 2379:17 close) — sits
+              right of the BokBok button. Toggles "pinset mode": cursor
+              becomes the open-tweezers SVG, and clicking a creature
+              "grabs" it (cursor swaps to closed tweezers, creature
+              follows the pointer until you click again to release or
+              press Escape).
+              Position + size from Figma frame: (195.24, 813), 40.27 ×
+              50.06. */}
+          <button
+            type="button"
+            onClick={togglePinsetMode}
+            aria-pressed={pinsetMode}
+            title={pinsetMode ? "Exit pinset" : "Pinset — pick up a creature"}
+            className="absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
+            style={{ left: 195.24, top: 813, width: 40.27, height: 50.06 }}
+          >
+            <img
+              alt=""
+              src={pinsetMode && heldId ? "/assets/pinset-close.svg" : "/assets/pinset-open.svg"}
+              className="block size-full max-w-none"
+              draggable={false}
+            />
+          </button>
+
+          {/* Ball button (Figma 2380:52) — toggles ball mode. Clicking
+              the ground throws the ball at that XZ; a random visible
+              creature picks it up and brings it back to origin.
+              Position + size from Figma frame: (253, 816), 43.55 × 45.64. */}
+          <button
+            type="button"
+            onClick={toggleBallMode}
+            aria-pressed={ballMode}
+            title={ballMode ? "Exit ball" : "Ball — throw to play fetch"}
+            className="absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
+            style={{ left: 253, top: 816, width: 43.55, height: 45.64 }}
+          >
+            <img
+              alt=""
+              src="/assets/ball-button.svg"
+              className="block size-full max-w-none"
+              draggable={false}
+            />
+          </button>
+
+          {/* Whistle button (Figma 2380:57) — toggles whistle mode.
+              Clicking the ground summons the whole flock to that point
+              (the legacy candy gather behaviour now lives here).
+              Position + size from Figma frame: (314, 820), 59.84 × 41.57. */}
+          <button
+            type="button"
+            onClick={toggleWhistleMode}
+            aria-pressed={whistleMode}
+            title={whistleMode ? "Exit whistle" : "Whistle — summon the flock"}
+            className="absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
+            style={{ left: 314, top: 820, width: 59.84, height: 41.57 }}
+          >
+            <img
+              alt=""
+              src="/assets/whistle-button.svg"
+              className="block size-full max-w-none"
+              draggable={false}
+            />
+          </button>
+
           {/* Candy button (Figma 2239:1401) — bottom-left of the main
               page. Toggles candy mode: cursor becomes a candy icon and
-              the next click in the scene gathers the flock to that
-              spot. Pressing again (or Escape) leaves candy mode. */}
+              clicking the ground sprinkles treats; creatures nearby
+              come over and eat them. Pressing again (or Escape) leaves
+              candy mode. */}
           <CandyButton active={candyMode} onToggle={toggleCandyMode} />
         </>
       )}
@@ -501,9 +763,16 @@ function DesktopMainPage() {
         fullscreen={isFullscreen}
         petMode={petMode}
         candyMode={candyMode}
-        onCandyClick={handleCandyClick}
+        pinsetMode={pinsetMode}
+        heldId={heldId}
+        ballMode={ballMode}
+        whistleMode={whistleMode}
+        onPinsetGrab={handlePinsetGrab}
+        onPinsetRelease={handlePinsetRelease}
+        onCandyClick={handleSceneClick}
         onEmptyGroundClick={handleEmptyGroundClick}
         onCreatureHover={setHoveredCreature}
+        onPetComplete={handlePetComplete}
       />
 
       {/* Hover tooltip (Figma 2130:272) — name on top, date YYYYMMDD below.

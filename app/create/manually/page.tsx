@@ -111,7 +111,7 @@ function CreateManuallyPageInner() {
     setUploadStatus("idle");
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
       alert(t("create.alert_creature_name"));
@@ -141,7 +141,11 @@ function CreateManuallyPageInner() {
       dateISO: toISO(selectedDate),
       source: "manually",
     };
-    uploadCreature(enriched);
+    // AWAIT so the new row is in the ecosystem BEFORE we navigate. The
+    // main page's focus polling used to race against the in-flight
+    // Supabase write, leading to "creature invisible on arrival + the
+    // page lags for several seconds while polling spams the DB."
+    await uploadCreature(enriched);
     setUploadStatus("uploaded");
     // First-time-creation moment for hand-built creatures is the upload
     // press (since blocks were dropped one at a time before that). Skip

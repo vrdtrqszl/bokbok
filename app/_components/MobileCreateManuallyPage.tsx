@@ -115,7 +115,7 @@ function MobileCreateManuallyInner() {
     setUploadStatus("idle");
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     const trimmedName = name.trim();
     if (!trimmedName) {
       alert(t("create.alert_creature_name"));
@@ -139,7 +139,8 @@ function MobileCreateManuallyInner() {
       dateISO: toISO(selectedDate),
       source: "manually",
     };
-    uploadCreature(enriched);
+    // AWAIT — see desktop create page for why this matters.
+    await uploadCreature(enriched);
     setUploadStatus("uploaded");
     if (!editingId) playCreatureGiggle(enriched.blocks);
     // EDIT-mode shortcut: hop straight back to the main 3D world with
