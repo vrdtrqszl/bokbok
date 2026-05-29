@@ -369,7 +369,7 @@ export default function MainViewport({
   ballMode = false,
   whistleMode = false,
   onPinsetGrab,
-  onPinsetRelease: _onPinsetRelease,
+  onPinsetRelease,
   onPetComplete,
   onCandyClick,
   onEmptyGroundClick,
@@ -556,6 +556,7 @@ export default function MainViewport({
                 pinsetMode={pinsetMode}
                 heldId={heldId}
                 onPinsetGrab={onPinsetGrab}
+                onPinsetRelease={onPinsetRelease}
                 onPetComplete={onPetComplete}
                 onCandyClick={onCandyClick}
                 onHover={onCreatureHover}

@@ -3,7 +3,15 @@
 import { Billboard } from "@react-three/drei";
 import { useFrame, useLoader } from "@react-three/fiber";
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { TextureLoader, Vector3, type Group } from "three";
+import {
+  SRGBColorSpace,
+  TextureLoader,
+  Vector3,
+  type Group,
+  type Mesh,
+  type MeshBasicMaterial,
+  type Texture,
+} from "three";
 import { loadEcosystem, matchesCreatureQuery, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { creatureFocusBox, type CreatureBlock, type CreatureSpec } from "@/lib/creature";
 import { EMOTION_LIST } from "@/lib/emotions";
@@ -151,87 +159,238 @@ function useCandyParticles(): CandyParticle[] {
 // ---- Fetch ball ------------------------------------------------------
 // The ball button throws a ball into the scene. The ball arcs in from
 // above the click point (bouncing phase) and lands at (x, z). At spawn
-// time a random visible creature is chosen as the "fetcher" — they
-// stop wandering, head to the ball, pick it up, then carry it back
-// toward the world origin (the camera's gaze when at default zoom).
-// On delivery the ball + assignment clear and the creature resumes
-// normal wandering.
+// time the CLOSEST visible creature is chosen as the first fetcher — they
+// stop wandering, head to the ball and pick it up. From there the flock
+// plays keep-away: whoever holds the ball cradles it for a moment, then
+// tosses it (a little airborne arc) to another nearby creature, who
+// catches it and becomes the new holder. After a handful of passes the
+// last creature winds up and hucks the ball in one big arc far off the
+// edge of the scene, where it leaves play.
+//
+// Multiple balls can be in the air at once — every throw adds a new ball
+// to the live `balls` array (nothing is replaced), and each ball runs its
+// own independent state machine.
 //
 // Phases:
-//   • 'bouncing'  (0..0.9 s)   — ball arcs from sky down to ground
-//   • 'sitting'                 — fetcher creature en route to it
-//   • 'carrying'                — fetcher has it, walking back
-//   • 'delivered'               — at origin, ball + state cleared next tick
+//   • 'bouncing'  (~1.4 s)  — ball arcs from sky down to the ground
+//   • 'sitting'             — first fetcher creature en route to it
+//   • 'holding'             — a creature has it, cradling before a pass
+//   • 'passing'             — ball in flight between two creatures
+//   • 'leaving'             — passes done; final long pass off-screen,
+//                             then the ball is removed from play
 
-export type BallPhase = 'bouncing' | 'sitting' | 'carrying' | 'delivered';
+export type BallPhase =
+  | 'bouncing'
+  | 'sitting'
+  | 'holding'
+  | 'passing'
+  | 'leaving';
 export type BallState = {
+  id: number; // unique per throw, used as React key + lookup
   x: number;
   z: number;
-  // y is computed each frame by FetchBall component (bounce arc).
+  // y is computed each frame by FetchBall component (bounce / toss arc).
   phase: BallPhase;
   carrierId: string | null;
-  spawnMs: number;
+  spawnMs: number; // for the bounce-arc clock
+  phaseStartMs: number; // for holding / passing / leaving clocks
+  passCount: number; // passes completed so far
+  passesTarget: number; // passes to play before leaving (randomised)
+  passToId: string | null; // receiver of the in-flight pass
+  passFromX: number; // start of the in-flight pass / leave arc
+  passFromY: number;
+  passFromZ: number;
+  leaveToX: number; // off-screen target of the final long pass
+  leaveToZ: number;
 };
-let ballState: BallState | null = null;
+let balls: BallState[] = [];
+let ballIdSeq = 0;
 const ballListeners = new Set<() => void>();
-const BALL_BOUNCE_MS = 900;
+const BALL_BOUNCE_MS = 1400;
 const BALL_PICKUP_RADIUS = 0.45;
-const BALL_DELIVER_RADIUS = 1.4;
-const BALL_DELIVER_TARGET = { x: 0, z: 0 }; // origin — camera looks here at default zoom
+const BALL_HOLD_MS = 650; // cradle time before tossing the ball on
+const BALL_PASS_MS = 520; // ball flight time between two creatures
+const BALL_LEAVE_MS = 1100; // flight time of the final off-screen pass
+const BALL_HOVER_Y = 1.0; // ball hover height above a carrier
+const BALL_TOSS_ARC = 1.3; // extra arc height at the midpoint of a pass
+const BALL_LEAVE_ARC = 4.0; // big arc on the final off-screen launch
+const BALL_PASS_MIN = 1.2; // preferred pass distance (world units)
+const BALL_PASS_MAX = 7.0;
 
-/** Throw a ball into the scene at (cx, cz). Picks a random `availableIds`
- *  creature as the fetcher. Replaces any in-flight ball. */
+/** Notify subscribers that the ball list changed (add / remove / phase). */
+function notifyBalls(): void {
+  ballListeners.forEach((l) => l());
+}
+
+/** Throw a NEW ball into the scene at (cx, cz). Picks the CLOSEST creature
+ *  to (cx, cz) as the first fetcher — feels naturally "the nearest one
+ *  noticed first". Adds to any balls already in play (does not replace). */
 export function triggerBallThrow(
   cx: number,
   cz: number,
   availableIds: string[],
 ): void {
   if (availableIds.length === 0) return;
-  const fetcherId = availableIds[Math.floor(Math.random() * availableIds.length)];
-  ballState = {
-    x: cx,
-    z: cz,
-    phase: 'bouncing',
-    carrierId: fetcherId,
-    spawnMs: performance.now(),
-  };
-  ballListeners.forEach((l) => l());
+  let closestId: string | null = null;
+  let closestDist = Infinity;
+  for (const id of availableIds) {
+    const pos = creaturePositions.get(id);
+    if (!pos) continue;
+    const dx = pos[0] - cx;
+    const dz = pos[2] - cz;
+    const d = Math.hypot(dx, dz);
+    if (d < closestDist) {
+      closestDist = d;
+      closestId = id;
+    }
+  }
+  if (!closestId) return;
+  const now = performance.now();
+  balls = [
+    ...balls,
+    {
+      id: ++ballIdSeq,
+      x: cx,
+      z: cz,
+      phase: 'bouncing',
+      carrierId: closestId,
+      spawnMs: now,
+      phaseStartMs: now,
+      passCount: 0,
+      passesTarget: 3 + Math.floor(Math.random() * 3), // 3–5 passes
+      passToId: null,
+      passFromX: cx,
+      passFromY: 0,
+      passFromZ: cz,
+      leaveToX: cx,
+      leaveToZ: cz,
+    },
+  ];
+  notifyBalls();
 }
 
-/** Read current ball state. Returns null if no ball is active. */
-export function getBallState(): BallState | null {
-  return ballState;
+function setBallPhase(ball: BallState, next: BallPhase): void {
+  ball.phase = next;
+  ball.phaseStartMs = performance.now();
+  notifyBalls();
 }
 
-function setBallPhase(next: BallPhase): void {
-  if (!ballState) return;
-  ballState.phase = next;
-  ballListeners.forEach((l) => l());
+/** Pick the next creature to receive a pass — prefers one a comfortable
+ *  toss away (BALL_PASS_MIN..MAX) from the current holder, falls back to
+ *  any other creature, and returns null if the holder is alone. */
+function pickPassReceiver(
+  fromId: string | null,
+  fromX: number,
+  fromZ: number,
+): string | null {
+  const others: string[] = [];
+  for (const id of creaturePositions.keys()) {
+    if (id !== fromId) others.push(id);
+  }
+  if (others.length === 0) return null;
+  const inRange = others.filter((id) => {
+    const p = creaturePositions.get(id);
+    if (!p) return false;
+    const d = Math.hypot(p[0] - fromX, p[2] - fromZ);
+    return d >= BALL_PASS_MIN && d <= BALL_PASS_MAX;
+  });
+  const pool = inRange.length > 0 ? inRange : others;
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function setBallPosition(x: number, z: number): void {
-  if (!ballState) return;
-  ballState.x = x;
-  ballState.z = z;
+/** Begin (or resume) cradling the ball at the current carrier. */
+function startBallHold(ball: BallState): void {
+  setBallPhase(ball, 'holding');
+}
+
+/** Toss the ball from (fromX,fromY,fromZ) to a freshly chosen receiver.
+ *  If nobody is available to catch, the game ends with the off-screen
+ *  launch instead. */
+function startBallPass(
+  ball: BallState,
+  fromX: number,
+  fromY: number,
+  fromZ: number,
+): void {
+  const receiver = pickPassReceiver(ball.carrierId, fromX, fromZ);
+  if (!receiver) {
+    startBallLeave(ball, fromX, fromY, fromZ);
+    return;
+  }
+  ball.passToId = receiver;
+  ball.passFromX = fromX;
+  ball.passFromY = fromY;
+  ball.passFromZ = fromZ;
+  setBallPhase(ball, 'passing');
+}
+
+/** Hand the ball to the receiver, then cradle it. The holding phase clock
+ *  decides whether the next move is another pass or the off-screen launch
+ *  (once passesTarget has been reached). */
+function completeBallPass(ball: BallState): void {
+  ball.carrierId = ball.passToId;
+  ball.passToId = null;
+  ball.passCount += 1;
+  startBallHold(ball);
+}
+
+/** Final move: the last holder hucks the ball in one big arc toward a
+ *  point well past the edge of the scene, heading outward from the centre.
+ *  Once it reaches that off-screen target the ball is removed from play. */
+function startBallLeave(
+  ball: BallState,
+  fromX: number,
+  fromY: number,
+  fromZ: number,
+): void {
+  let dirX = fromX;
+  let dirZ = fromZ;
+  const mag = Math.hypot(dirX, dirZ);
+  if (mag < 0.001) {
+    // Holder is right at the centre — pick a random outward heading.
+    const a = Math.random() * Math.PI * 2;
+    dirX = Math.cos(a);
+    dirZ = Math.sin(a);
+  } else {
+    dirX /= mag;
+    dirZ /= mag;
+  }
+  // Aim comfortably past the hard wander radius so it clears the frame.
+  const dist = HOME_HARD_RADIUS * 2.2 + 8;
+  ball.passFromX = fromX;
+  ball.passFromY = fromY;
+  ball.passFromZ = fromZ;
+  ball.passToId = null;
+  ball.leaveToX = fromX + dirX * dist;
+  ball.leaveToZ = fromZ + dirZ * dist;
+  setBallPhase(ball, 'leaving');
+}
+
+function setBallPosition(ball: BallState, x: number, z: number): void {
+  ball.x = x;
+  ball.z = z;
   // Don't broadcast — high-frequency position changes are read
   // directly each frame by consumers without re-renders.
 }
 
-function clearBall(): void {
-  ballState = null;
-  ballListeners.forEach((l) => l());
+function clearBall(ball: BallState): void {
+  balls = balls.filter((b) => b.id !== ball.id);
+  notifyBalls();
 }
 
-function useBallState(): BallState | null {
-  const [state, setState] = useState<BallState | null>(() => ballState);
+function useBalls(): BallState[] {
+  const [list, setList] = useState<BallState[]>(() => balls.slice());
   useEffect(() => {
-    const update = () => setState(ballState ? { ...ballState } : null);
+    // Fresh array each notify so add / remove / phase changes re-render
+    // (the ball objects themselves are mutated in place by useFrame).
+    const update = () => setList(balls.slice());
     ballListeners.add(update);
+    update(); // sync immediately in case a ball was added before mount
     return () => {
       ballListeners.delete(update);
     };
   }, []);
-  return state;
+  return list;
 }
 
 // No hard radius wall — creatures hop freely on the flat ground plane.
@@ -325,6 +484,7 @@ export function EnergyCreature({
   pinsetMode,
   held,
   onPinsetGrab,
+  onPinsetRelease,
   onPetComplete,
   onCandyClick,
   onHover,
@@ -348,6 +508,10 @@ export function EnergyCreature({
    *  `pinsetTarget` each frame. */
   held?: boolean;
   onPinsetGrab?: (id: string) => void;
+  /** Fires when the user clicks THIS creature while THIS one is held —
+   *  the natural "drop right here" gesture. The page handler clears
+   *  heldId and exits pinset mode. */
+  onPinsetRelease?: () => void;
   /** Fires once the shake has been triggered (pet mode click). Page
    *  auto-exits pet mode in response. */
   onPetComplete?: () => void;
@@ -417,7 +581,29 @@ export function EnergyCreature({
     // Time (in scene seconds) at which the post-landing squash ends. A
     // brief squash on impact reads as cartoon weight + rebound.
     squashUntil: 0,
+    // When true, the in-flight motion is a FREE FALL (pinset release)
+    // rather than the standard up-and-down jump arc. Quadratic y curve
+    // from `from.y` down to 0 — no upward peak.
+    dropping: false,
   });
+
+  // Detect held → released transition so we can kick off the drop
+  // animation. Comparing `prevHeldRef` to `held` inside an effect
+  // (rather than per-frame in useFrame) means we only trigger the
+  // drop ONCE per release, not every frame.
+  const prevHeldRef = useRef(false);
+  useEffect(() => {
+    const wasHeld = prevHeldRef.current;
+    prevHeldRef.current = !!held;
+    if (!wasHeld || held) return; // not a release transition
+    const w = wander.current;
+    if (w.pos.y < 0.05) return; // already grounded — nothing to drop
+    w.from.copy(w.pos);
+    w.to.set(w.pos.x, 0, w.pos.z);
+    w.progress = 0;
+    w.jumpDuration = 0.34; // ~340 ms fall — heavy enough to read
+    w.dropping = true;
+  }, [held]);
 
   useFrame((_, delta) => {
     const g = groupRef.current;
@@ -429,15 +615,20 @@ export function EnergyCreature({
     if (held && pinsetTarget.active) {
       // Pinset-held: snap the wander position to the cursor's world-XZ
       // projection. We tween toward the target rather than hard-set so
-      // a fast cursor sweep doesn't feel teleport-y. Y settles to 0 so
-      // the creature reads as "pinched" — no lift-off arc.
+      // a fast cursor sweep doesn't feel teleport-y. Y rises to
+      // HOLD_HEIGHT so the creature is visibly LIFTED by the tweezers
+      // — letting it fall when released communicates "I dropped it."
+      const HOLD_HEIGHT = 1.2;
       const snap = 0.4; // 0..1; higher = stickier to cursor
       w.pos.x += (pinsetTarget.x - w.pos.x) * snap;
       w.pos.z += (pinsetTarget.z - w.pos.z) * snap;
-      w.pos.y += (0 - w.pos.y) * 0.25;
+      w.pos.y += (HOLD_HEIGHT - w.pos.y) * 0.22;
       w.from.copy(w.pos);
       w.to.copy(w.pos);
       w.progress = 1;
+      // Clear any prior drop state so a re-grab while still falling
+      // doesn't keep ticking the fall.
+      w.dropping = false;
       // Reset jump timer so the moment the user drops the creature, it
       // doesn't immediately spring off in some stale direction.
       w.nextJumpAt = t + 0.5 + Math.random() * 0.8;
@@ -460,28 +651,44 @@ export function EnergyCreature({
         let scattering = false;
 
         // Fetch-ball override (takes priority over everything else).
-        //   • If I'm the chosen fetcher AND the ball is sitting → aim
-        //     hops at the ball's XZ.
-        //   • If carrying → aim hops at BALL_DELIVER_TARGET (origin).
-        // The FetchBall component's useFrame handles phase transitions
-        // (sitting→carrying when I touch the ball; carrying→delivered
-        // when I reach the deliver target).
-        const ball = ballState;
-        const amCarrier = ball && ball.carrierId === creature.id;
-        if (amCarrier && ball && ball.phase === 'sitting') {
-          const dxB = ball.x - w.pos.x;
-          const dzB = ball.z - w.pos.z;
+        // Scan every ball in play; a creature might be the fetcher of one
+        // and the receiver of another. Priority:
+        //   • A ball I'm fetching that's sitting on the ground (walkBall)
+        //     → aim hops at its XZ to go pick it up.
+        //   • Otherwise a ball I'm holding/tossing/launching, or one whose
+        //     pass is headed to me (playBall) → little excited hops in
+        //     place (playing, not wandering off). The ball itself flies on
+        //     its own arc; the FetchBall useFrame drives the handoffs.
+        let walkBall: BallState | null = null;
+        let playBall: BallState | null = null;
+        for (const b of balls) {
+          const amCarrier = b.carrierId === creature.id;
+          const amReceiver = b.passToId === creature.id;
+          if (amCarrier && b.phase === 'sitting') {
+            walkBall = b;
+            break;
+          }
+          if (
+            (amCarrier &&
+              (b.phase === 'holding' ||
+                b.phase === 'passing' ||
+                b.phase === 'leaving')) ||
+            (amReceiver && b.phase === 'passing')
+          ) {
+            playBall = b;
+          }
+        }
+        if (walkBall) {
+          const dxB = walkBall.x - w.pos.x;
+          const dzB = walkBall.z - w.pos.z;
           const distB = Math.hypot(dxB, dzB);
           dir =
             Math.atan2(dzB, dxB) + (Math.random() - 0.5) * Math.PI * 0.08;
           step = Math.min(distB, HOP_MAX_STEP * 1.4);
-        } else if (amCarrier && ball && ball.phase === 'carrying') {
-          const dxD = BALL_DELIVER_TARGET.x - w.pos.x;
-          const dzD = BALL_DELIVER_TARGET.z - w.pos.z;
-          const distD = Math.hypot(dxD, dzD);
-          dir =
-            Math.atan2(dzD, dxD) + (Math.random() - 0.5) * Math.PI * 0.08;
-          step = Math.min(distD, HOP_MAX_STEP * 1.4);
+        } else if (playBall) {
+          // Excited little hops in place while the ball is in play.
+          dir = Math.random() * Math.PI * 2;
+          step = 0.08 + Math.random() * 0.16;
         } else {
         // Candy treat attract — if a candy particle is within
         // CANDY_ATTRACT_RADIUS of me, head to it (overriding the
@@ -624,16 +831,34 @@ export function EnergyCreature({
       w.progress = Math.min(1, w.progress + delta / w.jumpDuration);
       w.pos.x = w.from.x + (w.to.x - w.from.x) * w.progress;
       w.pos.z = w.from.z + (w.to.z - w.from.z) * w.progress;
-      const arc = 4 * w.progress * (1 - w.progress); // peaks at p=0.5
-      w.pos.y = w.maxHeight * arc;
+
+      if (w.dropping) {
+        // Pinset-release free fall — quadratic curve from from.y → 0,
+        // no upward arc. Reads as actual gravity instead of a jump.
+        const u = 1 - w.progress;
+        w.pos.y = w.from.y * u * u;
+      } else {
+        // Standard wander jump — symmetric up-and-down arc peaking
+        // at the midpoint.
+        const arc = 4 * w.progress * (1 - w.progress); // peaks at p=0.5
+        w.pos.y = w.maxHeight * arc;
+      }
 
       if (w.progress >= 1) {
         w.pos.y = 0;
-        // Trigger a short landing-squash phase so the impact reads.
-        w.squashUntil = t + 0.14;
-        // Brief rest before the next hop — shorter than before so the
-        // overall cadence stays quick and busy.
-        w.nextJumpAt = t + 0.12 + Math.random() * 0.32;
+        if (w.dropping) {
+          // Drop landings get a heavier, slightly longer squash so the
+          // "thump" reads — it's the visual confirmation of release.
+          w.squashUntil = t + 0.20;
+          w.nextJumpAt = t + 0.45 + Math.random() * 0.6;
+          w.dropping = false;
+        } else {
+          // Trigger a short landing-squash phase so the impact reads.
+          w.squashUntil = t + 0.14;
+          // Brief rest before the next hop — shorter than before so the
+          // overall cadence stays quick and busy.
+          w.nextJumpAt = t + 0.12 + Math.random() * 0.32;
+        }
       }
     }
 
@@ -727,11 +952,19 @@ export function EnergyCreature({
       onClick={(e) => {
         e.stopPropagation();
         if (pinsetMode) {
-          // Pinset (tweezers) — grab this creature. If something else
-          // is already held the parent state machine will replace it.
-          // Releasing happens via an empty-ground click or Escape (both
-          // handled at the page level) so we don't toggle here.
-          onPinsetGrab?.(creature.id);
+          // Pinset (tweezers):
+          //   • If THIS creature is already held → tapping it again is
+          //     the "drop right here" gesture. Fire onPinsetRelease so
+          //     the page clears heldId + exits pinset mode (the grab+
+          //     drop counts as one operation, single-shot UX).
+          //   • Otherwise (nothing held, or someone ELSE is held) →
+          //     grab this one. Page state replaces the previous heldId
+          //     if any (swap semantics for back-to-back picks).
+          if (held) {
+            onPinsetRelease?.();
+          } else {
+            onPinsetGrab?.(creature.id);
+          }
           return;
         }
         if (candyMode) {
@@ -793,6 +1026,7 @@ export default function EcosystemCreatures({
   pinsetMode,
   heldId,
   onPinsetGrab,
+  onPinsetRelease,
   onPetComplete,
   onCandyClick,
   onHover,
@@ -813,6 +1047,10 @@ export default function EcosystemCreatures({
   /** Id of the creature currently held by the tweezers (if any). */
   heldId?: string | null;
   onPinsetGrab?: (id: string) => void;
+  /** Fires when the user clicks the currently-held creature again
+   *  (re-tap = drop in place). Page-level state clears heldId + exits
+   *  pinset mode. */
+  onPinsetRelease?: () => void;
   /** Fires once a creature has been pet (shake initiated). The page
    *  uses this to auto-exit pet mode for single-shot UX. */
   onPetComplete?: () => void;
@@ -905,6 +1143,7 @@ export default function EcosystemCreatures({
             pinsetMode={pinsetMode}
             held={heldId === c.id}
             onPinsetGrab={onPinsetGrab}
+            onPinsetRelease={onPinsetRelease}
             onPetComplete={onPetComplete}
             onCandyClick={onCandyClick}
             onHover={onHover}
@@ -914,102 +1153,266 @@ export default function EcosystemCreatures({
       {/* Candy treats sitting on the ground until a creature eats them.
           Re-rendered when the candy list changes (spawn / consume). */}
       <CandyParticles />
-      {/* Active fetch-ball (zero or one). Animates the bounce-in arc
-          + carries with the assigned fetcher creature. */}
-      <FetchBall />
+      {/* Every active fetch-ball. Each throw adds one; they animate their
+          own bounce-in + keep-away + off-screen exit independently. */}
+      <FetchBalls />
     </Suspense>
   );
 }
 
 // ---- Candy + Ball meshes --------------------------------------------
 
-/** Renders the current candy particle list as small ground-hugging
- *  spheres. Position is static per-particle — creatures move to them,
- *  not vice versa. Sphere segments kept low (8/6) since dozens may
- *  spawn at once. */
+/** Renders the current candy particle list as billboarded planes
+ *  textured with the hand-drawn candy-button SVG so the treats on the
+ *  ground share the visual language of the toolbar icon. Size is
+ *  small — roughly 0.42 wide so a creature reads as several times
+ *  larger than a single candy. */
 function CandyParticles() {
   const candies = useCandyParticles();
+  // Re-use the candy button SVG as the ground texture. Shared via
+  // useLoader so all particles point at the same GPU texture.
+  const texture = useLoader(TextureLoader, "/assets/candy-button.svg");
+  // sRGB so the sprinkled candies render the SVG's literal fill, matching
+  // the toolbar candy button (same fix as the fetch ball).
+  texture.colorSpace = SRGBColorSpace;
+  // candy-button.svg aspect ratio: 66.43 / 35.26 ≈ 1.884
+  const CANDY_W = 0.42;
+  const CANDY_H = CANDY_W * (35.26 / 66.43);
+  if (candies.length === 0) return null;
   return (
     <>
       {candies.map((c) => (
-        <mesh key={c.id} position={[c.x, 0.18, c.z]}>
-          <sphereGeometry args={[0.16, 8, 6]} />
-          <meshBasicMaterial color="#ff5b88" />
-        </mesh>
+        <Billboard key={c.id} position={[c.x, 0.14, c.z]}>
+          <mesh>
+            <planeGeometry args={[CANDY_W, CANDY_H]} />
+            <meshBasicMaterial map={texture} transparent depthWrite={false} />
+          </mesh>
+        </Billboard>
       ))}
     </>
   );
 }
 
-/** Renders the fetch ball (when present). Handles the bounce-in arc
- *  in the `bouncing` phase, then sits on the ground in `sitting`,
- *  follows the fetcher creature in `carrying`, then despawns in
- *  `delivered`. */
-function FetchBall() {
-  const state = useBallState();
-  const meshRef = useRef<import("three").Mesh | null>(null);
+/** Renders every fetch ball currently in play. Loads the ball-button SVG
+ *  once (shared GPU texture) and mounts one <FetchBallInstance> per ball;
+ *  each instance runs its own bounce / pass / leave state machine. The
+ *  list re-renders whenever a ball is added or removed (or changes phase).
+ */
+const BALL_REST_Y = 0.31; // ball centre height when sitting on the ground
+// ball-button.svg aspect: 44.547 / 46.6364 ≈ 0.955 (near-square).
+const BALL_W = 0.62;
+const BALL_H = BALL_W * (46.6364 / 44.547);
+
+function FetchBalls() {
+  const list = useBalls();
+  const texture = useLoader(TextureLoader, "/assets/ball-button.svg");
+  // Tag the texture sRGB so the renderer (sRGB output) reproduces the
+  // SVG's literal #D4CDB8 fill exactly — matching the toolbar <img>.
+  // Without this the texture is treated as linear and renders lighter.
+  texture.colorSpace = SRGBColorSpace;
+  if (list.length === 0) return null;
+  return (
+    <>
+      {list.map((b) => (
+        <FetchBallInstance
+          key={b.id}
+          ballId={b.id}
+          phase={b.phase}
+          texture={texture}
+        />
+      ))}
+    </>
+  );
+}
+
+/** A single ball. The outer `<group>` is positioned by the useFrame each
+ *  tick; the inner `<Billboard>` keeps the plane facing the camera; the
+ *  inner mesh just shows the texture.
+ *
+ *  Phases: bouncing → sitting → holding → passing → … → leaving. The
+ *  first fetcher walks to the landed ball, the flock plays keep-away
+ *  (holding/passing) for a few rounds, then the last holder hucks it in
+ *  one big arc far off-screen and the ball leaves play.
+ */
+function FetchBallInstance({
+  ballId,
+  phase,
+  texture,
+}: {
+  ballId: number;
+  phase: BallPhase;
+  texture: Texture;
+}) {
+  const groupRef = useRef<Group | null>(null);
+  const shadowRef = useRef<Mesh | null>(null);
 
   useFrame(() => {
-    if (!ballState || !meshRef.current) return;
-    const m = meshRef.current;
-    const phase = ballState.phase;
-    const t = (performance.now() - ballState.spawnMs) / 1000;
+    const ball = balls.find((b) => b.id === ballId);
+    if (!ball || !groupRef.current) return;
+    const g = groupRef.current;
+    const ph = ball.phase;
+    const t = (performance.now() - ball.spawnMs) / 1000;
 
-    if (phase === 'bouncing') {
-      // Parabolic arc from y=6 down to y=0.25 (ball radius). Two small
-      // bounces give it cartoon weight before settling.
+    if (ph === 'bouncing') {
+      // Bouncy-ball drop: an initial fall followed by three decaying
+      // bounces. Each segment is its own parabola, and segment durations
+      // scale with sqrt(height) so the cadence reads like real gravity —
+      // a big slow drop, then progressively quicker, shorter hops.
       const dur = BALL_BOUNCE_MS / 1000;
       const u = Math.min(1, t / dur);
-      // Composite curve: drops down (1-u) + sin overlay for two pop-ups.
-      const dropY = 6 * (1 - u) * (1 - u);
-      const bounce = 0.6 * Math.max(0, Math.sin(u * Math.PI * 2));
-      m.position.set(ballState.x, 0.25 + dropY + bounce, ballState.z);
+      // [dropStartHeight, bounce1Peak, bounce2Peak, bounce3Peak]
+      const peaks = [6, 1.9, 0.75, 0.28];
+      // Segment 0 is a half-parabola (fall only); the bounces are full
+      // up-and-down arcs, so their time-weight counts the round trip.
+      const units = [
+        Math.sqrt(peaks[0]),
+        2 * Math.sqrt(peaks[1]),
+        2 * Math.sqrt(peaks[2]),
+        2 * Math.sqrt(peaks[3]),
+      ];
+      const total = units[0] + units[1] + units[2] + units[3];
+      let acc = 0;
+      let h = 0;
+      for (let i = 0; i < peaks.length; i++) {
+        const frac = units[i] / total;
+        if (u <= acc + frac || i === peaks.length - 1) {
+          const pc = Math.min(1, Math.max(0, frac > 0 ? (u - acc) / frac : 1));
+          h =
+            i === 0
+              ? peaks[0] * (1 - pc) * (1 - pc) // fall from peak to ground
+              : peaks[i] * 4 * pc * (1 - pc); // bounce up then back down
+          break;
+        }
+        acc += frac;
+      }
+      g.position.set(ball.x, 0.31 + h, ball.z);
       if (t >= dur) {
-        setBallPhase('sitting');
+        setBallPhase(ball, 'sitting');
       }
-    } else if (phase === 'sitting') {
-      m.position.set(ballState.x, 0.25, ballState.z);
-      // Transition to carrying when the fetcher actually touches the
+    } else if (ph === 'sitting') {
+      g.position.set(ball.x, 0.31, ball.z);
+      // Transition to holding when the fetcher actually touches the
       // ball. Watch the live creature position; flip on contact.
-      const carrierId = ballState.carrierId;
+      const carrierId = ball.carrierId;
       const pos = carrierId ? creaturePositions.get(carrierId) : undefined;
       if (pos) {
-        const dx = pos[0] - ballState.x;
-        const dz = pos[2] - ballState.z;
+        const dx = pos[0] - ball.x;
+        const dz = pos[2] - ball.z;
         if (Math.hypot(dx, dz) < BALL_PICKUP_RADIUS) {
-          setBallPhase('carrying');
+          startBallHold(ball);
         }
       }
-    } else if (phase === 'carrying') {
-      // Hover slightly above the carrier's wander position. The carrier
-      // creature writes its world position into creaturePositions each
-      // frame — read from there so the ball tracks the held creature.
-      const carrierId = ballState.carrierId;
+    } else if (ph === 'holding') {
+      // Cradle the ball above the current carrier's head. The carrier
+      // writes its world position into creaturePositions each frame —
+      // read from there so the ball tracks the holder while they do
+      // little excited hops in place.
+      const carrierId = ball.carrierId;
       const pos = carrierId ? creaturePositions.get(carrierId) : undefined;
       if (pos) {
-        // Lift the ball above the creature's head (rough height).
-        m.position.set(pos[0], pos[1] + 1.0, pos[2]);
-        // Mirror the live position back into ballState so external
-        // checks know where the ball currently is while in transit.
-        setBallPosition(pos[0], pos[2]);
-        // Delivered when the carrier reaches the deliver target.
-        const dx = pos[0] - BALL_DELIVER_TARGET.x;
-        const dz = pos[2] - BALL_DELIVER_TARGET.z;
-        if (Math.hypot(dx, dz) < BALL_DELIVER_RADIUS) {
-          setBallPhase('delivered');
+        g.position.set(pos[0], pos[1] + BALL_HOVER_Y, pos[2]);
+        setBallPosition(ball, pos[0], pos[2]);
+        // After the cradle beat, either pass it on, or — once the flock
+        // has had its fun — huck it off-screen.
+        const held = performance.now() - ball.phaseStartMs;
+        if (held >= BALL_HOLD_MS) {
+          if (ball.passCount >= ball.passesTarget) {
+            startBallLeave(ball, g.position.x, g.position.y, g.position.z);
+          } else {
+            startBallPass(ball, g.position.x, g.position.y, g.position.z);
+          }
         }
       }
-    } else if (phase === 'delivered') {
-      // Frame-after-delivery: clear so the mesh unmounts cleanly.
-      clearBall();
+    } else if (ph === 'passing') {
+      // Ball in flight between two creatures: lerp from the toss origin
+      // to the receiver's LIVE position (they may still be hopping) and
+      // add a parabolic toss arc that peaks at the midpoint.
+      const toId = ball.passToId;
+      const to = toId ? creaturePositions.get(toId) : undefined;
+      const passT = performance.now() - ball.phaseStartMs;
+      const p = Math.min(1, passT / BALL_PASS_MS);
+      const toX = to ? to[0] : ball.passFromX;
+      const toY = to ? to[1] + BALL_HOVER_Y : ball.passFromY;
+      const toZ = to ? to[2] : ball.passFromZ;
+      const x = ball.passFromX + (toX - ball.passFromX) * p;
+      const z = ball.passFromZ + (toZ - ball.passFromZ) * p;
+      const baseY = ball.passFromY + (toY - ball.passFromY) * p;
+      const arc = BALL_TOSS_ARC * 4 * p * (1 - p);
+      g.position.set(x, baseY + arc, z);
+      setBallPosition(ball, x, z);
+      if (p >= 1) {
+        completeBallPass(ball);
+      }
+    } else if (ph === 'leaving') {
+      // Final move: the last holder hucks the ball in one big arc toward a
+      // fixed point well past the edge of the scene. It's already invisible
+      // (off-frame) by the time the arc lands; clear it then.
+      const leaveT = performance.now() - ball.phaseStartMs;
+      const p = Math.min(1, leaveT / BALL_LEAVE_MS);
+      const x = ball.passFromX + (ball.leaveToX - ball.passFromX) * p;
+      const z = ball.passFromZ + (ball.leaveToZ - ball.passFromZ) * p;
+      const arc = BALL_LEAVE_ARC * 4 * p * (1 - p);
+      g.position.set(x, ball.passFromY + arc, z);
+      setBallPosition(ball, x, z);
+      if (p >= 1) {
+        clearBall(ball);
+      }
+    }
+
+    // Ground shadow — gives the ball contrast against the same-coloured
+    // ground (its fill matches the toolbar button, so it would otherwise
+    // blend in) and sells the bounce: the shadow shrinks and fades as the
+    // ball rises, tightens and darkens as it nears the ground.
+    const sh = shadowRef.current;
+    if (sh) {
+      const height = Math.max(0, g.position.y - BALL_REST_Y);
+      const k = Math.min(1, height / 3); // 0 on ground → 1 when high up
+      const scale = 1 - 0.55 * k; // shrink to ~45% at the apex
+      sh.position.set(g.position.x, 0.02, g.position.z);
+      sh.scale.set(scale, scale, scale);
+      const mat = sh.material as MeshBasicMaterial;
+      mat.opacity = 0.28 * (1 - 0.7 * k); // fade as it lifts off
     }
   });
 
-  if (!state) return null;
+  // While a creature has the ball in play (holding, passing or leaving),
+  // draw it on top of everything (high renderOrder + depthTest off) so it
+  // doesn't disappear behind a creature's billboard. While bouncing in or
+  // sitting on the ground it sorts normally with the scene.
+  const onTop = phase === 'holding' || phase === 'passing' || phase === 'leaving';
+  const ball = balls.find((b) => b.id === ballId);
+  const startX = ball ? ball.x : 0;
+  const startZ = ball ? ball.z : 0;
   return (
-    <mesh ref={meshRef} position={[state.x, 0.25, state.z]}>
-      <sphereGeometry args={[0.28, 14, 12]} />
-      <meshBasicMaterial color="#ffe28a" />
-    </mesh>
+    <>
+      {/* Soft drop shadow on the ground, driven each frame by useFrame. */}
+      <mesh
+        ref={shadowRef}
+        position={[startX, 0.02, startZ]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        renderOrder={-1}
+      >
+        <circleGeometry args={[BALL_W * 0.5, 24]} />
+        <meshBasicMaterial
+          color="#2b2620"
+          transparent
+          opacity={0.28}
+          depthWrite={false}
+        />
+      </mesh>
+      <group ref={groupRef} position={[startX, BALL_REST_Y, startZ]}>
+        <Billboard>
+          <mesh renderOrder={onTop ? 999 : 0}>
+            <planeGeometry args={[BALL_W, BALL_H]} />
+            <meshBasicMaterial
+              map={texture}
+              transparent
+              depthWrite={false}
+              depthTest={!onTop}
+            />
+          </mesh>
+        </Billboard>
+      </group>
+    </>
   );
 }

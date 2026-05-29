@@ -1046,6 +1046,136 @@ function duckMasterFor(ms: number): void {
   }, ms);
 }
 
+// ---- Whistle (whistle button click) ---------------------------------
+// Plays the real whistle recording on the whistle button. Routed
+// through alwaysOnGain so it fires regardless of the Sound Off toggle
+// (same rule as the candy rustle — "you pressed it, you hear it").
+// Briefly ducks the creature voice channel like the rustle does so the
+// whistle blast cuts through the ambient babble instead of getting
+// buried under it.
+
+const WHISTLE_PATH = "/sounds/whistle.wav";
+const WHISTLE_GAIN = 0.65;
+const WHISTLE_PLAY_MS = 1600; // ducks ambient chatter for ~1.6 s
+
+let whistleBuffer: AudioBuffer | null = null;
+let whistleLoading: Promise<AudioBuffer | null> | null = null;
+function loadWhistle(c: AudioContext): Promise<AudioBuffer | null> {
+  if (whistleBuffer) return Promise.resolve(whistleBuffer);
+  if (whistleLoading) return whistleLoading;
+  whistleLoading = fetch(WHISTLE_PATH)
+    .then((r) => r.arrayBuffer())
+    .then((ab) => c.decodeAudioData(ab))
+    .then((buf) => {
+      whistleBuffer = buf;
+      return buf;
+    })
+    .catch((err) => {
+      console.error("[bokbok] whistle sound failed to load:", err);
+      whistleLoading = null;
+      return null;
+    });
+  return whistleLoading;
+}
+
+export function playWhistle(): void {
+  const c = ensureCtx();
+  if (!c || !alwaysOnGain) return;
+
+  // Drop the creature voices so the whistle reads clearly — same
+  // duck-the-room pattern the candy rustle uses.
+  duckMasterFor(WHISTLE_PLAY_MS);
+
+  loadWhistle(c).then((buf) => {
+    if (!buf) return;
+    const c2 = ensureCtx();
+    if (!c2 || !alwaysOnGain) return;
+    const now = c2.currentTime;
+    const dur = buf.duration;
+
+    const src = c2.createBufferSource();
+    src.buffer = buf;
+
+    // Quick fade-out on the tail so abrupt cuts don't click.
+    const gain = c2.createGain();
+    gain.gain.setValueAtTime(WHISTLE_GAIN, now);
+    const fadeStart = Math.max(0, dur - 0.10);
+    gain.gain.setValueAtTime(WHISTLE_GAIN, now + fadeStart);
+    gain.gain.linearRampToValueAtTime(0.0001, now + dur);
+
+    src.connect(gain);
+    gain.connect(alwaysOnGain);
+
+    src.start(now, 0, dur);
+    src.stop(now + dur + 0.02);
+  });
+}
+
+// ---- Ball bounce (fetch ball thrown into the scene) ------------------
+// Plays the real ball.mp3 recording starting at 4.0 s — the point where
+// the file's bouncy-ball "boing / tap-tap-tap" begins (the first ~4 s are
+// lead-in we skip). Runs to the end of the file (~1.5 s of bounces),
+// which lines up with the ~1.4 s three-bounce drop animation in the
+// scene. Routed through alwaysOnGain so it fires regardless of the Sound
+// Off toggle ("you threw it, you hear it" — same rule as whistle/candy).
+
+const BALL_PATH = "/sounds/ball.mp3";
+const BALL_BOUNCE_START_S = 4.0; // skip the lead-in; bounces begin here
+const BALL_BOUNCE_GAIN = 0.7;
+
+let ballBuffer: AudioBuffer | null = null;
+let ballLoading: Promise<AudioBuffer | null> | null = null;
+function loadBall(c: AudioContext): Promise<AudioBuffer | null> {
+  if (ballBuffer) return Promise.resolve(ballBuffer);
+  if (ballLoading) return ballLoading;
+  ballLoading = fetch(BALL_PATH)
+    .then((r) => r.arrayBuffer())
+    .then((ab) => c.decodeAudioData(ab))
+    .then((buf) => {
+      ballBuffer = buf;
+      return buf;
+    })
+    .catch((err) => {
+      console.error("[bokbok] ball sound failed to load:", err);
+      ballLoading = null;
+      return null;
+    });
+  return ballLoading;
+}
+
+export function playBallBounce(): void {
+  const c = ensureCtx();
+  if (!c || !alwaysOnGain) return;
+
+  loadBall(c).then((buf) => {
+    if (!buf) return;
+    const c2 = ensureCtx();
+    if (!c2 || !alwaysOnGain) return;
+    const now = c2.currentTime;
+    const start = Math.min(BALL_BOUNCE_START_S, Math.max(0, buf.duration - 0.05));
+    const playDur = Math.max(0, buf.duration - start);
+    if (playDur <= 0) return;
+
+    const src = c2.createBufferSource();
+    src.buffer = buf;
+
+    // Tiny fade-in + tail fade-out so starting mid-file (at 4.0 s) and
+    // cutting at the very end don't click.
+    const gain = c2.createGain();
+    const edge = Math.min(0.02, playDur / 4);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(BALL_BOUNCE_GAIN, now + edge);
+    gain.gain.setValueAtTime(BALL_BOUNCE_GAIN, now + playDur - edge);
+    gain.gain.linearRampToValueAtTime(0.0001, now + playDur);
+
+    src.connect(gain);
+    gain.connect(alwaysOnGain);
+
+    src.start(now, start, playDur);
+    src.stop(now + playDur + 0.02);
+  });
+}
+
 export function playCandyRustle(): void {
   const c = ensureCtx();
   if (!c || !alwaysOnGain) return;

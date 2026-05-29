@@ -20,7 +20,7 @@ import {
   hoverDateHighlightUrl,
 } from "@/lib/nameHighlight";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
-import { playCandyRustle, unlockAudio } from "@/lib/audio";
+import { playBallBounce, playCandyRustle, playWhistle, unlockAudio } from "@/lib/audio";
 import { ambientChatter } from "@/lib/ambientChatter";
 
 export default function MainPage() {
@@ -53,6 +53,24 @@ function DesktopMainPage() {
   // (or Escape) releases. Mutually exclusive with pet / candy modes.
   const [pinsetMode, setPinsetMode] = useState(false);
   const [heldId, setHeldId] = useState<string | null>(null);
+  // After a pinset release the cursor briefly shows pinset-open as a
+  // visual "I dropped it" cue before reverting to the default arrow.
+  // Without this flash the cursor flips instantly from pinset-close
+  // (gripping) to default — the user has no confirmation the release
+  // landed. ~280 ms is long enough to register, short enough not to
+  // feel sticky.
+  const [pinsetReleaseFlash, setPinsetReleaseFlash] = useState(false);
+  const pinsetReleaseFlashTimerRef = useRef<number | null>(null);
+  const flashPinsetReleased = () => {
+    if (pinsetReleaseFlashTimerRef.current !== null) {
+      clearTimeout(pinsetReleaseFlashTimerRef.current);
+    }
+    setPinsetReleaseFlash(true);
+    pinsetReleaseFlashTimerRef.current = window.setTimeout(() => {
+      setPinsetReleaseFlash(false);
+      pinsetReleaseFlashTimerRef.current = null;
+    }, 280);
+  };
   // Ball mode: cursor becomes the ball icon. Clicking the ground throws
   // the ball at that XZ (bounces in, random creature fetches it and
   // brings it back to origin). Mutually exclusive with other modes.
@@ -167,6 +185,7 @@ function DesktopMainPage() {
       if (petMode) setPetMode(false);
       if (candyMode) setCandyMode(false);
       if (pinsetMode) {
+        if (heldId) flashPinsetReleased();
         setPinsetMode(false);
         setHeldId(null);
       }
@@ -190,6 +209,7 @@ function DesktopMainPage() {
     const onWindowClick = (e: MouseEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && t.closest("canvas")) return;
+      flashPinsetReleased();
       setHeldId(null);
       setPinsetMode(false);
     };
@@ -255,8 +275,10 @@ function DesktopMainPage() {
   //               attract radius come over and eat them.
   //   • Whistle — summon the WHOLE flock to that point (the legacy
   //               candy gather behaviour).
-  //   • Ball    — throw the ball there; a random creature fetches it
-  //               and brings it back to origin.
+  //   • Ball    — throw a ball there; the nearest creature fetches it,
+  //               then the flock passes it around for a bit before the
+  //               last holder hucks it far off-screen. Throw as many as
+  //               you like — every press adds another ball to the scene.
   const handleSceneClick = (x: number, z: number) => {
     unlockAudio();
     if (candyMode) {
@@ -266,17 +288,19 @@ function DesktopMainPage() {
       return;
     }
     if (whistleMode) {
-      playCandyRustle();
+      playWhistle();
       triggerEcosystemGather({ x, z });
       setWhistleMode(false);
       return;
     }
     if (ballMode) {
-      playCandyRustle();
+      // Real bouncy-ball recording (ball.mp3 from 4.0 s), timed to land
+      // with the three-bounce drop animation.
+      playBallBounce();
       // Eligible fetchers = whatever's currently rendered (a creature
       // outside the viewport could still pick up the ball but the user
       // wouldn't see them; restricting to known positions keeps the
-      // delivery legible). Falls back to no-op if scene is empty.
+      // play legible). Falls back to no-op if scene is empty.
       const ids = Array.from(creaturePositions.keys());
       triggerBallThrow(x, z, ids);
       setBallMode(false);
@@ -493,12 +517,26 @@ function DesktopMainPage() {
   //     camera and wants to recenter.
   const handleEmptyGroundClick = () => {
     if (pinsetMode) {
-      if (heldId) setPinsetMode(false);
+      if (heldId) {
+        flashPinsetReleased();
+        setPinsetMode(false);
+      }
       setHeldId(null);
       return;
     }
     setSelected(null);
     setResetTrigger({ ts: Date.now() });
+  };
+
+  // Pinset release-in-place — fired when the user clicks the held
+  // creature itself (signalling "drop right here"). Mirrors the
+  // empty-ground release: clears heldId + exits pinset mode so the
+  // operation completes and the cursor briefly flashes pinset-open
+  // before reverting to default.
+  const handleHeldClickRelease = () => {
+    flashPinsetReleased();
+    setHeldId(null);
+    setPinsetMode(false);
   };
 
   return (
@@ -519,6 +557,9 @@ function DesktopMainPage() {
       //  • Whistle — whistle icon; same gather behaviour candy used to
       //              have. Hotspot ≈ the bell of the whistle.
       // Modes are mutually exclusive so the first match wins.
+      // pinsetReleaseFlash falls LAST — only kicks in when no other
+      // mode is active (i.e., we just released and dropped back to
+      // default). Briefly shows pinset-open as a "released" cue.
       style={
         petMode
           ? { cursor: "url(/assets/hand-cursor.svg) 16 16, pointer" }
@@ -526,12 +567,14 @@ function DesktopMainPage() {
           ? { cursor: "url(/assets/candy-cursor.svg) 33 18, crosshair" }
           : pinsetMode
           ? heldId
-            ? { cursor: "url(/assets/pinset-close.svg) 13 46, grabbing" }
-            : { cursor: "url(/assets/pinset-open.svg) 20 46, grab" }
+            ? { cursor: "url(/assets/pinset-close-cursor.svg) 9 6, grabbing" }
+            : { cursor: "url(/assets/pinset-open-cursor.svg) 13 6, grab" }
           : ballMode
-          ? { cursor: "url(/assets/ball-button.svg) 22 23, crosshair" }
+          ? { cursor: "url(/assets/ball-cursor.svg) 11 12, crosshair" }
           : whistleMode
-          ? { cursor: "url(/assets/whistle-button.svg) 18 21, crosshair" }
+          ? { cursor: "url(/assets/whistle-button.svg) 9 11, crosshair" }
+          : pinsetReleaseFlash
+          ? { cursor: "url(/assets/pinset-open-cursor.svg) 13 6, default" }
           : undefined
       }
     >
@@ -658,7 +701,9 @@ function DesktopMainPage() {
             className="absolute left-[131px] top-[813px] z-[20] block h-[49px] w-[52px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
           >
             {/* The vector slightly overflows the frame by -1.02%/-0.96%
-                (Figma 2127:147 export) so the stroke isn't clipped. */}
+                (Figma 2127:147 export) so the stroke isn't clipped.
+                The fill colour is baked into the SVG (#BFB5A0) so we
+                no longer need a separate bg-grain overlay behind it. */}
             <div
               className="absolute"
               style={{ inset: "-1.02% -0.96%" }}
@@ -768,7 +813,7 @@ function DesktopMainPage() {
         ballMode={ballMode}
         whistleMode={whistleMode}
         onPinsetGrab={handlePinsetGrab}
-        onPinsetRelease={handlePinsetRelease}
+        onPinsetRelease={handleHeldClickRelease}
         onCandyClick={handleSceneClick}
         onEmptyGroundClick={handleEmptyGroundClick}
         onCreatureHover={setHoveredCreature}
