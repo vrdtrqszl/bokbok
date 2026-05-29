@@ -13,8 +13,9 @@ import BokBokLogo from "./BokBokLogo";
  *   3D scene clips badly. Rather than show a broken layout, we show a
  *   clear instruction to rotate.
  *
- * The phone icon below is a CSS-only outlined rectangle that rocks back
- * and forth (CSS animation) to visually suggest "turn me sideways".
+ * The phone icon below is the hand-drawn phone SVG (public/assets/phone.svg,
+ * from the BokBok Figma) that rocks back and forth (CSS animation) to
+ * visually suggest "turn me sideways".
  */
 export default function RotatePrompt() {
   return (
@@ -28,15 +29,12 @@ export default function RotatePrompt() {
         <BokBokLogo width={88} />
       </div>
 
-      {/* Animated rotating-phone icon. Pure CSS — a tall rounded
-          rectangle that rocks ±90° on a 2.4 s loop. */}
+      {/* Animated rotating-phone icon — the hand-drawn BokBok phone SVG
+          (with its own earpiece slit + home button) rocking ±90° on a
+          2.4 s loop. */}
       <div className="rotate-phone-loop" aria-hidden>
-        <div className="relative h-[120px] w-[68px] rounded-[14px] border-[2.5px] border-black">
-          {/* Earpiece slit at the top of the portrait phone */}
-          <span className="absolute left-1/2 top-[10px] block h-[3px] w-[22px] -translate-x-1/2 rounded-full bg-black" />
-          {/* Home indicator / pill at the bottom */}
-          <span className="absolute left-1/2 bottom-[8px] block h-[4px] w-[26px] -translate-x-1/2 rounded-full bg-black/70" />
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/assets/phone.svg" alt="" className="block h-[132px] w-auto" />
       </div>
 
       <div className="max-w-[280px]">
@@ -44,8 +42,11 @@ export default function RotatePrompt() {
           Rotate your phone
         </p>
         <p className="mt-2 text-[16px] font-bold leading-snug text-black/60">
-          BokBok works best in landscape. Turn your phone sideways to
-          enter the ecosystem.
+          BokBok works best in landscape.
+          <br />
+          Turn your phone sideways
+          <br />
+          to enter the ecosystem.
         </p>
       </div>
 

@@ -481,6 +481,8 @@ export function EnergyCreature({
   selected,
   petMode,
   candyMode,
+  ballMode,
+  whistleMode,
   pinsetMode,
   held,
   onPinsetGrab,
@@ -499,6 +501,13 @@ export function EnergyCreature({
    *  (treating the creature as just another point in the scene under
    *  the candy cursor). */
   candyMode?: boolean;
+  /** When true, clicking the creature throws a ball at its world XZ
+   *  (routed through onCandyClick → the page's mode dispatcher) instead
+   *  of focusing the camera. */
+  ballMode?: boolean;
+  /** When true, clicking the creature whistles the flock to its world XZ
+   *  instead of focusing the camera. */
+  whistleMode?: boolean;
   onCandyClick?: (x: number, z: number) => void;
   /** When true, the tweezers are active. A click on the creature fires
    *  onPinsetGrab to take it into hand. */
@@ -967,11 +976,15 @@ export function EnergyCreature({
           }
           return;
         }
-        if (candyMode) {
-          // Candy cursor — clicking a creature is treated the same as
-          // clicking the ground at that creature's XZ: the flock will
-          // converge on it. (User is still in candy mode after; press
-          // the candy button again or Escape to exit.)
+        if (candyMode || ballMode || whistleMode) {
+          // Candy / ball / whistle cursor — clicking a creature is treated
+          // exactly like clicking the ground at that creature's XZ. The
+          // page's scene-tap dispatcher (onCandyClick = handleSceneClick)
+          // routes by the active mode: sprinkle candy, throw a ball, or
+          // whistle the flock to that point. Crucially this RETURNS before
+          // onSelect, so an active tool never zooms the camera in — the
+          // interaction fires in place. (User stays in the tool after a
+          // candy tap; ball/whistle are single-shot and auto-exit.)
           const g = groupRef.current;
           const x = g ? g.position.x : position[0];
           const z = g ? g.position.z : position[2];
@@ -1023,6 +1036,8 @@ export default function EcosystemCreatures({
   query,
   petMode,
   candyMode,
+  ballMode,
+  whistleMode,
   pinsetMode,
   heldId,
   onPinsetGrab,
@@ -1039,6 +1054,13 @@ export default function EcosystemCreatures({
   /** When true, clicking a creature gathers the flock to its XZ
    *  instead of focusing the camera. */
   candyMode?: boolean;
+  /** When true, clicking a creature throws a ball at its XZ (via
+   *  onCandyClick, which the page routes by active mode) instead of
+   *  focusing the camera. */
+  ballMode?: boolean;
+  /** When true, clicking a creature whistles the flock to its XZ
+   *  instead of focusing the camera. */
+  whistleMode?: boolean;
   onCandyClick?: (x: number, z: number) => void;
   /** When true, the tweezers are active — clicking a creature grabs it
    *  (fires onPinsetGrab); the held creature snaps to pinsetTarget on
@@ -1140,6 +1162,8 @@ export default function EcosystemCreatures({
             selected={selectedId === c.id}
             petMode={petMode}
             candyMode={candyMode}
+            ballMode={ballMode}
+            whistleMode={whistleMode}
             pinsetMode={pinsetMode}
             held={heldId === c.id}
             onPinsetGrab={onPinsetGrab}

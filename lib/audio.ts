@@ -1176,6 +1176,93 @@ export function playBallBounce(): void {
   });
 }
 
+// ---- Pinset grab / release (tweezers pick-up & put-down) -------------
+// Plays slices of the "Whoosh & Grab" recording (public/sounds/pinset.mp3,
+// ~12.3 s long). The tail of the file holds FOUR one-shots — two whooshes
+// then two grabs — but we keep only the FIRST of each pair so the cursor
+// gesture maps to one clean sound:
+//   • release ("놓는 소리") — the first whoosh burst at ~10.16 s. Slice
+//     stops at ~10.44 s, before the second whoosh at ~10.57 s.
+//   • grab    ("잡는 소리") — the first grab burst at ~11.01 s. Slice
+//     stops at ~11.34 s, before the second grab at ~11.94 s.
+// A small lead-in (~20-30 ms of silence before the onset) lets the fade-in
+// finish before the attack, so the transient isn't softened.
+// Routed through alwaysOnGain so they fire regardless of the Sound Off
+// toggle — same "you did it, you hear it" rule as whistle / ball / candy.
+
+const PINSET_PATH = "/sounds/pinset.mp3";
+const PINSET_RELEASE_START_S = 10.14; // 놓는 소리 — first whoosh only
+const PINSET_RELEASE_DUR_S = 0.30;
+const PINSET_GRAB_START_S = 10.98; // 잡는 소리 — first grab only
+const PINSET_GRAB_DUR_S = 0.36;
+const PINSET_GAIN = 0.85;
+
+let pinsetBuffer: AudioBuffer | null = null;
+let pinsetLoading: Promise<AudioBuffer | null> | null = null;
+function loadPinset(c: AudioContext): Promise<AudioBuffer | null> {
+  if (pinsetBuffer) return Promise.resolve(pinsetBuffer);
+  if (pinsetLoading) return pinsetLoading;
+  pinsetLoading = fetch(PINSET_PATH)
+    .then((r) => r.arrayBuffer())
+    .then((ab) => c.decodeAudioData(ab))
+    .then((buf) => {
+      pinsetBuffer = buf;
+      return buf;
+    })
+    .catch((err) => {
+      console.error("[bokbok] pinset sound failed to load:", err);
+      pinsetLoading = null;
+      return null;
+    });
+  return pinsetLoading;
+}
+
+/** Play a [startS, startS+durS] slice of the pinset recording with tiny
+ *  anti-click fades on both edges (the recording's one-shots sit mid-
+ *  file, so we always start partway in). */
+function playPinsetSlice(startS: number, durS: number): void {
+  const c = ensureCtx();
+  if (!c || !alwaysOnGain) return;
+
+  loadPinset(c).then((buf) => {
+    if (!buf) return;
+    const c2 = ensureCtx();
+    if (!c2 || !alwaysOnGain) return;
+    const now = c2.currentTime;
+    const start = Math.min(startS, Math.max(0, buf.duration - 0.05));
+    const playDur = Math.min(durS, Math.max(0, buf.duration - start));
+    if (playDur <= 0) return;
+
+    const src = c2.createBufferSource();
+    src.buffer = buf;
+
+    // Fast fade-in keeps the SFX attack punchy while killing the click
+    // from starting mid-waveform; matching tail fade for the cut.
+    const gain = c2.createGain();
+    const edge = Math.min(0.012, playDur / 4);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(PINSET_GAIN, now + edge);
+    gain.gain.setValueAtTime(PINSET_GAIN, now + playDur - edge);
+    gain.gain.linearRampToValueAtTime(0.0001, now + playDur);
+
+    src.connect(gain);
+    gain.connect(alwaysOnGain);
+
+    src.start(now, start, playDur);
+    src.stop(now + playDur + 0.02);
+  });
+}
+
+/** 잡는 소리 — tweezers pinch a creature (pick-up). */
+export function playPinsetGrab(): void {
+  playPinsetSlice(PINSET_GRAB_START_S, PINSET_GRAB_DUR_S);
+}
+
+/** 놓는 소리 — creature set back down / let go (release). */
+export function playPinsetRelease(): void {
+  playPinsetSlice(PINSET_RELEASE_START_S, PINSET_RELEASE_DUR_S);
+}
+
 export function playCandyRustle(): void {
   const c = ensureCtx();
   if (!c || !alwaysOnGain) return;

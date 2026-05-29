@@ -20,7 +20,7 @@ import {
   hoverDateHighlightUrl,
 } from "@/lib/nameHighlight";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
-import { playBallBounce, playCandyRustle, playWhistle, unlockAudio } from "@/lib/audio";
+import { playBallBounce, playCandyRustle, playPinsetGrab, playPinsetRelease, playWhistle, unlockAudio } from "@/lib/audio";
 import { ambientChatter } from "@/lib/ambientChatter";
 
 export default function MainPage() {
@@ -62,6 +62,9 @@ function DesktopMainPage() {
   const [pinsetReleaseFlash, setPinsetReleaseFlash] = useState(false);
   const pinsetReleaseFlashTimerRef = useRef<number | null>(null);
   const flashPinsetReleased = () => {
+    // 놓는 소리 — fires from every release path (drop-in-place, empty
+    // ground, off-canvas click, Escape), since they all funnel here.
+    playPinsetRelease();
     if (pinsetReleaseFlashTimerRef.current !== null) {
       clearTimeout(pinsetReleaseFlashTimerRef.current);
     }
@@ -258,6 +261,9 @@ function DesktopMainPage() {
   // "grabbed": its wander logic is overridden to follow the cursor's
   // world-XZ projection until released.
   const handlePinsetGrab = (id: string) => {
+    // 잡는 소리 — the pinch on pick-up (also covers swapping the grab
+    // from one creature straight to another).
+    playPinsetGrab();
     setHeldId(id);
   };
   // Click on empty ground (or pinset button again, or Escape) releases.

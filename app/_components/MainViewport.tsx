@@ -553,6 +553,8 @@ export default function MainViewport({
                 query={query}
                 petMode={petMode}
                 candyMode={candyMode}
+                ballMode={ballMode}
+                whistleMode={whistleMode}
                 pinsetMode={pinsetMode}
                 heldId={heldId}
                 onPinsetGrab={onPinsetGrab}
