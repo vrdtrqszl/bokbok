@@ -180,6 +180,32 @@ button, a, [role="button"], [type="button"], [type="submit"] {
   touch-action: manipulation;
 }
 
+/* TOUCH TAP TARGETS for the toolbar tools.
+   ViewportFit shrinks the 1440×900 desktop layout to ~43% on a landscape
+   phone, so these buttons render only ~18-26px — well under a fingertip's
+   ~44px contact patch. A tap even 10px off-centre lands on the 3D canvas
+   underneath (= camera reset) instead of the button, so the tools feel
+   "dead" on mobile. On coarse pointers we extend each tool's HIT area with
+   a transparent ::after — the visible artwork is untouched, but off-centre
+   taps now register on the button. (Mostly vertical: the buttons are short
+   and the dead zone is the canvas above / page margin below.) */
+@media (pointer: coarse) {
+  .tool-hit::after {
+    content: "";
+    position: absolute;
+    inset: -24px -8px;
+  }
+}
+
+/* Active-tool feedback for touch. There's no custom cursor on a
+   touchscreen, so without this the user can't tell a mode turned on after
+   tapping its button. Glow every pressed mode tool (matches the candy
+   button's original highlight). Scoped to `.tool-mode` so it never lights
+   up the always-pressed Sound-on toggle. */
+.tool-mode[aria-pressed="true"] {
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.5));
+}
+
 /* Custom hand-drawn text-input cursor (Figma 2129:156). Hotspot 4,11 = the
    center of the I-beam (where the caret would land). Applied to text-typing
    contexts so the standard browser I-beam is replaced with our hand-drawn

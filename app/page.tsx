@@ -738,7 +738,7 @@ function DesktopMainPage() {
             type="button"
             onClick={toggleFullscreen}
             title="Enter full screen"
-            className="absolute z-[20] block cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:opacity-80"
+            className="tool-hit absolute z-[20] block cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:opacity-80"
             style={{ left: 957, top: 107, width: 32.12, height: 32.5 }}
           >
             <img
@@ -763,7 +763,7 @@ function DesktopMainPage() {
             type="button"
             onClick={togglePetMode}
             aria-pressed={petMode}
-            className="absolute left-[131px] top-[813px] z-[20] block h-[49px] w-[52px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
+            className="tool-hit tool-mode absolute left-[131px] top-[813px] z-[20] block h-[49px] w-[52px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
           >
             {/* The vector slightly overflows the frame by -1.02%/-0.96%
                 (Figma 2127:147 export) so the stroke isn't clipped.
@@ -800,7 +800,7 @@ function DesktopMainPage() {
             onClick={togglePinsetMode}
             aria-pressed={pinsetMode}
             title={pinsetMode ? "Exit pinset" : "Pinset — pick up a creature"}
-            className="absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
+            className="tool-hit tool-mode absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
             style={{ left: 195.24, top: 813, width: 40.27, height: 50.06 }}
           >
             <img
@@ -820,7 +820,7 @@ function DesktopMainPage() {
             onClick={toggleBallMode}
             aria-pressed={ballMode}
             title={ballMode ? "Exit ball" : "Ball — throw to play fetch"}
-            className="absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
+            className="tool-hit tool-mode absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
             style={{ left: 253, top: 816, width: 43.55, height: 45.64 }}
           >
             <img
@@ -840,7 +840,7 @@ function DesktopMainPage() {
             onClick={toggleWhistleMode}
             aria-pressed={whistleMode}
             title={whistleMode ? "Exit whistle" : "Whistle — summon the flock"}
-            className="absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
+            className="tool-hit tool-mode absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
             style={{ left: 314, top: 820, width: 59.84, height: 41.57 }}
           >
             <img
@@ -863,7 +863,7 @@ function DesktopMainPage() {
             onClick={triggerShootingStar}
             disabled={stargazing}
             title="Shooting star — everyone stops to watch"
-            className={`absolute z-[20] block overflow-visible bg-transparent p-0 transition-transform ${
+            className={`tool-hit absolute z-[20] block overflow-visible bg-transparent p-0 transition-transform ${
               stargazing
                 ? "cursor-default opacity-50"
                 : "cursor-pointer hover:opacity-90 active:scale-95"

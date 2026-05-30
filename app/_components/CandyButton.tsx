@@ -33,9 +33,7 @@ export default function CandyButton({
       title={label}
       aria-label={label}
       aria-pressed={active}
-      className={`absolute left-[52px] top-[825px] z-[20] block h-[35.26px] w-[66.43px] cursor-pointer bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95 ${
-        active ? "drop-shadow-[0_0_4px_rgba(0,0,0,0.5)]" : ""
-      }`}
+      className="tool-hit tool-mode absolute left-[52px] top-[825px] z-[20] block h-[35.26px] w-[66.43px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
     >
       <img
         alt=""

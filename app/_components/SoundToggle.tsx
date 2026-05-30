@@ -83,7 +83,7 @@ export default function SoundToggle({
         width: `${BUTTON_STYLE.width}px`,
         height: `${BUTTON_STYLE.height}px`,
       }}
-      className="cursor-pointer bg-transparent p-0 opacity-80 transition-opacity hover:opacity-100"
+      className="tool-hit cursor-pointer overflow-visible bg-transparent p-0 opacity-80 transition-opacity hover:opacity-100"
     >
       <img
         alt=""

@@ -639,7 +639,7 @@ export default function MainViewport({
             type="button"
             onClick={() => apiRef.current?.zoomIn()}
             title="Zoom in"
-            className="absolute cursor-pointer bg-transparent p-0 opacity-80 hover:opacity-100"
+            className="tool-hit absolute cursor-pointer overflow-visible bg-transparent p-0 opacity-80 hover:opacity-100"
             style={{ left: 930, top: 701, width: 32.12, height: 32.5 }}
           >
             <img alt="zoom in" src="/assets/zoom-in.svg" className="block size-full" />
@@ -648,7 +648,7 @@ export default function MainViewport({
             type="button"
             onClick={() => apiRef.current?.zoomOut()}
             title="Zoom out"
-            className="absolute cursor-pointer bg-transparent p-0 opacity-80 hover:opacity-100"
+            className="tool-hit absolute cursor-pointer overflow-visible bg-transparent p-0 opacity-80 hover:opacity-100"
             style={{ left: 930, top: 737, width: 32.12, height: 32.5 }}
           >
             <img alt="zoom out" src="/assets/zoom-out.svg" className="block size-full" />
