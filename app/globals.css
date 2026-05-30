@@ -208,22 +208,6 @@ button, a, [role="button"], [type="button"], [type="submit"] {
   }
 }
 
-/* Active-tool feedback. There's no custom cursor on a touchscreen, so
-   without this the user can't tell a mode turned on after tapping its
-   button — and even on desktop the old faint drop-shadow was easy to
-   miss. Now every PRESSED mode tool gets a clearly-visible "selected
-   chip": a soft dark rounded backing + an ink-toned ring + a small lift
-   shadow, so an active tool reads as obviously pressed-in. Scoped to
-   `.tool-mode` so it never lights up the always-pressed Sound-on toggle.
-   `!important` on the background beats Tailwind's `bg-transparent`. */
-.tool-mode[aria-pressed="true"] {
-  background-color: rgba(0, 0, 0, 0.12) !important;
-  border-radius: 12px;
-  box-shadow:
-    inset 0 0 0 1.5px rgba(0, 0, 0, 0.32),
-    0 1px 3px rgba(0, 0, 0, 0.28);
-}
-
 /* MANUAL-CREATE CANVAS touch support. The block editor drives drag / rotate /
    resize / marquee through pointer events, but on a touchscreen the browser
    will steal a finger drag for scrolling/panning before `pointermove` ever

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import MainViewport, { type FocusTarget, type ResetTrigger } from "./_components/MainViewport";
 import BokBokLogo from "./_components/BokBokLogo";
 import CandyButton from "./_components/CandyButton";
+import ToolHint from "./_components/ToolHint";
 import {
   creaturePositions,
   triggerEcosystemGather,
@@ -12,6 +13,7 @@ import {
   triggerBallThrow,
 } from "./_components/EcosystemCreatures";
 import { useT } from "@/lib/i18n";
+import { useIsTouch } from "@/lib/useIsMobile";
 import { deleteCreatureById, loadEcosystem, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { creatureFocusBox, emotionByKey, type CreatureSpec } from "@/lib/creature";
 import {
@@ -98,6 +100,17 @@ function DesktopMainPage() {
   const [hoveredCreature, setHoveredCreature] = useState<CreatureSpec | null>(null);
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const pageRef = useRef<HTMLDivElement | null>(null);
+
+  // Touchscreen? On a phone there's no OS cursor to show the active tool,
+  // and the finger occludes the tap point — so once a mode is on we float a
+  // tool-shaped icon in the scene that tracks the finger ("커서처럼"), giving
+  // the same visual feedback the custom CSS cursor gives desktop. Width-based
+  // useIsMobile() can't be used here: gameplay happens in landscape, where it
+  // flips back to "desktop", so we key off pointer-coarseness instead.
+  const isTouch = useIsTouch();
+  // Position (in 1440×900 design px) of the floating tool-cursor overlay.
+  // Starts centred when a mode turns on, then follows each touch.
+  const [toolCursorPos, setToolCursorPos] = useState<{ x: number; y: number } | null>(null);
 
   // Track the browser's actual fullscreen state so the button reflects it
   // even when the user exits via Escape.
@@ -398,6 +411,36 @@ function DesktopMainPage() {
     window.addEventListener("mousemove", onMove);
     return () => window.removeEventListener("mousemove", onMove);
   }, [hoveredCreature]);
+
+  // Floating tool-cursor tracking (touch only). When a mode is active on a
+  // touchscreen, drop the icon at the screen centre, then move it to follow
+  // every touch (pointerdown/move) — converting client px → design px via the
+  // page rect, exactly like the hover tooltip above. Cleared (back to null,
+  // so the overlay unmounts) the moment no mode is active or we're not on
+  // touch. Purely visual: the actual scene interaction still fires from the
+  // existing tap handlers wired through MainViewport.
+  const anyMode = petMode || candyMode || pinsetMode || ballMode || whistleMode;
+  useEffect(() => {
+    if (!isTouch || !anyMode) {
+      setToolCursorPos(null);
+      return;
+    }
+    setToolCursorPos((prev) => prev ?? { x: 720, y: 450 });
+    const onMove = (e: PointerEvent) => {
+      const rect = pageRef.current?.getBoundingClientRect();
+      if (!rect || rect.width === 0 || rect.height === 0) return;
+      setToolCursorPos({
+        x: ((e.clientX - rect.left) / rect.width) * 1440,
+        y: ((e.clientY - rect.top) / rect.height) * 900,
+      });
+    };
+    window.addEventListener("pointerdown", onMove);
+    window.addEventListener("pointermove", onMove);
+    return () => {
+      window.removeEventListener("pointerdown", onMove);
+      window.removeEventListener("pointermove", onMove);
+    };
+  }, [isTouch, anyMode]);
 
   // True while we're in CSS "pseudo-fullscreen" — the fallback we use on
   // browsers that don't support the element Fullscreen API (notably iOS
@@ -798,8 +841,10 @@ function DesktopMainPage() {
             type="button"
             onClick={togglePetMode}
             aria-pressed={petMode}
-            className="tool-hit tool-mode absolute left-[131px] top-[813px] z-[20] block h-[49px] w-[52px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
+            aria-label="Pet the creatures"
+            className="group tool-hit tool-mode absolute left-[131px] top-[813px] z-[20] block h-[49px] w-[52px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
           >
+            <ToolHint>petting the creatures</ToolHint>
             {/* The vector slightly overflows the frame by -1.02%/-0.96%
                 (Figma 2127:147 export) so the stroke isn't clipped.
                 The fill colour is baked into the SVG (#BFB5A0) so we
@@ -834,10 +879,11 @@ function DesktopMainPage() {
             type="button"
             onClick={togglePinsetMode}
             aria-pressed={pinsetMode}
-            title={pinsetMode ? "Exit pinset" : "Pinset — pick up a creature"}
-            className="tool-hit tool-mode absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
+            aria-label="Pinset — pick up a creature"
+            className="group tool-hit tool-mode absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
             style={{ left: 195.24, top: 813, width: 40.27, height: 50.06 }}
           >
+            <ToolHint>picking one up</ToolHint>
             <img
               alt=""
               src={pinsetMode && heldId ? "/assets/pinset-close.svg" : "/assets/pinset-open.svg"}
@@ -854,10 +900,11 @@ function DesktopMainPage() {
             type="button"
             onClick={toggleBallMode}
             aria-pressed={ballMode}
-            title={ballMode ? "Exit ball" : "Ball — throw to play fetch"}
-            className="tool-hit tool-mode absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
+            aria-label="Ball — throw to play fetch"
+            className="group tool-hit tool-mode absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
             style={{ left: 253, top: 816, width: 43.55, height: 45.64 }}
           >
+            <ToolHint>throwing the ball</ToolHint>
             <img
               alt=""
               src="/assets/ball-button.svg"
@@ -874,10 +921,11 @@ function DesktopMainPage() {
             type="button"
             onClick={toggleWhistleMode}
             aria-pressed={whistleMode}
-            title={whistleMode ? "Exit whistle" : "Whistle — summon the flock"}
-            className="tool-hit tool-mode absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
+            aria-label="Whistle — summon the flock"
+            className="group tool-hit tool-mode absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
             style={{ left: 314, top: 820, width: 59.84, height: 41.57 }}
           >
+            <ToolHint>calling them over</ToolHint>
             <img
               alt=""
               src="/assets/whistle-button.svg"
@@ -897,14 +945,15 @@ function DesktopMainPage() {
             type="button"
             onClick={triggerShootingStar}
             disabled={stargazing}
-            title="Shooting star — everyone stops to watch"
-            className={`tool-hit absolute z-[20] block overflow-visible bg-transparent p-0 transition-transform ${
+            aria-label="Shooting star — everyone stops to watch"
+            className={`group tool-hit absolute z-[20] block overflow-visible bg-transparent p-0 transition-transform ${
               stargazing
                 ? "cursor-default opacity-50"
                 : "cursor-pointer hover:opacity-90 active:scale-95"
             }`}
             style={{ left: 391, top: 814, width: 42, height: 47 }}
           >
+            <ToolHint>making a wish</ToolHint>
             <img
               alt=""
               src="/assets/shootingstar-button.svg"
@@ -948,6 +997,45 @@ function DesktopMainPage() {
         onCreatureHover={setHoveredCreature}
         onPetComplete={handlePetComplete}
       />
+
+      {/* Floating tool-cursor (touch only). Mirrors the desktop custom CSS
+          cursor: the same per-mode SVG, anchored by the same hotspot, but as
+          an on-screen <img> that tracks the finger so a phone user can see
+          which tool is active and where it'll act. Rendered in design px and
+          scaled up (×TOOL_CURSOR_SCALE) so it stays finger-readable after
+          ViewportFit shrinks the page on a small screen. pointer-events-none
+          so it never eats the tap that drives the interaction. */}
+      {isTouch && toolCursorPos && anyMode && (() => {
+        const TOOL_CURSOR_SCALE = 2;
+        // [src, intrinsic w, intrinsic h, hotspot x, hotspot y] per mode —
+        // values match the desktop `cursor:` declarations above.
+        const c: [string, number, number, number, number] = petMode
+          ? ["/assets/pet-cursor.svg", 28, 26, 14, 13]
+          : candyMode
+          ? ["/assets/candy-cursor.svg", 44, 24, 22, 12]
+          : pinsetMode
+          ? heldId
+            ? ["/assets/pinset-close-cursor.svg", 40, 40, 12, 8]
+            : ["/assets/pinset-open-cursor.svg", 44, 44, 17, 8]
+          : ballMode
+          ? ["/assets/ball-cursor.svg", 30, 31, 15, 16]
+          : ["/assets/whistle-cursor.svg", 40, 27, 12, 14];
+        const [src, w, h, hx, hy] = c;
+        return (
+          <img
+            alt=""
+            src={src}
+            draggable={false}
+            className="pointer-events-none absolute z-[150] max-w-none select-none"
+            style={{
+              left: toolCursorPos.x - hx * TOOL_CURSOR_SCALE,
+              top: toolCursorPos.y - hy * TOOL_CURSOR_SCALE,
+              width: w * TOOL_CURSOR_SCALE,
+              height: h * TOOL_CURSOR_SCALE,
+            }}
+          />
+        );
+      })()}
 
       {/* Hover tooltip (Figma 2130:272) — name on top, date YYYYMMDD below.
           Position offsets clear the hand-drawn cursor: the SVG cursor is

@@ -1,5 +1,7 @@
 "use client";
 
+import ToolHint from "./ToolHint";
+
 /**
  * Candy button (Figma 2239:1401) — toggles "candy mode". When candy
  * mode is on, the page cursor becomes a small candy icon and clicking
@@ -30,11 +32,11 @@ export default function CandyButton({
     <button
       type="button"
       onClick={onToggle}
-      title={label}
       aria-label={label}
       aria-pressed={active}
-      className="tool-hit tool-mode absolute left-[52px] top-[825px] z-[20] block h-[35.26px] w-[66.43px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
+      className="group tool-hit tool-mode absolute left-[52px] top-[825px] z-[20] block h-[35.26px] w-[66.43px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
     >
+      <ToolHint>feeding them candies</ToolHint>
       <img
         alt=""
         src="/assets/candy-button.svg"

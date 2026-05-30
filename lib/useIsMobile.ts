@@ -52,6 +52,43 @@ export function useIsMobile(): boolean {
  * SSR-safe: returns `false` on the server so the initial HTML doesn't
  * flash the rotate prompt.
  */
+/**
+ * True when the primary pointer is COARSE — i.e., a touchscreen (finger)
+ * rather than a mouse/trackpad. Unlike useIsMobile(), this is independent
+ * of viewport width, so it stays true on a phone held in LANDSCAPE (where
+ * the width-based check flips back to "desktop" because the width clears
+ * 768px). That makes it the right signal for touch-only affordances — the
+ * floating tool-cursor overlay and the larger candy sprinkle — which we
+ * want on every phone/tablet regardless of orientation.
+ *
+ * Uses matchMedia("(pointer: coarse)") with a maxTouchPoints fallback.
+ * SSR-safe: returns `false` on the server so the desktop affordances render
+ * first, then re-evaluates after mount.
+ */
+export function useIsTouch(): boolean {
+  const [isTouch, setIsTouch] = useState(false);
+
+  useEffect(() => {
+    const check = () => {
+      const coarse = typeof window.matchMedia === "function"
+        ? window.matchMedia("(pointer: coarse)").matches
+        : (navigator.maxTouchPoints ?? 0) > 0;
+      setIsTouch(coarse);
+    };
+    check();
+    // Pointer type can change (e.g., a 2-in-1 docking a mouse), so re-check
+    // on resize/orientation as cheap proxies for environment changes.
+    window.addEventListener("resize", check);
+    window.addEventListener("orientationchange", check);
+    return () => {
+      window.removeEventListener("resize", check);
+      window.removeEventListener("orientationchange", check);
+    };
+  }, []);
+
+  return isTouch;
+}
+
 export function useIsPortraitMobile(): boolean {
   const [portraitMobile, setPortraitMobile] = useState(false);
 

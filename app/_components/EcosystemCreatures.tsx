@@ -128,6 +128,17 @@ const CANDY_SPRINKLE_RADIUS = 1.4;
 const CANDY_ATTRACT_RADIUS = 4.5; // creatures within this aim for the nearest candy
 const CANDY_EAT_RADIUS = 0.35;    // when a creature lands within this, the candy is eaten
 
+/** True on a touchscreen (coarse pointer). On a phone the scene is scaled
+ *  down by ViewportFit and there's no hover, so the little ground candies
+ *  read as too tiny — we render them bigger there. Cheap synchronous check;
+ *  SSR-safe (Canvas is client-only, but guard window anyway). */
+function isCoarsePointer(): boolean {
+  if (typeof window === "undefined") return false;
+  return typeof window.matchMedia === "function"
+    ? window.matchMedia("(pointer: coarse)").matches
+    : (navigator.maxTouchPoints ?? 0) > 0;
+}
+
 /** Drop a small cluster of candies on the ground at (cx, cz). Used by
  *  the candy button's "sprinkle treats" click. */
 export function triggerCandySprinkle(cx: number, cz: number): void {
@@ -1326,8 +1337,10 @@ function CandyParticles() {
   // sRGB so the sprinkled candies render the SVG's literal fill, matching
   // the toolbar candy button (same fix as the fetch ball).
   texture.colorSpace = SRGBColorSpace;
-  // candy-button.svg aspect ratio: 66.43 / 35.26 ≈ 1.884
-  const CANDY_W = 0.56;
+  // candy-button.svg aspect ratio: 66.43 / 35.26 ≈ 1.884. Bumped ~1.7×
+  // bigger on touchscreens so each candy stays visible after the scene is
+  // scaled down on a phone.
+  const CANDY_W = isCoarsePointer() ? 0.94 : 0.56;
   const CANDY_H = CANDY_W * (35.26 / 66.43);
   if (candies.length === 0) return null;
   return (
