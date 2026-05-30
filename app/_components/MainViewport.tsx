@@ -368,6 +368,7 @@ export default function MainViewport({
   heldId = null,
   ballMode = false,
   whistleMode = false,
+  stargazing = false,
   onPinsetGrab,
   onPinsetRelease,
   onPetComplete,
@@ -412,6 +413,11 @@ export default function MainViewport({
   /** Whistle mode — clicking the ground fires `onCandyClick(x, z)` so
    *  the page can summon the whole flock to that point. */
   whistleMode?: boolean;
+  /** One-shot shooting-star event. While true, an overlay star streaks
+   *  across the top of the viewport and every creature freezes in place
+   *  to look up and watch. The page flips it back to false after the
+   *  fly animation finishes. */
+  stargazing?: boolean;
   /** Fires after the user pets a creature (pet mode click). Lets the
    *  page auto-exit pet mode so the cursor returns to default — same
    *  single-shot UX as the candy/whistle/ball tools. */
@@ -555,6 +561,7 @@ export default function MainViewport({
                 candyMode={candyMode}
                 ballMode={ballMode}
                 whistleMode={whistleMode}
+                stargazing={stargazing}
                 pinsetMode={pinsetMode}
                 heldId={heldId}
                 onPinsetGrab={onPinsetGrab}
@@ -578,6 +585,22 @@ export default function MainViewport({
               tweezers" feel without any per-frame React state churn. */}
           <PinsetCursorTracker active={pinsetMode && !!heldId} />
         </Canvas>
+
+        {/* Shooting-star overlay — sits on top of the 3D canvas, clipped
+            to the viewport box. Mounted only while `stargazing` is on, so
+            each press starts the CSS fly animation fresh (right → left,
+            head leading, diagonal downward drift). pointer-events-none so
+            it never intercepts creature clicks underneath. */}
+        {stargazing && (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <img
+              alt=""
+              src="/assets/shootingstar.svg"
+              className="shooting-star"
+              draggable={false}
+            />
+          </div>
+        )}
       </div>
 
       {/* Hand-drawn outline — only in normal desktop mode. Removed in

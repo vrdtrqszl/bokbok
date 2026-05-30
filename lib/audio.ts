@@ -1508,3 +1508,64 @@ export function playDropletTick(pitchIndex?: number): void {
   osc.start(now);
   osc.stop(now + 0.22);
 }
+
+// ---- Shooting-star glitter ------------------------------------------
+// Plays the real "Glitter Sound" recording (public/sounds/glitter.mp3)
+// when the 별똥별 button fires. The flock falls silent for the ~2.2 s
+// fly-by (ambientChatter.setMuted), so the glitter has the room to
+// itself. Routed through alwaysOnGain so it sounds regardless of the
+// Sound Off toggle — same "you pressed it, you hear it" rule as the
+// whistle / ball / candy / pinset one-shots.
+
+const GLITTER_PATH = "/sounds/glitter.mp3";
+const GLITTER_GAIN = 0.8;
+
+let glitterBuffer: AudioBuffer | null = null;
+let glitterLoading: Promise<AudioBuffer | null> | null = null;
+function loadGlitter(c: AudioContext): Promise<AudioBuffer | null> {
+  if (glitterBuffer) return Promise.resolve(glitterBuffer);
+  if (glitterLoading) return glitterLoading;
+  glitterLoading = fetch(GLITTER_PATH)
+    .then((r) => r.arrayBuffer())
+    .then((ab) => c.decodeAudioData(ab))
+    .then((buf) => {
+      glitterBuffer = buf;
+      return buf;
+    })
+    .catch((err) => {
+      console.error("[bokbok] glitter sound failed to load:", err);
+      glitterLoading = null;
+      return null;
+    });
+  return glitterLoading;
+}
+
+export function playGlitter(): void {
+  const c = ensureCtx();
+  if (!c || !alwaysOnGain) return;
+
+  loadGlitter(c).then((buf) => {
+    if (!buf) return;
+    const c2 = ensureCtx();
+    if (!c2 || !alwaysOnGain) return;
+    const now = c2.currentTime;
+    const dur = buf.duration;
+    if (dur <= 0) return;
+
+    const src = c2.createBufferSource();
+    src.buffer = buf;
+
+    // Tiny tail fade-out so the cut at the file's end never clicks.
+    const gain = c2.createGain();
+    const edge = Math.min(0.08, dur / 4);
+    gain.gain.setValueAtTime(GLITTER_GAIN, now);
+    gain.gain.setValueAtTime(GLITTER_GAIN, now + dur - edge);
+    gain.gain.linearRampToValueAtTime(0.0001, now + dur);
+
+    src.connect(gain);
+    gain.connect(alwaysOnGain);
+
+    src.start(now);
+    src.stop(now + dur + 0.02);
+  });
+}

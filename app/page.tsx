@@ -20,7 +20,7 @@ import {
   hoverDateHighlightUrl,
 } from "@/lib/nameHighlight";
 import { downloadCreaturePng } from "@/lib/downloadCreature";
-import { playBallBounce, playCandyRustle, playPinsetGrab, playPinsetRelease, playWhistle, unlockAudio } from "@/lib/audio";
+import { playBallBounce, playCandyRustle, playGlitter, playPinsetGrab, playPinsetRelease, playWhistle, unlockAudio } from "@/lib/audio";
 import { ambientChatter } from "@/lib/ambientChatter";
 
 export default function MainPage() {
@@ -82,6 +82,13 @@ function DesktopMainPage() {
   // makes the WHOLE flock gather to that point — the previous "candy
   // button" behaviour now lives under the whistle. Mutually exclusive.
   const [whistleMode, setWhistleMode] = useState(false);
+  // Shooting star: a ONE-SHOT action (not a mode — no cursor, no scene
+  // click). Pressing the 별똥별 button streaks a star across the top of
+  // the viewport while every creature freezes in place and looks up to
+  // watch. Auto-clears after the animation; re-press is ignored while
+  // one is already in flight.
+  const [stargazing, setStargazing] = useState(false);
+  const starTimerRef = useRef<number | null>(null);
   // Search query — filters which creatures render in the 3D scene
   // (via EcosystemCreatures' `query` prop, which already supports
   // matchesCreatureQuery). Empty string = show everything.
@@ -178,6 +185,13 @@ function DesktopMainPage() {
     ambientChatter.setSelected(selected?.id ?? null);
   }, [selected?.id]);
 
+  // Hush the flock while the shooting star passes — everyone watches in
+  // silence. Muting (vs. stopping) keeps the chatter cadence so it resumes
+  // seamlessly the moment `stargazing` flips back off.
+  useEffect(() => {
+    ambientChatter.setMuted(stargazing);
+  }, [stargazing]);
+
   // Exit any active mode on Escape — feels natural for "I'm done".
   // Pinset Escape also drops any held creature so the user isn't stuck
   // with a stranded creature glued to a hidden cursor.
@@ -198,6 +212,30 @@ function DesktopMainPage() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [petMode, candyMode, pinsetMode, ballMode, whistleMode]);
+
+  // Right-click cancels whatever tool is active and returns to the default
+  // cursor — a natural "never mind" gesture that mirrors Escape. We only
+  // attach the listener (and swallow the browser context menu) WHILE a mode
+  // is active, so normal right-click behaviour is untouched everywhere else.
+  // Exiting the mode reverts the per-mode cursor style back to the default
+  // arrow automatically, so there's nothing extra to restore.
+  useEffect(() => {
+    if (!petMode && !candyMode && !pinsetMode && !ballMode && !whistleMode) return;
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      if (petMode) setPetMode(false);
+      if (candyMode) setCandyMode(false);
+      if (pinsetMode) {
+        if (heldId) flashPinsetReleased();
+        setPinsetMode(false);
+        setHeldId(null);
+      }
+      if (ballMode) setBallMode(false);
+      if (whistleMode) setWhistleMode(false);
+    };
+    window.addEventListener("contextmenu", onContextMenu);
+    return () => window.removeEventListener("contextmenu", onContextMenu);
+  }, [petMode, candyMode, pinsetMode, ballMode, whistleMode, heldId]);
 
   // While holding a creature with the pinset, ANY click that lands
   // outside the 3D canvas drops the creature AND exits pinset mode —
@@ -254,6 +292,22 @@ function DesktopMainPage() {
     const next = !whistleMode;
     exitAllModes();
     setWhistleMode(next);
+  };
+
+  // Shooting star — fire-and-forget. Flip `stargazing` on (which streaks
+  // the overlay star and freezes the flock to watch), then clear it after
+  // the CSS fly animation (~2.2 s) finishes. Guarded so spamming the
+  // button doesn't stack overlapping stars or extend the freeze forever.
+  const triggerShootingStar = () => {
+    if (stargazing) return;
+    unlockAudio();
+    playGlitter();
+    setStargazing(true);
+    if (starTimerRef.current !== null) clearTimeout(starTimerRef.current);
+    starTimerRef.current = window.setTimeout(() => {
+      setStargazing(false);
+      starTimerRef.current = null;
+    }, 2400);
   };
 
   // Called by EcosystemCreatures when a creature is clicked while in
@@ -792,6 +846,33 @@ function DesktopMainPage() {
             />
           </button>
 
+          {/* Shooting-star button (Figma 2404:224) — sits right of the
+              whistle. ONE-SHOT: pressing it streaks a star across the top
+              of the 3D viewport while every creature freezes in place and
+              looks up to watch. Not a mode (no cursor / no scene click),
+              so it never enters exitAllModes. Disabled while a star is
+              already in flight so rapid presses don't stack. Bottom-
+              aligned (~861) with the whistle; ~17 px gap to its right. */}
+          <button
+            type="button"
+            onClick={triggerShootingStar}
+            disabled={stargazing}
+            title="Shooting star — everyone stops to watch"
+            className={`absolute z-[20] block overflow-visible bg-transparent p-0 transition-transform ${
+              stargazing
+                ? "cursor-default opacity-50"
+                : "cursor-pointer hover:opacity-90 active:scale-95"
+            }`}
+            style={{ left: 391, top: 814, width: 42, height: 47 }}
+          >
+            <img
+              alt=""
+              src="/assets/shootingstar-button.svg"
+              className="block size-full max-w-none"
+              draggable={false}
+            />
+          </button>
+
           {/* Candy button (Figma 2239:1401) — bottom-left of the main
               page. Toggles candy mode: cursor becomes a candy icon and
               clicking the ground sprinkles treats; creatures nearby
@@ -818,6 +899,7 @@ function DesktopMainPage() {
         heldId={heldId}
         ballMode={ballMode}
         whistleMode={whistleMode}
+        stargazing={stargazing}
         onPinsetGrab={handlePinsetGrab}
         onPinsetRelease={handleHeldClickRelease}
         onCandyClick={handleSceneClick}

@@ -26,6 +26,30 @@ const TEXTURE_PATHS = EMOTION_LIST.map((e) => e.imagePath);
 // creature actually IS at any given moment.
 export const creaturePositions = new Map<string, [number, number, number]>();
 
+// Id of the creature the camera is currently focused on (zoomed in), or
+// null when nobody is selected. Mirrored from EcosystemCreatures' selectedId
+// prop so non-React scene logic (the fetch-ball state machine) can see it.
+//
+// Why the fetch-ball loop needs this: focusing a creature unmounts the
+// ENTIRE rest of the flock (see the `selectedId && c.id !== selectedId`
+// filter), so no creature is left running its wander loop to walk over and
+// pick up a ball. Any ball still waiting to be fetched would just sit on the
+// ground "abandoned" until the user zoomed back out. The ball loop reads
+// this to retire such balls gracefully instead.
+let selectedCreatureId: string | null = null;
+export function setSelectedCreatureId(id: string | null): void {
+  selectedCreatureId = id;
+}
+
+// Timestamp (performance.now() ms) when the current shooting-star pass
+// began. Set on the rising edge of the `stargazing` prop (see the effect in
+// EcosystemCreatures). Each creature reads this every frame to work out
+// where the star is along its right→left flight, so it can sweep its gaze
+// (head tilt) to follow the star across the sky. The CSS fly animation runs
+// for STAR_FLY_SECONDS, so the gaze sweep is mapped onto that same window.
+const STAR_FLY_SECONDS = 2.2;
+let stargazeStartMs = 0;
+
 // Pinset (tweezers) target — the cursor's world-XZ projection onto the
 // ground plane. Updated by MainViewport's PinsetCursorTracker on every
 // pointermove while a creature is held. The held EnergyCreature reads
@@ -483,6 +507,7 @@ export function EnergyCreature({
   candyMode,
   ballMode,
   whistleMode,
+  stargazing,
   pinsetMode,
   held,
   onPinsetGrab,
@@ -508,6 +533,10 @@ export function EnergyCreature({
   /** When true, clicking the creature whistles the flock to its world XZ
    *  instead of focusing the camera. */
   whistleMode?: boolean;
+  /** One-shot shooting-star event. While true, this creature freezes in
+   *  place (settling to the ground) and eases into a "look up" lean to
+   *  watch the star streak past, easing back to neutral afterward. */
+  stargazing?: boolean;
   onCandyClick?: (x: number, z: number) => void;
   /** When true, the tweezers are active. A click on the creature fires
    *  onPinsetGrab to take it into hand. */
@@ -528,6 +557,12 @@ export function EnergyCreature({
   onHover?: (creature: CreatureSpec | null) => void;
 }) {
   const groupRef = useRef<Group | null>(null);
+  // Inner "head tilt" group, nested INSIDE drei's <Billboard>. The billboard
+  // re-faces the OUTER group (groupRef) at the camera every frame and cancels
+  // any static rotation we put there, so a sustained tilt has to live on a
+  // child it doesn't touch. This group carries the stargazing crane-up + gaze
+  // sweep so the heads can hold a stable "looking at the star" pose.
+  const headTiltRef = useRef<Group | null>(null);
   const [hovered, setHovered] = useState(false);
   // Timestamp (seconds, perf clock) until which this creature should shake
   // wildly because it's being petted. Stored as a ref so updating it doesn't
@@ -641,9 +676,13 @@ export function EnergyCreature({
       // Reset jump timer so the moment the user drops the creature, it
       // doesn't immediately spring off in some stale direction.
       w.nextJumpAt = t + 0.5 + Math.random() * 0.8;
-    } else if (selected) {
-      // Selected creature pauses in place so the focused camera can stay on
-      // it. Settle gently to the ground if mid-air.
+    } else if (selected || stargazing) {
+      // Paused in place:
+      //   • selected — the focused camera stays locked on this one creature.
+      //   • stargazing — the whole flock stops hopping to watch the shooting
+      //     star pass overhead.
+      // Either way, settle gently to the ground if caught mid-air so nobody
+      // freezes floating, and mark the hop complete.
       w.pos.y += (0 - w.pos.y) * 0.15;
       w.progress = 1;
     } else if (w.progress >= 1) {
@@ -898,7 +937,7 @@ export function EnergyCreature({
 
     // Body tilt — exaggerated during the jump arc so the cartoon hop reads,
     // gentle idle sway when grounded, violent random spin when being petted.
-    const inAir = !selected && w.progress < 1;
+    const inAir = !selected && !stargazing && w.progress < 1;
     if (now < shakeUntilRef.current) {
       const remaining = shakeUntilRef.current - now;
       const intensity = Math.min(1, remaining / 0.4);
@@ -912,6 +951,50 @@ export function EnergyCreature({
       g.rotation.z = tiltPhase * 0.30 * travelDir;
     } else {
       g.rotation.z = Math.sin(t * 0.6 + phase) * 0.03;
+    }
+
+    // ── Stargazing head tilt ───────────────────────────────────────────
+    // While the shooting star passes, the creature turns its head to FOLLOW
+    // the star across the sky. This is applied to headTiltRef — an inner
+    // group inside the billboard — so the tilt is a *stable* pose: a rotation
+    // on the outer billboard group would be re-cancelled to face the camera
+    // every frame (only deltas would show), whereas this child group rides
+    // along with the camera-facing sprite and adds a real, held tilt on top.
+    //
+    // We ONLY roll the sprite in its own screen plane (rotation.z). We do
+    // NOT tilt it back out of plane (rotation.x): the creature is a flat
+    // billboard, so tipping it away from the camera foreshortens it and the
+    // body reads as "squished". An in-plane roll, by contrast, keeps the
+    // shape perfectly intact — the head just leans toward the star. lookUp
+    // eases 0→1 on enter and 1→0 on exit so the lean glides in and back.
+    const tilt = headTiltRef.current;
+    if (tilt) {
+      const lookTarget = stargazing ? 1 : 0;
+      const lookPrev = (tilt.userData.lookUp as number | undefined) ?? 0;
+      const lookUp = lookPrev + (lookTarget - lookPrev) * 0.08;
+      tilt.userData.lookUp = lookUp;
+
+      // Where the star is along its right→left flight (0 at the right edge,
+      // 1 at the left). Cached on userData so that during the ease-out (after
+      // `stargazing` flips false and lookUp decays back to 0) the head glides
+      // back from its last-tracked angle instead of snapping to centre.
+      if (stargazing) {
+        const starProgress = Math.min(
+          1,
+          Math.max(
+            0,
+            (performance.now() - stargazeStartMs) / 1000 / STAR_FLY_SECONDS,
+          ),
+        );
+        tilt.userData.gaze = 1 - 2 * starProgress; // +1 right → −1 left
+      }
+      const gaze = (tilt.userData.gaze as number | undefined) ?? 0;
+
+      // Lean (in-plane roll) toward whichever side the star is on: star on
+      // the right → top leans right, sweeping over to the left as the star
+      // crosses. Scaled by lookUp so it fades in and out with the pass. No
+      // out-of-plane tilt, so the creature's shape never distorts.
+      tilt.rotation.z = -lookUp * gaze * 0.5;
     }
 
     // Breathing pulse + hover scale bump. NO selection bump — the camera
@@ -1018,9 +1101,11 @@ export function EnergyCreature({
         onHover?.(null);
       }}
     >
-      {creature.blocks.map((b, i) => (
-        <EnergyBlock key={i} block={b} />
-      ))}
+      <group ref={headTiltRef}>
+        {creature.blocks.map((b, i) => (
+          <EnergyBlock key={i} block={b} />
+        ))}
+      </group>
     </Billboard>
   );
 }
@@ -1038,6 +1123,7 @@ export default function EcosystemCreatures({
   candyMode,
   ballMode,
   whistleMode,
+  stargazing,
   pinsetMode,
   heldId,
   onPinsetGrab,
@@ -1061,6 +1147,9 @@ export default function EcosystemCreatures({
   /** When true, clicking a creature whistles the flock to its XZ
    *  instead of focusing the camera. */
   whistleMode?: boolean;
+  /** One-shot shooting-star event. While true, every creature freezes in
+   *  place and eases into a "look up" lean to watch the star pass. */
+  stargazing?: boolean;
   onCandyClick?: (x: number, z: number) => void;
   /** When true, the tweezers are active — clicking a creature grabs it
    *  (fires onPinsetGrab); the held creature snaps to pinsetTarget on
@@ -1102,6 +1191,24 @@ export default function EcosystemCreatures({
       unsubscribeRemote();
     };
   }, []);
+
+  // Mirror the focused-creature id into module scope so the fetch-ball
+  // state machine (which runs outside React) can tell when the flock is
+  // zoomed in. Cleared to null whenever focus is released.
+  useEffect(() => {
+    setSelectedCreatureId(selectedId ?? null);
+    return () => setSelectedCreatureId(null);
+  }, [selectedId]);
+
+  // Stamp the start of each shooting-star pass on the rising edge of the
+  // `stargazing` prop. Every creature reads stargazeStartMs each frame to
+  // figure out where the star is along its right→left flight, so it can
+  // sweep its gaze (head tilt) to follow the star (see the gaze block in
+  // EnergyCreature's useFrame). Re-stamping on each rising edge keeps the
+  // sweep in sync with the freshly-restarted CSS fly animation.
+  useEffect(() => {
+    if (stargazing) stargazeStartMs = performance.now();
+  }, [stargazing]);
 
   // Preload all textures so suspense fires once at mount, not per creature.
   useLoader(TextureLoader, TEXTURE_PATHS);
@@ -1164,6 +1271,7 @@ export default function EcosystemCreatures({
             candyMode={candyMode}
             ballMode={ballMode}
             whistleMode={whistleMode}
+            stargazing={stargazing}
             pinsetMode={pinsetMode}
             held={heldId === c.id}
             onPinsetGrab={onPinsetGrab}
@@ -1315,15 +1423,23 @@ function FetchBallInstance({
       }
     } else if (ph === 'sitting') {
       g.position.set(ball.x, 0.31, ball.z);
-      // Transition to holding when the fetcher actually touches the
-      // ball. Watch the live creature position; flip on contact.
-      const carrierId = ball.carrierId;
-      const pos = carrierId ? creaturePositions.get(carrierId) : undefined;
-      if (pos) {
-        const dx = pos[0] - ball.x;
-        const dz = pos[2] - ball.z;
-        if (Math.hypot(dx, dz) < BALL_PICKUP_RADIUS) {
-          startBallHold(ball);
+      // If the camera is focused on a creature, the rest of the flock is
+      // unmounted and frozen — the assigned fetcher can't walk over, so this
+      // ball would sit "abandoned" on the ground until the user zoomed back
+      // out. Retire it gracefully off-screen instead of leaving it stranded.
+      if (selectedCreatureId !== null) {
+        startBallLeave(ball, ball.x, 0.31, ball.z);
+      } else {
+        // Transition to holding when the fetcher actually touches the
+        // ball. Watch the live creature position; flip on contact.
+        const carrierId = ball.carrierId;
+        const pos = carrierId ? creaturePositions.get(carrierId) : undefined;
+        if (pos) {
+          const dx = pos[0] - ball.x;
+          const dz = pos[2] - ball.z;
+          if (Math.hypot(dx, dz) < BALL_PICKUP_RADIUS) {
+            startBallHold(ball);
+          }
         }
       }
     } else if (ph === 'holding') {

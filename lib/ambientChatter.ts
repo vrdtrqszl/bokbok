@@ -41,6 +41,11 @@ let creatures: CreatureSpec[] = [];
 let selectedId: string | null = null;
 let timer: number | null = null;
 let active = false;
+// When true, the loop keeps ticking but plays NOTHING — used during the
+// shooting-star pass so the flock falls silent while everyone watches the
+// star streak by. We mute rather than stop() so the cadence resumes
+// seamlessly the instant the star is gone.
+let muted = false;
 
 function tick(): void {
   if (!active) return;
@@ -61,7 +66,7 @@ function tick(): void {
     picked = creatures[Math.floor(Math.random() * creatures.length)];
   }
 
-  if (picked && picked.blocks.length > 0) {
+  if (picked && picked.blocks.length > 0 && !muted) {
     const block = picked.blocks[Math.floor(Math.random() * picked.blocks.length)];
     const isSelected = picked.id === selectedId;
     const amp = isSelected ? AMP_SELECTED : AMP_AMBIENT;
@@ -103,5 +108,10 @@ export const ambientChatter = {
   /** Update which creature is "focused". null = nothing selected. */
   setSelected(id: string | null): void {
     selectedId = id;
+  },
+  /** Silence (or un-silence) all chirps without stopping the loop. Used to
+   *  hush the flock while the shooting star passes. */
+  setMuted(m: boolean): void {
+    muted = m;
   },
 };

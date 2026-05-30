@@ -116,6 +116,33 @@
 }
 
 
+/* Shooting star — the 별똥별 button streaks a hand-drawn star+tail
+   across the top of the 3D viewport (right → left, head leading, with a
+   slight diagonal downward drift) while the flock pauses to watch it.
+   Positioned with `left`/`top` percentages (relative to the canvas
+   wrapper) so the same animation reads correctly at both the normal
+   945-px box and the larger fullscreen box. The constant `rotate` tilts
+   the horizontal streak so the tail points up-and-back along the
+   diagonal path. Fades in at the start and out at the end via opacity. */
+@keyframes shooting-star-fly {
+  0%   { left: 100%; top: 1%;  opacity: 0; }
+  10%  { opacity: 1; }
+  82%  { opacity: 1; }
+  100% { left: -28%; top: 26%; opacity: 0; }
+}
+.shooting-star {
+  position: absolute;
+  width: 20%;
+  /* Lock the box to the SVG's true viewBox ratio (160.028 : 77.4551) so the
+     hand-drawn star + tail never gets vertically squished, regardless of the
+     img's intrinsic-size fallback. */
+  height: auto;
+  aspect-ratio: 160.028 / 77.4551;
+  transform: rotate(7deg);
+  animation: shooting-star-fly 2.2s linear forwards;
+  will-change: left, top, opacity;
+}
+
 html, body {
   /* Solid #dfd9c9 fallback in case the grain JPG fails to load. The
      grain itself is applied via the .bg-grain utility on each page so
