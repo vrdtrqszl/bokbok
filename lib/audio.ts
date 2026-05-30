@@ -1123,6 +1123,14 @@ const BALL_PATH = "/sounds/ball.mp3";
 const BALL_BOUNCE_START_S = 4.0; // skip the lead-in; bounces begin here
 const BALL_BOUNCE_GAIN = 0.7;
 
+// One crisp single-bounce "tap" carved from the recording — used for the
+// keep-away dribble (each time a creature catches / picks up the ball).
+// The file holds clean isolated bounce transients at ~4.4 s, ~4.92 s and
+// ~5.34 s; we slice the first one (onset ~4.40 s, decays by ~4.6 s).
+const BALL_DRIBBLE_START_S = 4.38;
+const BALL_DRIBBLE_DUR_S = 0.22;
+const BALL_DRIBBLE_GAIN = 0.5; // softer than the throw — it repeats
+
 let ballBuffer: AudioBuffer | null = null;
 let ballLoading: Promise<AudioBuffer | null> | null = null;
 function loadBall(c: AudioContext): Promise<AudioBuffer | null> {
@@ -1166,6 +1174,49 @@ export function playBallBounce(): void {
     gain.gain.setValueAtTime(0.0001, now);
     gain.gain.linearRampToValueAtTime(BALL_BOUNCE_GAIN, now + edge);
     gain.gain.setValueAtTime(BALL_BOUNCE_GAIN, now + playDur - edge);
+    gain.gain.linearRampToValueAtTime(0.0001, now + playDur);
+
+    src.connect(gain);
+    gain.connect(alwaysOnGain);
+
+    src.start(now, start, playDur);
+    src.stop(now + playDur + 0.02);
+  });
+}
+
+// Single bounce-tap for the keep-away dribble. Plays one short slice of
+// ball.mp3 with a tiny random pitch shift so repeated catches don't sound
+// mechanically identical. Routed through alwaysOnGain like the throw —
+// it's the same ball, just changing hands.
+export function playBallDribble(): void {
+  const c = ensureCtx();
+  if (!c || !alwaysOnGain) return;
+
+  loadBall(c).then((buf) => {
+    if (!buf) return;
+    const c2 = ensureCtx();
+    if (!c2 || !alwaysOnGain) return;
+    const now = c2.currentTime;
+    const start = Math.min(
+      BALL_DRIBBLE_START_S,
+      Math.max(0, buf.duration - 0.05),
+    );
+    const playDur = Math.min(
+      BALL_DRIBBLE_DUR_S,
+      Math.max(0, buf.duration - start),
+    );
+    if (playDur <= 0) return;
+
+    const src = c2.createBufferSource();
+    src.buffer = buf;
+    // ±6% pitch jitter for variety across repeated passes.
+    src.playbackRate.value = 1 + (Math.random() - 0.5) * 0.12;
+
+    const gain = c2.createGain();
+    const edge = Math.min(0.012, playDur / 4);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(BALL_DRIBBLE_GAIN, now + edge);
+    gain.gain.setValueAtTime(BALL_DRIBBLE_GAIN, now + playDur - edge);
     gain.gain.linearRampToValueAtTime(0.0001, now + playDur);
 
     src.connect(gain);
@@ -1261,6 +1312,128 @@ export function playPinsetGrab(): void {
 /** 놓는 소리 — creature set back down / let go (release). */
 export function playPinsetRelease(): void {
   playPinsetSlice(PINSET_RELEASE_START_S, PINSET_RELEASE_DUR_S);
+}
+
+// ---- Pet (쓰다듬기) ---------------------------------------------------
+// Fully synthesized — no sample. When petted the creature does a fast,
+// happy WIGGLE (a ~1.4 s shake that decays over its last 0.4 s), so the
+// sound is a soft "purr-trill": a warm low coo whose volume FLUTTERS at
+// the wiggle rate — the audio analogue of the vibration you'd feel
+// stroking something happy. A gentle upward pitch drift reads as content/
+// affectionate, and both the flutter depth and the volume ease off over
+// the final stretch so the sound settles in sync with the shake decaying
+// out (no hard stop). Routed through alwaysOnGain so it fires regardless
+// of the Sound Off toggle — same "you did it, you hear it" rule as the
+// whistle / ball / candy / pinset one-shots.
+
+const PET_DUR_S = 1.25; // a touch shorter than the 1.4 s shake window
+const PET_BASE_HZ = 196; // warm low-mid coo (G3)
+const PET_FLUTTER_START_HZ = 22; // purr/wiggle flutter at the lively start
+const PET_FLUTTER_END_HZ = 13; // flutter slows as the wiggle settles
+const PET_FLUTTER_DEPTH = 0.9; // 0..1 — how deep the volume pulses
+const PET_GAIN = 0.34;
+
+/** 쓰다듬는 소리 — a synthesized happy purr-trill fired on a pet-mode click. */
+export function playPet(): void {
+  const c = ensureCtx();
+  if (!c || !alwaysOnGain) return;
+
+  const t0 = c.currentTime;
+  const tEnd = t0 + PET_DUR_S;
+  const settle = tEnd - 0.4; // flutter + volume start easing off here
+
+  // Two slightly detuned carriers → a soft chorus rather than a bare tone.
+  // Triangle + sine keeps it vowel-like and warm (no synth buzz). A small
+  // upward glide across the body, settling back at the end, reads as a
+  // contented little coo.
+  const oscA = c.createOscillator();
+  oscA.type = "triangle";
+  const oscB = c.createOscillator();
+  oscB.type = "sine";
+  oscB.detune.value = 10;
+  const pStart = PET_BASE_HZ * 0.97;
+  const pPeak = PET_BASE_HZ * 1.06;
+  for (const o of [oscA, oscB]) {
+    o.frequency.setValueAtTime(pStart, t0);
+    o.frequency.linearRampToValueAtTime(pPeak, settle);
+    o.frequency.linearRampToValueAtTime(PET_BASE_HZ, tEnd);
+  }
+
+  // Gentle pitch vibrato on top of the glide — a touch of wobble so the
+  // coo feels alive/cute rather than mechanical.
+  const vib = c.createOscillator();
+  vib.type = "sine";
+  vib.frequency.value = 5.5;
+  const vibAmp = c.createGain();
+  vibAmp.gain.value = PET_BASE_HZ * (Math.pow(2, 12 / 1200) - 1); // ±12 cents
+  vib.connect(vibAmp);
+  vibAmp.connect(oscA.frequency);
+  vibAmp.connect(oscB.frequency);
+
+  // Per-osc mix, then a warm lowpass that opens on the swell and closes as
+  // it settles — the "bubble" expand/contract used by the creature voices.
+  const mixA = c.createGain();
+  mixA.gain.value = 1.0;
+  const mixB = c.createGain();
+  mixB.gain.value = 0.5;
+  const filter = c.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.Q.value = 0.6;
+  filter.frequency.setValueAtTime(700, t0);
+  filter.frequency.linearRampToValueAtTime(1500, t0 + 0.18);
+  filter.frequency.linearRampToValueAtTime(600, tEnd);
+
+  // Main amplitude envelope: soft swell-in, hold, exponential ease-out
+  // across the settle so the stop feels like a sigh, not a cut.
+  const env = c.createGain();
+  env.gain.setValueAtTime(0.0001, t0);
+  env.gain.exponentialRampToValueAtTime(PET_GAIN, t0 + 0.12);
+  env.gain.setValueAtTime(PET_GAIN, settle);
+  env.gain.exponentialRampToValueAtTime(0.0001, tEnd);
+
+  // Flutter (tremolo) = the purr / the wiggle. A sine LFO swings the gain
+  // of `trem` around its mean. As the shake decays the flutter DEPTH ramps
+  // to 0 while the mean ramps up to 1, so the pulsing smooths out without
+  // the overall level dropping — the trill "calms down" instead of fading.
+  const trem = c.createGain();
+  trem.gain.setValueAtTime(1 - PET_FLUTTER_DEPTH / 2, t0);
+  trem.gain.linearRampToValueAtTime(1, tEnd);
+  const lfo = c.createOscillator();
+  lfo.type = "sine";
+  lfo.frequency.setValueAtTime(PET_FLUTTER_START_HZ, t0);
+  lfo.frequency.linearRampToValueAtTime(PET_FLUTTER_END_HZ, tEnd);
+  const lfoAmp = c.createGain();
+  lfoAmp.gain.setValueAtTime(PET_FLUTTER_DEPTH / 2, t0);
+  lfoAmp.gain.linearRampToValueAtTime(PET_FLUTTER_DEPTH / 2, settle);
+  lfoAmp.gain.linearRampToValueAtTime(0.0001, tEnd);
+  lfo.connect(lfoAmp);
+  lfoAmp.connect(trem.gain);
+
+  // Wire: oscs → mix → filter → env → trem → out. Light reverb send off
+  // env (pre-tremolo) for a touch of mystical air, like the other voices.
+  oscA.connect(mixA);
+  oscB.connect(mixB);
+  mixA.connect(filter);
+  mixB.connect(filter);
+  filter.connect(env);
+  env.connect(trem);
+  trem.connect(alwaysOnGain);
+  if (reverbInput) {
+    const send = c.createGain();
+    send.gain.value = 0.22;
+    env.connect(send);
+    send.connect(reverbInput);
+  }
+
+  oscA.start(t0);
+  oscB.start(t0);
+  vib.start(t0);
+  lfo.start(t0);
+  const stopAt = tEnd + 0.05;
+  oscA.stop(stopAt);
+  oscB.stop(stopAt);
+  vib.stop(stopAt);
+  lfo.stop(stopAt);
 }
 
 export function playCandyRustle(): void {

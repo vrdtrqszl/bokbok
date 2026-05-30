@@ -277,6 +277,11 @@ function DesktopMainPage() {
     const next = !petMode;
     exitAllModes();
     setPetMode(next);
+    // Spin up the AudioContext inside the button's click gesture so the
+    // synthesized pet purr can fire immediately on the first creature tap.
+    if (next) {
+      unlockAudio();
+    }
   };
   const togglePinsetMode = () => {
     const next = !pinsetMode;
@@ -608,8 +613,8 @@ function DesktopMainPage() {
         isFullscreen ? "overflow-visible" : "overflow-hidden"
       }`}
       // Custom cursor per active mode:
-      //  • Pet     — hand cursor (16,16 hotspot ≈ index-finger area).
-      //  • Candy   — wrapped-candy cursor (sprinkle treats).
+      //  • Pet     — bokbok-blob cursor, matching the toolbar pet button.
+      //  • Candy   — filled candy cursor, matching the candy button.
       //  • Pinset  — tweezers; open by default, closed while holding.
       //              Hotspot at the pinch point.
       //  • Ball    — ball icon; hotspot ≈ centre so the throw lands
@@ -622,19 +627,19 @@ function DesktopMainPage() {
       // default). Briefly shows pinset-open as a "released" cue.
       style={
         petMode
-          ? { cursor: "url(/assets/hand-cursor.svg) 16 16, pointer" }
+          ? { cursor: "url(/assets/pet-cursor.svg) 14 13, pointer" }
           : candyMode
-          ? { cursor: "url(/assets/candy-cursor.svg) 33 18, crosshair" }
+          ? { cursor: "url(/assets/candy-cursor.svg) 22 12, crosshair" }
           : pinsetMode
           ? heldId
-            ? { cursor: "url(/assets/pinset-close-cursor.svg) 9 6, grabbing" }
-            : { cursor: "url(/assets/pinset-open-cursor.svg) 13 6, grab" }
+            ? { cursor: "url(/assets/pinset-close-cursor.svg) 12 8, grabbing" }
+            : { cursor: "url(/assets/pinset-open-cursor.svg) 17 8, grab" }
           : ballMode
-          ? { cursor: "url(/assets/ball-cursor.svg) 11 12, crosshair" }
+          ? { cursor: "url(/assets/ball-cursor.svg) 15 16, crosshair" }
           : whistleMode
           ? { cursor: "url(/assets/whistle-button.svg) 9 11, crosshair" }
           : pinsetReleaseFlash
-          ? { cursor: "url(/assets/pinset-open-cursor.svg) 13 6, default" }
+          ? { cursor: "url(/assets/pinset-open-cursor.svg) 17 8, default" }
           : undefined
       }
     >

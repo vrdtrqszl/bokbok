@@ -15,6 +15,7 @@ import {
 import { loadEcosystem, matchesCreatureQuery, subscribeRemoteEcosystem } from "@/lib/ecosystem";
 import { creatureFocusBox, type CreatureBlock, type CreatureSpec } from "@/lib/creature";
 import { EMOTION_LIST } from "@/lib/emotions";
+import { playBallDribble, playPet } from "@/lib/audio";
 
 // Load all 31 energy block textures up front. They're modest (~few hundred KB
 // each at 2048², compressed) and the catalog is bounded, so this avoids
@@ -322,9 +323,16 @@ function pickPassReceiver(
   return pool[Math.floor(Math.random() * pool.length)];
 }
 
-/** Begin (or resume) cradling the ball at the current carrier. */
+/** Begin (or resume) cradling the ball at the current carrier. Every
+ *  reception flows through here — the first pickup off the ground AND each
+ *  catch after a pass — so this is the one spot to fire the dribble tap. */
 function startBallHold(ball: BallState): void {
   setBallPhase(ball, 'holding');
+  try {
+    playBallDribble();
+  } catch {
+    // Audio failures never block the keep-away loop.
+  }
 }
 
 /** Toss the ball from (fromX,fromY,fromZ) to a freshly chosen receiver.
@@ -1077,6 +1085,8 @@ export function EnergyCreature({
         if (petMode) {
           // Pet the creature — shake for ~1.4 seconds, then notify the
           // page so it can auto-exit pet mode (single-shot UX).
+          // 쓰다듬는 소리 — pet.mp3 slice (1:28~1:29).
+          playPet();
           shakeUntilRef.current = performance.now() / 1000 + 1.4;
           onPetComplete?.();
           return;
@@ -1207,7 +1217,16 @@ export default function EcosystemCreatures({
   // EnergyCreature's useFrame). Re-stamping on each rising edge keeps the
   // sweep in sync with the freshly-restarted CSS fly animation.
   useEffect(() => {
-    if (stargazing) stargazeStartMs = performance.now();
+    if (stargazing) {
+      stargazeStartMs = performance.now();
+      // Clear every fetch-ball the instant a star pass begins so the flock
+      // gives the shooting star its full attention — no keep-away game left
+      // playing out in the environment while everyone's meant to be gazing up.
+      if (balls.length > 0) {
+        balls = [];
+        notifyBalls();
+      }
+    }
   }, [stargazing]);
 
   // Preload all textures so suspense fires once at mount, not per creature.
@@ -1308,7 +1327,7 @@ function CandyParticles() {
   // the toolbar candy button (same fix as the fetch ball).
   texture.colorSpace = SRGBColorSpace;
   // candy-button.svg aspect ratio: 66.43 / 35.26 ≈ 1.884
-  const CANDY_W = 0.42;
+  const CANDY_W = 0.56;
   const CANDY_H = CANDY_W * (35.26 / 66.43);
   if (candies.length === 0) return null;
   return (
