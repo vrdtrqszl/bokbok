@@ -619,33 +619,28 @@ export default function MainViewport({
         />
       )}
 
-      {/* Exit fullscreen — shown ONLY while in fullscreen, pinned to the
-          top-right of the (now window-filling) wrapper. On desktop Esc
-          still works, but touch devices have no Esc — and on iOS we're in
-          CSS pseudo-fullscreen with no native exit at all — so this button
-          is the universal way back out. */}
+      {/* Exit fullscreen (Figma 2114:317) — shown ONLY while in fullscreen,
+          pinned to the top-right of the (now window-filling) wrapper. On
+          desktop Esc still works, but touch devices have no Esc — and on iOS
+          we're in CSS pseudo-fullscreen with no native exit at all — so this
+          button is the universal way back out. Hand-drawn box-with-inward-
+          arrow artwork, matching the other corner tools (bare SVG over the
+          scene, no solid backing). Figma frame: 38.53×41.15 at right≈28,
+          top≈23 of the 1440-wide design. */}
       {fullscreen && onToggleFullscreen && (
         <button
           type="button"
           onClick={onToggleFullscreen}
           title="Exit full screen"
           aria-label="Exit full screen"
-          className="tool-hit absolute right-[20px] top-[20px] z-[30] flex h-[36px] w-[36px] cursor-pointer items-center justify-center rounded-[10px] border-0 bg-black/35 p-0 text-white transition-opacity hover:bg-black/50"
+          className="tool-hit tool-hit-wide absolute right-[28px] top-[23px] z-[30] block h-[41.15px] w-[38.53px] cursor-pointer overflow-visible border-0 bg-transparent p-0 opacity-80 transition-opacity hover:opacity-100"
         >
-          {/* Inward-pointing corner arrows = "shrink / exit fullscreen". */}
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M9 3v6H3M3 9l6-6M15 3v6h6M21 9l-6-6M9 21v-6H3M3 15l6 6M15 21v-6h6M21 15l-6 6" />
-          </svg>
+          <img
+            alt=""
+            src="/assets/exit-fullscreen.svg"
+            className="block size-full"
+            draggable={false}
+          />
         </button>
       )}
 

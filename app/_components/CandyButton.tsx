@@ -36,7 +36,7 @@ export default function CandyButton({
       aria-pressed={active}
       className="group tool-hit tool-mode absolute left-[52px] top-[825px] z-[20] block h-[35.26px] w-[66.43px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
     >
-      <ToolHint>feeding them candies</ToolHint>
+      <ToolHint align="left">feeding them candies</ToolHint>
       <img
         alt=""
         src="/assets/candy-button.svg"

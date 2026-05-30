@@ -459,11 +459,32 @@ export default function ManualCanvas({
     // under a foreground one). The right-click menu's "bring to front"
     // / "bring to back" still let the user re-stack on demand.
 
+    // Long-press → context menu (touch only). On a touchscreen there's no
+    // right-click, so a press-and-hold on a block (without dragging) opens
+    // the same flip / bring-to-back / … menu. The timer is armed only for a
+    // touch "move"-type press; it's cancelled the moment the finger travels
+    // past LONGPRESS_SLOP (it's a drag, not a hold) or lifts (it's a tap).
+    const LONGPRESS_MS = 500;
+    const LONGPRESS_SLOP = 10; // client px of wander still counted as a hold
+    const longPressCX = e.clientX;
+    const longPressCY = e.clientY;
+    let longPressTimer: number | null = null;
+    const clearLongPress = () => {
+      if (longPressTimer !== null) {
+        window.clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+
     const onMove = (ev: PointerEvent) => {
       const ds = dragRef.current;
       if (!ds) return;
       const dx = ev.clientX - ds.startMouseX;
       const dy = ev.clientY - ds.startMouseY;
+      // Enough travel to be a drag → it's not a long-press anymore.
+      if (longPressTimer !== null && Math.hypot(dx, dy) > LONGPRESS_SLOP) {
+        clearLongPress();
+      }
 
       setBlocks((prev) =>
         prev.map((b) => {
@@ -496,6 +517,7 @@ export default function ManualCanvas({
     };
 
     const onUp = () => {
+      clearLongPress();
       dragRef.current = null;
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
@@ -504,6 +526,22 @@ export default function ManualCanvas({
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
+
+    // Arm the long-press only for a finger press that began a move. When it
+    // fires, we abandon the drag (tear down its listeners) and open the menu
+    // at the original touch point — then lock menu interaction briefly so the
+    // finger-lift click doesn't activate the item under it.
+    if (e.pointerType === "touch" && type === "move") {
+      longPressTimer = window.setTimeout(() => {
+        longPressTimer = null;
+        dragRef.current = null;
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        window.removeEventListener("pointercancel", onUp);
+        menuInteractLockUntil.current = Date.now() + 350;
+        openContextMenuAt(longPressCX, longPressCY, blockId);
+      }, LONGPRESS_MS);
+    }
   };
 
   // ── group transform (rotate/resize handles on a multi-block bbox) ──────────
@@ -854,20 +892,31 @@ export default function ManualCanvas({
   // The position is clamped to the canvas bounds so the menu never extends
   // past the edges and gets clipped (previously a right-click near the
   // bottom of the canvas would chop off the lower menu items).
-  const openContextMenu = (e: React.MouseEvent, blockId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    // If the right-clicked block is outside the current selection, treat
-    // this as a fresh single-select on it. Otherwise keep the existing
-    // multi-block selection so menu actions act on all of them.
+  // Brief window (epoch ms) during which menu interactions are ignored.
+  // Set when the menu is opened by a TOUCH long-press: the finger is still
+  // down on the block, so the lift fires a click that — without this guard —
+  // would land on whatever menu item sits under the finger (the menu opens
+  // at the touch point) and instantly fire it (e.g. "copy"). Desktop
+  // right-click leaves this at 0 (stale), so it never blocks a mouse click.
+  const menuInteractLockUntil = useRef(0);
+
+  // Core menu opener in CLIENT coords — shared by right-click (desktop) and
+  // long-press (touch). Selects the target block if it's outside the current
+  // selection, converts to canvas-local design px, and clamps so the menu
+  // never spills past the canvas edges.
+  const openContextMenuAt = (
+    clientX: number,
+    clientY: number,
+    blockId: string,
+  ) => {
     if (!selectedIdsRef.current.includes(blockId)) selectOne(blockId);
     const rect = canvasEl.current?.getBoundingClientRect();
     const offsetW = canvasEl.current?.offsetWidth ?? 1;
     const offsetH = canvasEl.current?.offsetHeight ?? 1;
     if (!rect) return;
     const scale = rect.width / offsetW; // ViewportFit scale (post-transform / pre)
-    const localX = (e.clientX - rect.left) / scale;
-    const localY = (e.clientY - rect.top) / scale;
+    const localX = (clientX - rect.left) / scale;
+    const localY = (clientY - rect.top) / scale;
     // Menu dimensions in design pixels (must match the JSX h-[220px] w-[124px]).
     const MENU_W = 124;
     const MENU_H = 220;
@@ -875,6 +924,15 @@ export default function ManualCanvas({
     const clampedX = Math.max(PAD, Math.min(localX, offsetW - MENU_W - PAD));
     const clampedY = Math.max(PAD, Math.min(localY, offsetH - MENU_H - PAD));
     setContextMenu({ x: clampedX, y: clampedY, blockId });
+  };
+
+  const openContextMenu = (e: React.MouseEvent, blockId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // If the right-clicked block is outside the current selection, treat
+    // this as a fresh single-select on it. Otherwise keep the existing
+    // multi-block selection so menu actions act on all of them.
+    openContextMenuAt(e.clientX, e.clientY, blockId);
   };
 
   const hasSelected = selectedIds.length > 0;
@@ -1279,7 +1337,13 @@ export default function ManualCanvas({
           <>
             <div
               className="fixed inset-0 z-[299]"
-              onClick={() => setContextMenu(null)}
+              onClick={() => {
+                // Ignore the click that ends a touch long-press (see
+                // menuInteractLockUntil) so the menu doesn't dismiss itself
+                // the instant it opens.
+                if (Date.now() < menuInteractLockUntil.current) return;
+                setContextMenu(null);
+              }}
               onContextMenu={(e) => {
                 e.preventDefault();
                 setContextMenu(null);
@@ -1315,6 +1379,10 @@ export default function ManualCanvas({
                     key={label}
                     role="button"
                     onClick={() => {
+                      // Same guard as the backdrop: swallow the long-press
+                      // finger-lift click so it can't fire the item sitting
+                      // under the finger.
+                      if (Date.now() < menuInteractLockUntil.current) return;
                       action();
                       setContextMenu(null);
                     }}
