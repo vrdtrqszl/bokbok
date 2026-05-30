@@ -121,6 +121,11 @@ function MobileCreateManuallyInner() {
       alert(t("create.alert_creature_name"));
       return;
     }
+    const trimmedJournal = (textareaRef.current?.value ?? journalText).trim();
+    if (!trimmedJournal) {
+      alert(t("create.alert_write_journal"));
+      return;
+    }
     // Always re-read the canvas at upload time so any post-Generate
     // tweaks land in the saved creature (same fix as desktop).
     const liveSpec = canvasHandle.current?.toCreatureSpec();
@@ -131,11 +136,10 @@ function MobileCreateManuallyInner() {
     if (editingId) liveSpec.id = editingId;
     setCreature(liveSpec);
 
-    const currentText = (textareaRef.current?.value ?? journalText).trim();
     const enriched: CreatureSpec = {
       ...liveSpec,
       name: trimmedName,
-      journalText: currentText,
+      journalText: trimmedJournal,
       dateISO: toISO(selectedDate),
       source: "manually",
     };
@@ -371,9 +375,9 @@ function MobileCreateManuallyInner() {
               <button
                 type="button"
                 onClick={handleUpload}
-                disabled={!name.trim()}
+                disabled={!name.trim() || !journalText.trim()}
                 className={`relative block h-full overflow-visible bg-transparent p-0 transition-transform ${
-                  name.trim()
+                  name.trim() && journalText.trim()
                     ? "cursor-pointer active:scale-95"
                     : "cursor-not-allowed opacity-40"
                 }`}

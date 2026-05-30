@@ -637,7 +637,7 @@ function DesktopMainPage() {
           : ballMode
           ? { cursor: "url(/assets/ball-cursor.svg) 15 16, crosshair" }
           : whistleMode
-          ? { cursor: "url(/assets/whistle-button.svg) 9 11, crosshair" }
+          ? { cursor: "url(/assets/whistle-cursor.svg) 12 14, crosshair" }
           : pinsetReleaseFlash
           ? { cursor: "url(/assets/pinset-open-cursor.svg) 17 8, default" }
           : undefined

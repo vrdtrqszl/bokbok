@@ -62,6 +62,10 @@ function CreateManuallyPageInner() {
   // controlled-input state-sync timing issues.
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
+  // Upload is gated on BOTH a name and a written journal entry — the
+  // creature is the diary's avatar, so an empty diary shouldn't ship.
+  const canUpload = name.trim().length > 0 && journalText.trim().length > 0;
+
   // Hydrate state + canvas from ?edit=<id> on mount.
   useEffect(() => {
     if (!editId) return;
@@ -117,6 +121,11 @@ function CreateManuallyPageInner() {
       alert(t("create.alert_creature_name"));
       return;
     }
+    const trimmedJournal = (textareaRef.current?.value ?? journalText).trim();
+    if (!trimmedJournal) {
+      alert(t("create.alert_write_journal"));
+      return;
+    }
     // ALWAYS re-read the canvas at upload time — the previous version
     // reused the snapshot stored by handleGenerate, which meant any
     // move / rotate / resize the user made AFTER clicking Generate was
@@ -131,13 +140,10 @@ function CreateManuallyPageInner() {
     // Keep the preview in sync with what was just uploaded.
     setCreature(liveSpec);
 
-    // Read the latest journal text from DOM to bypass state-sync timing issues
-    const currentText = (textareaRef.current?.value ?? journalText).trim();
-
     const enriched: CreatureSpec = {
       ...liveSpec,
       name: trimmedName,
-      journalText: currentText,
+      journalText: trimmedJournal,
       dateISO: toISO(selectedDate),
       source: "manually",
     };
@@ -486,10 +492,16 @@ function CreateManuallyPageInner() {
         <button
           type="button"
           onClick={handleUpload}
-          disabled={!name.trim()}
-          title={!name.trim() ? "Give your creature a name first" : undefined}
+          disabled={!canUpload}
+          title={
+            !name.trim()
+              ? "Give your creature a name first"
+              : !journalText.trim()
+                ? "Write your journal entry first"
+                : undefined
+          }
           className={`absolute left-[1104px] top-[433px] block h-[27px] w-[227px] overflow-visible bg-transparent p-0 transition-transform ${
-            name.trim()
+            canUpload
               ? "cursor-pointer active:scale-95"
               : "cursor-not-allowed opacity-40"
           }`}
