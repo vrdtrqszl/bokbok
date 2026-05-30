@@ -396,7 +396,7 @@ export default function ManualCanvas({
   // ── block pointer interaction ──────────────────────────────────────────────
 
   const startDrag = (
-    e: React.MouseEvent,
+    e: React.PointerEvent,
     blockId: string,
     type: DragState["type"],
   ) => {
@@ -459,7 +459,7 @@ export default function ManualCanvas({
     // under a foreground one). The right-click menu's "bring to front"
     // / "bring to back" still let the user re-stack on demand.
 
-    const onMove = (ev: MouseEvent) => {
+    const onMove = (ev: PointerEvent) => {
       const ds = dragRef.current;
       if (!ds) return;
       const dx = ev.clientX - ds.startMouseX;
@@ -497,11 +497,13 @@ export default function ManualCanvas({
 
     const onUp = () => {
       dragRef.current = null;
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   };
 
   // ── group transform (rotate/resize handles on a multi-block bbox) ──────────
@@ -540,7 +542,7 @@ export default function ManualCanvas({
   // block's `rotation` accumulates the same delta, and its position is
   // rotated around the centroid by that same delta — so the whole
   // selection spins like a rigid body).
-  const startGroupRotate = (e: React.MouseEvent) => {
+  const startGroupRotate = (e: React.PointerEvent) => {
     e.stopPropagation();
     e.preventDefault();
     const bbox = groupBBox();
@@ -569,7 +571,7 @@ export default function ManualCanvas({
     // across the drag, plus state from any previous group rotations on
     // the same selection).
     const startGroupRot = groupRotationRef.current;
-    const onMove = (ev: MouseEvent) => {
+    const onMove = (ev: PointerEvent) => {
       const a = Math.atan2(
         ev.clientY - centroidScreenY,
         ev.clientX - centroidScreenX,
@@ -595,17 +597,19 @@ export default function ManualCanvas({
       setGroupRotation(startGroupRot + deltaDeg);
     };
     const onUp = () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   };
 
   // Scale every selected block uniformly out from the group centroid:
   // each block's position is scaled relative to the centroid and its own
   // `scale` multiplies by the same factor — keeps relative spacing intact.
-  const startGroupResize = (e: React.MouseEvent) => {
+  const startGroupResize = (e: React.PointerEvent) => {
     e.stopPropagation();
     e.preventDefault();
     const bbox = groupBBox();
@@ -630,7 +634,7 @@ export default function ManualCanvas({
     for (const b of sel) {
       startMap.set(b.id, { x: b.x, y: b.y, scale: b.scale });
     }
-    const onMove = (ev: MouseEvent) => {
+    const onMove = (ev: PointerEvent) => {
       const d = Math.hypot(
         ev.clientX - centroidScreenX,
         ev.clientY - centroidScreenY,
@@ -650,11 +654,13 @@ export default function ManualCanvas({
       );
     };
     const onUp = () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
     };
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
   };
 
   // ── keyboard shortcuts ─────────────────────────────────────────────────────
@@ -887,7 +893,7 @@ export default function ManualCanvas({
           mask utility as the other framed scroll regions. */}
       <div
         ref={canvasEl}
-        className="scroll-fade absolute inset-0 overflow-hidden"
+        className="manual-canvas scroll-fade absolute inset-0 overflow-hidden"
         onDragOver={(e) => e.preventDefault()}
         onDrop={onDrop}
         // Mouse-down on the bare canvas starts a MARQUEE (rubber-band)
@@ -898,7 +904,7 @@ export default function ManualCanvas({
         // moved between down and up, we treat it as a plain bare-canvas
         // click and clear the current selection — same effect as the
         // old onClick.
-        onMouseDown={(e) => {
+        onPointerDown={(e) => {
           if (e.target !== e.currentTarget) return; // a block / handle was clicked
           if (e.button !== 0) return; // ignore right-click etc.
           const rect = canvasEl.current?.getBoundingClientRect();
@@ -910,7 +916,7 @@ export default function ManualCanvas({
           const startY = (e.clientY - rect.top) / scale;
           setMarquee({ startX, startY, currentX: startX, currentY: startY });
 
-          const onMove = (ev: MouseEvent) => {
+          const onMove = (ev: PointerEvent) => {
             const cx = (ev.clientX - rect.left) / scale;
             const cy = (ev.clientY - rect.top) / scale;
             setMarquee((m) =>
@@ -918,8 +924,9 @@ export default function ManualCanvas({
             );
           };
           const onUp = () => {
-            window.removeEventListener("mousemove", onMove);
-            window.removeEventListener("mouseup", onUp);
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            window.removeEventListener("pointercancel", onUp);
             setMarquee((curr) => {
               if (!curr) return null;
               const dx = Math.abs(curr.currentX - curr.startX);
@@ -949,8 +956,9 @@ export default function ManualCanvas({
               return null;
             });
           };
-          window.addEventListener("mousemove", onMove);
-          window.addEventListener("mouseup", onUp);
+          window.addEventListener("pointermove", onMove);
+          window.addEventListener("pointerup", onUp);
+          window.addEventListener("pointercancel", onUp);
         }}
       >
         {blocks.length === 0 && (
@@ -1044,7 +1052,7 @@ export default function ManualCanvas({
                   pointerEvents: "auto",
                   cursor: "none",
                 }}
-                onMouseDown={startGroupRotate}
+                onPointerDown={startGroupRotate}
               >
                 <svg
                   width="14"
@@ -1075,7 +1083,7 @@ export default function ManualCanvas({
                   height: "28px",
                   pointerEvents: "auto",
                 }}
-                onMouseDown={startGroupResize}
+                onPointerDown={startGroupResize}
               >
                 <svg
                   width="14"
@@ -1141,7 +1149,7 @@ export default function ManualCanvas({
                     transformOrigin: "center",
                     zIndex: block.zIndex,
                   }}
-                  onMouseDown={(e) => startDrag(e, block.id, "move")}
+                  onPointerDown={(e) => startDrag(e, block.id, "move")}
                   onContextMenu={(e) => openContextMenu(e, block.id)}
                 >
                   <img
@@ -1201,7 +1209,7 @@ export default function ManualCanvas({
                         pointerEvents: "auto",
                         cursor: "none",
                       }}
-                      onMouseDown={(e) => {
+                      onPointerDown={(e) => {
                         e.stopPropagation();
                         startDrag(e, block.id, "rotate");
                       }}
@@ -1235,7 +1243,7 @@ export default function ManualCanvas({
                         height: "28px",
                         pointerEvents: "auto",
                       }}
-                      onMouseDown={(e) => {
+                      onPointerDown={(e) => {
                         e.stopPropagation();
                         startDrag(e, block.id, "resize");
                       }}

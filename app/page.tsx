@@ -399,11 +399,46 @@ function DesktopMainPage() {
     return () => window.removeEventListener("mousemove", onMove);
   }, [hoveredCreature]);
 
+  // True while we're in CSS "pseudo-fullscreen" — the fallback we use on
+  // browsers that don't support the element Fullscreen API (notably iOS
+  // Safari, where document.documentElement.requestFullscreen is undefined,
+  // so the real fullscreen path is a silent no-op). In that mode we just
+  // flip `isFullscreen` ourselves (MainViewport already expands the scene
+  // to fill the window off that flag) and rely on the on-screen exit button
+  // to leave, since there's no native Esc / fullscreenchange to fall back on.
+  const pseudoFullRef = useRef(false);
   const toggleFullscreen = () => {
+    // Exit paths first.
     if (document.fullscreenElement) {
       document.exitFullscreen?.();
+      return;
+    }
+    if (pseudoFullRef.current) {
+      pseudoFullRef.current = false;
+      setIsFullscreen(false);
+      return;
+    }
+    // Enter. Prefer the real Fullscreen API; fall back to CSS pseudo-
+    // fullscreen when it's unavailable (iOS) or rejects (blocked iframe).
+    const el = document.documentElement as HTMLElement & {
+      webkitRequestFullscreen?: () => Promise<void> | void;
+    };
+    const req = el.requestFullscreen ?? el.webkitRequestFullscreen;
+    const enterPseudo = () => {
+      pseudoFullRef.current = true;
+      setIsFullscreen(true);
+    };
+    if (typeof req === "function") {
+      try {
+        const result = req.call(el) as Promise<void> | undefined;
+        if (result && typeof result.catch === "function") {
+          result.catch(enterPseudo);
+        }
+      } catch {
+        enterPseudo();
+      }
     } else {
-      document.documentElement.requestFullscreen?.();
+      enterPseudo();
     }
   };
 
@@ -738,7 +773,7 @@ function DesktopMainPage() {
             type="button"
             onClick={toggleFullscreen}
             title="Enter full screen"
-            className="tool-hit absolute z-[20] block cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:opacity-80"
+            className="tool-hit tool-hit-wide absolute z-[20] block cursor-pointer bg-transparent p-0 transition-transform active:scale-95 hover:opacity-80"
             style={{ left: 957, top: 107, width: 32.12, height: 32.5 }}
           >
             <img
@@ -898,6 +933,7 @@ function DesktopMainPage() {
         focusTarget={focusTarget}
         resetTrigger={resetTrigger}
         fullscreen={isFullscreen}
+        onToggleFullscreen={toggleFullscreen}
         petMode={petMode}
         candyMode={candyMode}
         pinsetMode={pinsetMode}

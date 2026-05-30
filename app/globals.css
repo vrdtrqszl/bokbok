@@ -195,15 +195,46 @@ button, a, [role="button"], [type="button"], [type="submit"] {
     position: absolute;
     inset: -24px -8px;
   }
+  /* Corner tools (zoom +/−, fullscreen, sound) are ~14px at phone scale and
+     the two zoom buttons sit only ~4px apart vertically — so a tall hit area
+     would make them swallow each other. They DO have empty scene/margin to
+     their left & right, so we bias their expansion horizontally instead:
+     wide enough to tap comfortably, short enough that stacked neighbours
+     stay independent. */
+  .tool-hit-wide::after {
+    content: "";
+    position: absolute;
+    inset: -7px -22px;
+  }
 }
 
-/* Active-tool feedback for touch. There's no custom cursor on a
-   touchscreen, so without this the user can't tell a mode turned on after
-   tapping its button. Glow every pressed mode tool (matches the candy
-   button's original highlight). Scoped to `.tool-mode` so it never lights
-   up the always-pressed Sound-on toggle. */
+/* Active-tool feedback. There's no custom cursor on a touchscreen, so
+   without this the user can't tell a mode turned on after tapping its
+   button — and even on desktop the old faint drop-shadow was easy to
+   miss. Now every PRESSED mode tool gets a clearly-visible "selected
+   chip": a soft dark rounded backing + an ink-toned ring + a small lift
+   shadow, so an active tool reads as obviously pressed-in. Scoped to
+   `.tool-mode` so it never lights up the always-pressed Sound-on toggle.
+   `!important` on the background beats Tailwind's `bg-transparent`. */
 .tool-mode[aria-pressed="true"] {
-  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.5));
+  background-color: rgba(0, 0, 0, 0.12) !important;
+  border-radius: 12px;
+  box-shadow:
+    inset 0 0 0 1.5px rgba(0, 0, 0, 0.32),
+    0 1px 3px rgba(0, 0, 0, 0.28);
+}
+
+/* MANUAL-CREATE CANVAS touch support. The block editor drives drag / rotate /
+   resize / marquee through pointer events, but on a touchscreen the browser
+   will steal a finger drag for scrolling/panning before `pointermove` ever
+   fires — so a drag inside the canvas would just scroll the page and the
+   block wouldn't move. `touch-action: none` opts the canvas (and every block,
+   handle, and the marquee area inside it) out of native touch gestures so the
+   pointer stream stays ours. Must be set on the element the touch STARTS on
+   (it isn't inherited through dispatch), hence the descendant selector. */
+.manual-canvas,
+.manual-canvas * {
+  touch-action: none;
 }
 
 /* Custom hand-drawn text-input cursor (Figma 2129:156). Hotspot 4,11 = the

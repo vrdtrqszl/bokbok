@@ -362,6 +362,7 @@ export default function MainViewport({
   focusTarget,
   resetTrigger,
   fullscreen = false,
+  onToggleFullscreen,
   petMode = false,
   candyMode = false,
   pinsetMode = false,
@@ -386,6 +387,10 @@ export default function MainViewport({
    *  The browser's native Fullscreen API handles Esc to exit; the page's
    *  fullscreenchange listener updates this flag back to false. */
   fullscreen?: boolean;
+  /** Toggles fullscreen. Rendered as an on-screen exit button WHILE in
+   *  fullscreen so touch devices (which have no Esc key, and on iOS can't
+   *  use the native Fullscreen API at all) always have a way back out. */
+  onToggleFullscreen?: () => void;
   /** When true, clicking a creature pets it (makes it shake) instead of focusing the camera. */
   petMode?: boolean;
   /** When true, clicking the ground plane fires onCandyClick(x, z) so
@@ -614,9 +619,35 @@ export default function MainViewport({
         />
       )}
 
-      {/* Exit fullscreen button removed — browser's native Fullscreen
-          API exits on Esc anyway. The page-level fullscreenchange
-          listener picks up the state change and the UI re-renders. */}
+      {/* Exit fullscreen — shown ONLY while in fullscreen, pinned to the
+          top-right of the (now window-filling) wrapper. On desktop Esc
+          still works, but touch devices have no Esc — and on iOS we're in
+          CSS pseudo-fullscreen with no native exit at all — so this button
+          is the universal way back out. */}
+      {fullscreen && onToggleFullscreen && (
+        <button
+          type="button"
+          onClick={onToggleFullscreen}
+          title="Exit full screen"
+          aria-label="Exit full screen"
+          className="tool-hit absolute right-[20px] top-[20px] z-[30] flex h-[36px] w-[36px] cursor-pointer items-center justify-center rounded-[10px] border-0 bg-black/35 p-0 text-white transition-opacity hover:bg-black/50"
+        >
+          {/* Inward-pointing corner arrows = "shrink / exit fullscreen". */}
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M9 3v6H3M3 9l6-6M15 3v6h6M21 9l-6-6M9 21v-6H3M3 15l6 6M15 21v-6h6M21 15l-6 6" />
+          </svg>
+        </button>
+      )}
 
       {/* Tools — sound on/off, zoom in/out. Hidden in fullscreen + mobile
           modes (the design omits them; double-click / pinch a creature to
@@ -639,7 +670,7 @@ export default function MainViewport({
             type="button"
             onClick={() => apiRef.current?.zoomIn()}
             title="Zoom in"
-            className="tool-hit absolute cursor-pointer overflow-visible bg-transparent p-0 opacity-80 hover:opacity-100"
+            className="tool-hit tool-hit-wide absolute cursor-pointer overflow-visible bg-transparent p-0 opacity-80 hover:opacity-100"
             style={{ left: 930, top: 701, width: 32.12, height: 32.5 }}
           >
             <img alt="zoom in" src="/assets/zoom-in.svg" className="block size-full" />
@@ -648,7 +679,7 @@ export default function MainViewport({
             type="button"
             onClick={() => apiRef.current?.zoomOut()}
             title="Zoom out"
-            className="tool-hit absolute cursor-pointer overflow-visible bg-transparent p-0 opacity-80 hover:opacity-100"
+            className="tool-hit tool-hit-wide absolute cursor-pointer overflow-visible bg-transparent p-0 opacity-80 hover:opacity-100"
             style={{ left: 930, top: 737, width: 32.12, height: 32.5 }}
           >
             <img alt="zoom out" src="/assets/zoom-out.svg" className="block size-full" />
