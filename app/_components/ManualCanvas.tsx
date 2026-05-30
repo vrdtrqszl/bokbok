@@ -79,6 +79,18 @@ export default function ManualCanvas({
   const clipboardRef = useRef<CanvasBlock[]>([]);
   const nextZ = useRef(0);
   const dragRef = useRef<DragState | null>(null);
+  // Last block "tap" (a press that ended without dragging) — used to detect
+  // a double-tap / double-click on a block, which opens the edit menu. A
+  // second tap on the SAME block within DOUBLE_TAP_MS and DOUBLE_TAP_DIST of
+  // the first counts as a double. Works for both mouse and touch (we detect
+  // it from the pointer up, not the unreliable native dblclick which a
+  // pointerdown preventDefault can swallow).
+  const lastTapRef = useRef<{
+    blockId: string;
+    time: number;
+    x: number;
+    y: number;
+  } | null>(null);
 
   // Undo / redo history. Each entry is a full snapshot of the blocks
   // array right BEFORE a discrete user action (drag start, add, delete,
@@ -465,37 +477,21 @@ export default function ManualCanvas({
     // under a foreground one). The right-click menu's "bring to front"
     // / "bring to back" still let the user re-stack on demand.
 
-    // Long-press → context menu (touch only). On a touchscreen there's no
-    // right-click, so a press-and-hold on a block (without dragging) opens
-    // the same flip / bring-to-back / … menu. The timer is armed only for a
-    // touch "move"-type press; it's cancelled the moment the finger travels
-    // past LONGPRESS_SLOP (it's a drag, not a hold) or lifts (it's a tap).
-    const LONGPRESS_MS = 500;
-    const LONGPRESS_SLOP = 10; // client px of wander still counted as a hold
-    const longPressCX = e.clientX;
-    const longPressCY = e.clientY;
-    let longPressTimer: number | null = null;
-    const clearLongPress = () => {
-      if (longPressTimer !== null) {
-        window.clearTimeout(longPressTimer);
-        longPressTimer = null;
-      }
-    };
+    // Double-tap / double-click → edit menu. Remember where this press
+    // began so onUp can tell a tap (barely moved) from a drag, and a
+    // second tap close in time + space to the first opens the menu.
+    const TAP_SLOP = 8; // client px of wander still counted as a tap (not drag)
+    const DOUBLE_TAP_MS = 350; // max gap between the two taps
+    const DOUBLE_TAP_DIST = 30; // max client-px distance between the two taps
+    const downCX = e.clientX;
+    const downCY = e.clientY;
 
     const onMove = (ev: PointerEvent) => {
       const ds = dragRef.current;
       if (!ds) return;
-      // Raw client-pixel travel — used for the long-press slop test, which
-      // is naturally expressed in screen px (how far the finger wandered).
+      // Raw client-pixel travel.
       const dxClient = ev.clientX - ds.startMouseX;
       const dyClient = ev.clientY - ds.startMouseY;
-      // Enough travel to be a drag → it's not a long-press anymore.
-      if (
-        longPressTimer !== null &&
-        Math.hypot(dxClient, dyClient) > LONGPRESS_SLOP
-      ) {
-        clearLongPress();
-      }
       // Design-pixel delta (client px ÷ ViewportFit scale) — the space
       // block.x/y and block.scale live in, so the block tracks the finger
       // 1:1 regardless of how far the stage is scaled down.
@@ -532,32 +528,45 @@ export default function ManualCanvas({
       );
     };
 
-    const onUp = () => {
-      clearLongPress();
+    const onUp = (ev: PointerEvent) => {
       dragRef.current = null;
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
+
+      // Double-tap / double-click detection — only for a "move"-type press
+      // that ended as a TAP (negligible travel), not a drag/resize/rotate.
+      if (type !== "move" || ev.type === "pointercancel") return;
+      const moved = Math.hypot(ev.clientX - downCX, ev.clientY - downCY);
+      if (moved > TAP_SLOP) {
+        lastTapRef.current = null; // it was a drag — reset the tap chain
+        return;
+      }
+      const now = Date.now();
+      const prev = lastTapRef.current;
+      const isDouble =
+        prev !== null &&
+        prev.blockId === blockId &&
+        now - prev.time <= DOUBLE_TAP_MS &&
+        Math.hypot(ev.clientX - prev.x, ev.clientY - prev.y) <= DOUBLE_TAP_DIST;
+      if (isDouble) {
+        lastTapRef.current = null;
+        // Lock menu interaction briefly so the same release that opened the
+        // menu doesn't also fire the item sitting under the pointer.
+        menuInteractLockUntil.current = Date.now() + 350;
+        openContextMenuAt(ev.clientX, ev.clientY, blockId);
+      } else {
+        lastTapRef.current = {
+          blockId,
+          time: now,
+          x: ev.clientX,
+          y: ev.clientY,
+        };
+      }
     };
     window.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
-
-    // Arm the long-press only for a finger press that began a move. When it
-    // fires, we abandon the drag (tear down its listeners) and open the menu
-    // at the original touch point — then lock menu interaction briefly so the
-    // finger-lift click doesn't activate the item under it.
-    if (e.pointerType === "touch" && type === "move") {
-      longPressTimer = window.setTimeout(() => {
-        longPressTimer = null;
-        dragRef.current = null;
-        window.removeEventListener("pointermove", onMove);
-        window.removeEventListener("pointerup", onUp);
-        window.removeEventListener("pointercancel", onUp);
-        menuInteractLockUntil.current = Date.now() + 350;
-        openContextMenuAt(longPressCX, longPressCY, blockId);
-      }, LONGPRESS_MS);
-    }
   };
 
   // ── group transform (rotate/resize handles on a multi-block bbox) ──────────
@@ -909,17 +918,16 @@ export default function ManualCanvas({
   // past the edges and gets clipped (previously a right-click near the
   // bottom of the canvas would chop off the lower menu items).
   // Brief window (epoch ms) during which menu interactions are ignored.
-  // Set when the menu is opened by a TOUCH long-press: the finger is still
-  // down on the block, so the lift fires a click that — without this guard —
-  // would land on whatever menu item sits under the finger (the menu opens
-  // at the touch point) and instantly fire it (e.g. "copy"). Desktop
-  // right-click leaves this at 0 (stale), so it never blocks a mouse click.
+  // Set when the menu is opened by a double-tap / double-click: the SAME
+  // pointer release that opened the menu also fires a click that — without
+  // this guard — would land on whatever menu item sits under the pointer
+  // (the menu opens at the tap point) and instantly fire it (e.g. "copy").
   const menuInteractLockUntil = useRef(0);
 
   // Core menu opener in CLIENT coords — shared by right-click (desktop) and
-  // long-press (touch). Selects the target block if it's outside the current
-  // selection, converts to canvas-local design px, and clamps so the menu
-  // never spills past the canvas edges.
+  // double-tap / double-click. Selects the target block if it's outside the
+  // current selection, converts to canvas-local design px, and clamps so the
+  // menu never spills past the canvas edges.
   const openContextMenuAt = (
     clientX: number,
     clientY: number,
@@ -1354,7 +1362,7 @@ export default function ManualCanvas({
             <div
               className="fixed inset-0 z-[299]"
               onClick={() => {
-                // Ignore the click that ends a touch long-press (see
+                // Ignore the click that ends the opening double-tap (see
                 // menuInteractLockUntil) so the menu doesn't dismiss itself
                 // the instant it opens.
                 if (Date.now() < menuInteractLockUntil.current) return;
@@ -1395,9 +1403,9 @@ export default function ManualCanvas({
                     key={label}
                     role="button"
                     onClick={() => {
-                      // Same guard as the backdrop: swallow the long-press
-                      // finger-lift click so it can't fire the item sitting
-                      // under the finger.
+                      // Same guard as the backdrop: swallow the double-tap's
+                      // closing click so it can't fire the item sitting
+                      // under the pointer.
                       if (Date.now() < menuInteractLockUntil.current) return;
                       action();
                       setContextMenu(null);
