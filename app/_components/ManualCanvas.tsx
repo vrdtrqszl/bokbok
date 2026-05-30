@@ -411,8 +411,14 @@ export default function ManualCanvas({
     commitHistory();
 
     const rect = canvasEl.current.getBoundingClientRect();
-    const blockScreenCx = rect.left + rect.width / 2 + block.x;
-    const blockScreenCy = rect.top + rect.height / 2 + block.y;
+    // ViewportFit scales the whole stage, so 1 design px = `scale` screen
+    // px. block.x/y are DESIGN px; pointer coords are SCREEN px — convert
+    // between them below. On desktop scale===1 (a no-op), which is why the
+    // un-scaled math still worked there but made blocks lag the finger on a
+    // scaled-down phone viewport (the "mobile canvas doesn't work" bug).
+    const scale = rect.width / canvasEl.current.offsetWidth || 1;
+    const blockScreenCx = rect.left + rect.width / 2 + block.x * scale;
+    const blockScreenCy = rect.top + rect.height / 2 + block.y * scale;
     const startAngle = Math.atan2(
       e.clientY - blockScreenCy,
       e.clientX - blockScreenCx,
@@ -479,12 +485,22 @@ export default function ManualCanvas({
     const onMove = (ev: PointerEvent) => {
       const ds = dragRef.current;
       if (!ds) return;
-      const dx = ev.clientX - ds.startMouseX;
-      const dy = ev.clientY - ds.startMouseY;
+      // Raw client-pixel travel — used for the long-press slop test, which
+      // is naturally expressed in screen px (how far the finger wandered).
+      const dxClient = ev.clientX - ds.startMouseX;
+      const dyClient = ev.clientY - ds.startMouseY;
       // Enough travel to be a drag → it's not a long-press anymore.
-      if (longPressTimer !== null && Math.hypot(dx, dy) > LONGPRESS_SLOP) {
+      if (
+        longPressTimer !== null &&
+        Math.hypot(dxClient, dyClient) > LONGPRESS_SLOP
+      ) {
         clearLongPress();
       }
+      // Design-pixel delta (client px ÷ ViewportFit scale) — the space
+      // block.x/y and block.scale live in, so the block tracks the finger
+      // 1:1 regardless of how far the stage is scaled down.
+      const dx = dxClient / scale;
+      const dy = dyClient / scale;
 
       setBlocks((prev) =>
         prev.map((b) => {
