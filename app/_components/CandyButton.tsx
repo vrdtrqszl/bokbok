@@ -1,6 +1,6 @@
 "use client";
 
-import ToolHint from "./ToolHint";
+import ToolHint, { HINT_LINE_TOP } from "./ToolHint";
 
 /**
  * Candy button (Figma 2239:1401) — toggles "candy mode". When candy
@@ -36,7 +36,7 @@ export default function CandyButton({
       aria-pressed={active}
       className="group tool-hit tool-mode absolute left-[52px] top-[825px] z-[20] block h-[35.26px] w-[66.43px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
     >
-      <ToolHint align="left">feeding them candies</ToolHint>
+      <ToolHint align="left" top={HINT_LINE_TOP - 825}>feeding them candies</ToolHint>
       <img
         alt=""
         src="/assets/candy-button.svg"

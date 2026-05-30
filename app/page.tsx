@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import MainViewport, { type FocusTarget, type ResetTrigger } from "./_components/MainViewport";
 import BokBokLogo from "./_components/BokBokLogo";
 import CandyButton from "./_components/CandyButton";
-import ToolHint from "./_components/ToolHint";
+import ToolHint, { HINT_LINE_TOP } from "./_components/ToolHint";
 import {
   creaturePositions,
   triggerEcosystemGather,
@@ -844,7 +844,7 @@ function DesktopMainPage() {
             aria-label="Pet the creatures"
             className="group tool-hit tool-mode absolute left-[131px] top-[813px] z-[20] block h-[49px] w-[52px] cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
           >
-            <ToolHint>petting the creatures</ToolHint>
+            <ToolHint top={HINT_LINE_TOP - 813}>petting the creatures</ToolHint>
             {/* The vector slightly overflows the frame by -1.02%/-0.96%
                 (Figma 2127:147 export) so the stroke isn't clipped.
                 The fill colour is baked into the SVG (#BFB5A0) so we
@@ -883,7 +883,7 @@ function DesktopMainPage() {
             className="group tool-hit tool-mode absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
             style={{ left: 195.24, top: 813, width: 40.27, height: 50.06 }}
           >
-            <ToolHint>picking one up</ToolHint>
+            <ToolHint top={HINT_LINE_TOP - 813}>picking one up</ToolHint>
             <img
               alt=""
               src={pinsetMode && heldId ? "/assets/pinset-close.svg" : "/assets/pinset-open.svg"}
@@ -904,7 +904,7 @@ function DesktopMainPage() {
             className="group tool-hit tool-mode absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
             style={{ left: 253, top: 816, width: 43.55, height: 45.64 }}
           >
-            <ToolHint>throwing the ball</ToolHint>
+            <ToolHint top={HINT_LINE_TOP - 816}>throwing the ball</ToolHint>
             <img
               alt=""
               src="/assets/ball-button.svg"
@@ -925,7 +925,7 @@ function DesktopMainPage() {
             className="group tool-hit tool-mode absolute z-[20] block cursor-pointer overflow-visible bg-transparent p-0 transition-transform hover:opacity-90 active:scale-95"
             style={{ left: 314, top: 820, width: 59.84, height: 41.57 }}
           >
-            <ToolHint>calling them over</ToolHint>
+            <ToolHint top={HINT_LINE_TOP - 820}>calling them over</ToolHint>
             <img
               alt=""
               src="/assets/whistle-button.svg"
@@ -953,7 +953,7 @@ function DesktopMainPage() {
             }`}
             style={{ left: 391, top: 814, width: 42, height: 47 }}
           >
-            <ToolHint>making a wish</ToolHint>
+            <ToolHint top={HINT_LINE_TOP - 814}>making a wish</ToolHint>
             <img
               alt=""
               src="/assets/shootingstar-button.svg"
