@@ -1096,7 +1096,7 @@ export function EnergyCreature({
         if (petMode) {
           // Pet the creature — shake for ~1.4 seconds, then notify the
           // page so it can auto-exit pet mode (single-shot UX).
-          // 쓰다듬는 소리 — pet.mp3 slice (1:28~1:29).
+          // 쓰다듬는 소리 — synthesized purr-trill (see playPet in audio.ts).
           playPet();
           shakeUntilRef.current = performance.now() / 1000 + 1.4;
           onPetComplete?.();
