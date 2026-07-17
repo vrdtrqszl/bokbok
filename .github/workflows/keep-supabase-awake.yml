@@ -1,0 +1,64 @@
+# Keeps the Supabase free-tier project from auto-pausing.
+#
+# Free-tier Supabase pauses a project after 7 consecutive days with NO
+# requests (any REST / Realtime / Auth call counts as activity). If nobody
+# opens the bokbok site for a week, it goes to sleep and the homepage shows
+# an empty ecosystem until it's manually restored.
+#
+# This workflow makes one tiny read against the `creatures` table on a
+# schedule. That single request resets the 7-day idle timer, so the project
+# stays awake even during quiet stretches (e.g. between exhibition days).
+#
+# The values below default to the public project URL + publishable key,
+# which are ALREADY shipped to every browser that loads the site, so it's
+# safe to keep them here. To override (e.g. after a key rotation) add repo
+# secrets SUPABASE_URL / SUPABASE_ANON_KEY — they take precedence when set.
+name: Keep Supabase awake
+
+on:
+  schedule:
+    # 06:00 UTC every day (~15:00 KST). Daily gives 7 pings inside the
+    # 7-day idle window, so we stay awake even if a few runs are skipped.
+    - cron: "0 6 * * *"
+  # Lets you trigger a run by hand from the Actions tab to test it.
+  workflow_dispatch:
+
+# Only one keep-alive run at a time; a new one cancels a stuck older one.
+concurrency:
+  group: keep-supabase-awake
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ping the creatures table
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://kjixuabuyapjguquxcvi.supabase.co' }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || 'sb_publishable_GIMpW98HGKSn9SsppOkc5A_DktJ9D09' }}
+        run: |
+          set -euo pipefail
+          url="${SUPABASE_URL%/}/rest/v1/creatures?select=id&limit=1"
+          echo "Pinging: ${SUPABASE_URL%/}/rest/v1/creatures (limit=1)"
+
+          # Retry a few times so a transient blip doesn't fail the whole run
+          # (which would email a false alarm). Only give up if all attempts
+          # fail. -f makes curl return non-zero on any HTTP 4xx/5xx.
+          attempt=1
+          max=5
+          until code=$(curl -sf -o /dev/null -w '%{http_code}' \
+              --max-time 20 \
+              -H "apikey: ${SUPABASE_ANON_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+              "$url"); do
+            if [ "$attempt" -ge "$max" ]; then
+              echo "::error::Supabase ping failed after ${max} attempts — the project may be paused or down."
+              exit 1
+            fi
+            echo "Attempt ${attempt}/${max} failed; retrying in 15s..."
+            attempt=$((attempt + 1))
+            sleep 15
+          done
+
+          echo "OK — Supabase responded HTTP ${code}. Idle timer reset."
