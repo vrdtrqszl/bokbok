@@ -227,9 +227,16 @@ export function matchesCreatureQuery(c: CreatureSpec, query: string): boolean {
 // suspenders coverage: new creatures from other clients show up within at
 // most POLL_MS even if no realtime event ever arrives.
 //
-// 8s feels right for an installation/exhibition context — fast enough that a
-// visitor isn't waiting after the previous person finishes, slow enough that
-// the DB isn't hammered.
+// This is only a BACKSTOP now. The realtime channel (subscribeEcosystemRemote)
+// delivers inserts/updates/deletes within a few hundred ms when it's healthy,
+// so the poll only has to cover the rare case where a realtime event is lost
+// (network flake, channel re-connect). 60s is plenty for that in an
+// installation/exhibition context, and a slower tick means far fewer idle
+// requests when nothing is changing.
+//
+// (Realtime used to be dead — a fixed channel name made the main page's
+// second subscription throw — so this poll was the ONLY sync path and had to
+// run every 8s. With unique channel names realtime works, so we can back off.)
 //
 // CRITICAL: each tick fetches only a tiny CHANGE SIGNATURE (row count +
 // newest created_at, a few bytes), NOT the whole flock. It calls onChange —
@@ -238,7 +245,7 @@ export function matchesCreatureQuery(c: CreatureSpec, query: string): boolean {
 // 8s per open tab; an always-on exhibition screen burned through the free-
 // tier egress quota in a day or two and got the project restricted. Fetching
 // bytes-not-megabytes on the idle path is what keeps us under the cap.
-const POLL_MS = 8000;
+const POLL_MS = 60000;
 
 /**
  * Subscribe to remote changes when in shared mode. In local mode this is a

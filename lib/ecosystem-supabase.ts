@@ -127,6 +127,17 @@ export async function findCreatureByIdRemote(
   return data ? rowToSpec(data as Row) : null;
 }
 
+// Monotonic suffix so every subscribeEcosystemRemote call gets its OWN
+// realtime channel name. supabase-js keys channels by name and refuses to
+// attach postgres_changes callbacks to a second channel that shares a name
+// with one that has already .subscribe()'d ("cannot add postgres_changes
+// callbacks ... after subscribe()"). The main page subscribes twice at once
+// (the 3D scene + the ambient-chatter loop), so a fixed "creatures-changes"
+// name made the SECOND subscription throw and realtime silently die — which
+// left the 8s poll as the only sync path. Unique names let every subscriber
+// get live events, so the poll goes back to being a rare backstop.
+let channelSeq = 0;
+
 /**
  * Subscribe to realtime changes on the `creatures` table. The callback fires
  * with no args whenever any row is inserted/updated/deleted — the page is
@@ -139,7 +150,7 @@ export function subscribeEcosystemRemote(onChange: () => void): () => void {
   if (!sb) return () => {};
   try {
     const channel = sb
-      .channel("creatures-changes")
+      .channel(`creatures-changes-${++channelSeq}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: TABLE },
