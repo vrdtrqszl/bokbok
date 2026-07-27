@@ -84,6 +84,36 @@ export async function deleteCreatureByIdRemote(id: string): Promise<boolean> {
   return true;
 }
 
+/**
+ * Cheap change-detection signature for the whole ecosystem. Returns a tiny
+ * string derived from the exact row COUNT plus the newest `created_at`,
+ * transferring a few bytes instead of the entire flock. The realtime/poll
+ * backstop compares this each tick and only pulls the full ecosystem when it
+ * actually changes — which is what stops an always-on exhibition display from
+ * silently re-downloading every creature every few seconds (the egress leak
+ * that tripped the free-tier quota).
+ *
+ * Detects creature ADD (count↑ / newer created_at) and DELETE (count↓). It
+ * does NOT detect an in-place EDIT of an existing creature (upsert with the
+ * same id keeps both count and created_at). Edits still propagate on the
+ * editing client immediately (uploadCreature fires ecosystem:changed locally)
+ * and to other clients via the realtime channel; the signature is only the
+ * belt-and-suspenders backstop. Returns null on any error so the caller can
+ * treat it as "no change / skip this tick" rather than reloading blindly.
+ */
+export async function remoteEcosystemSignature(): Promise<string | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  const { data, count, error } = await sb
+    .from(TABLE)
+    .select("created_at", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .limit(1);
+  if (error) return null;
+  const latest = data && data[0] ? (data[0] as { created_at: number }).created_at : 0;
+  return `${count ?? 0}:${latest}`;
+}
+
 export async function findCreatureByIdRemote(
   id: string,
 ): Promise<CreatureSpec | null> {

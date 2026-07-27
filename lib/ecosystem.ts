@@ -18,6 +18,7 @@ import {
   deleteCreatureByIdRemote,
   findCreatureByIdRemote,
   subscribeEcosystemRemote,
+  remoteEcosystemSignature,
 } from "./ecosystem-supabase";
 
 const KEY = "bokbok:ecosystem:v1";
@@ -218,24 +219,32 @@ export function matchesCreatureQuery(c: CreatureSpec, query: string): boolean {
 
 // ── realtime subscription (shared mode only) ──────────────────────────────
 
-// Poll interval (ms) for the fallback re-fetch loop. Supabase realtime
-// generally delivers postgres_changes within a few hundred ms when the
-// table is part of the realtime publication and RLS allows it, but in
-// practice some deployments lose events (network flake, channel
-// re-connect, publication misconfig). A modest periodic poll gives us
-// belt-and-suspenders coverage: new creatures from other clients show
-// up within at most POLL_MS even if no realtime event ever arrives.
+// Poll interval (ms) for the fallback change-detection loop. Supabase
+// realtime generally delivers postgres_changes within a few hundred ms when
+// the table is part of the realtime publication and RLS allows it, but in
+// practice some deployments lose events (network flake, channel re-connect,
+// publication misconfig). A modest periodic check gives us belt-and-
+// suspenders coverage: new creatures from other clients show up within at
+// most POLL_MS even if no realtime event ever arrives.
 //
-// 8s feels right for an installation/exhibition context — fast enough
-// that a visitor isn't waiting after the previous person finishes,
-// slow enough that the DB isn't hammered.
+// 8s feels right for an installation/exhibition context — fast enough that a
+// visitor isn't waiting after the previous person finishes, slow enough that
+// the DB isn't hammered.
+//
+// CRITICAL: each tick fetches only a tiny CHANGE SIGNATURE (row count +
+// newest created_at, a few bytes), NOT the whole flock. It calls onChange —
+// which pulls the full ecosystem via select(*) — ONLY when that signature
+// actually changes. The old version re-downloaded all ~100 creatures every
+// 8s per open tab; an always-on exhibition screen burned through the free-
+// tier egress quota in a day or two and got the project restricted. Fetching
+// bytes-not-megabytes on the idle path is what keeps us under the cap.
 const POLL_MS = 8000;
 
 /**
  * Subscribe to remote changes when in shared mode. In local mode this is a
  * no-op. The callback gets called whenever another browser changes the DB
- * (via the Supabase realtime channel) OR every POLL_MS as a backstop in
- * case realtime events are missed.
+ * (via the Supabase realtime channel) OR when the periodic signature check
+ * detects a change, as a backstop in case realtime events are missed.
  *
  * Returns an unsubscribe function that tears down BOTH the realtime
  * channel and the poll interval.
@@ -243,14 +252,33 @@ const POLL_MS = 8000;
 export function subscribeRemoteEcosystem(onChange: () => void): () => void {
   if (!isSharedMode()) return () => {};
   const unsubscribeRealtime = subscribeEcosystemRemote(onChange);
-  // Backup poll — independent of the realtime channel. If realtime
-  // fires first the poll's next tick is a harmless extra refresh
-  // (loadEcosystem is idempotent).
+
+  // Backup change-detection poll — independent of the realtime channel.
+  // Instead of blindly reloading every tick, we fetch the cheap signature
+  // and only fire onChange (a full reload) when it differs from the last
+  // one we saw. `lastSig` starts undefined; the first tick primes it. If a
+  // realtime event fires first, the next signature check simply confirms
+  // the value it already reloaded for and stays quiet.
+  let lastSig: string | undefined;
+  let stopped = false;
   const interval =
     typeof window !== "undefined"
-      ? window.setInterval(onChange, POLL_MS)
+      ? window.setInterval(async () => {
+          const sig = await remoteEcosystemSignature();
+          if (stopped || sig === null) return; // error → skip, try next tick
+          if (lastSig === undefined) {
+            lastSig = sig; // prime without an initial reload
+            return;
+          }
+          if (sig !== lastSig) {
+            lastSig = sig;
+            onChange();
+          }
+        }, POLL_MS)
       : null;
+
   return () => {
+    stopped = true;
     unsubscribeRealtime();
     if (interval !== null) window.clearInterval(interval);
   };
